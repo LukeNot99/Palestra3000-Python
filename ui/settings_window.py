@@ -36,15 +36,15 @@ class SettingsView(ctk.CTkFrame):
         self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
         self.scroll.pack(fill="both", expand=True)
 
-        lbl_titolo = ctk.CTkLabel(self.scroll, text="Impostazioni di Sistema", font=ctk.CTkFont(family="Ubuntu", size=28, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
+        lbl_titolo = ctk.CTkLabel(self.scroll, text="Impostazioni di Sistema", font=ctk.CTkFont(family="Montserrat", size=28, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
         lbl_titolo.pack(pady=(20, 20), padx=30, anchor="w")
 
         # ==================== HARDWARE E TORNELLO ====================
         hw_frame = ctk.CTkFrame(self.scroll, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         hw_frame.pack(padx=30, pady=(0, 15), fill="x")
         
-        ctk.CTkLabel(hw_frame, text="🔌 Lettore Schede (Tornello)", font=ctk.CTkFont(family="Ubuntu", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
-        ctk.CTkLabel(hw_frame, text="Seleziona la porta COM del lettore. Il software resterà in ascolto perenne in background.", font=ctk.CTkFont(family="Ubuntu", size=12), text_color=("#86868B", "#98989D")).pack(padx=20, anchor="w")
+        ctk.CTkLabel(hw_frame, text="🔌 Lettore Schede (Tornello)", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
+        ctk.CTkLabel(hw_frame, text="Seleziona la porta COM del lettore. Il software resterà in ascolto perenne in background.", font=ctk.CTkFont(family="Montserrat", size=12), text_color=("#86868B", "#98989D")).pack(padx=20, anchor="w")
         
         box_hw = ctk.CTkFrame(hw_frame, fg_color="transparent")
         box_hw.pack(pady=(10, 20), padx=20, fill="x")
@@ -52,18 +52,18 @@ class SettingsView(ctk.CTkFrame):
         porte = [p.device for p in serial.tools.list_ports.comports()]
         if not porte: porte = ["Nessun hardware rilevato"]
         
-        self.cmb_porta = ctk.CTkComboBox(box_hw, values=porte, width=200, font=ctk.CTkFont(family="Ubuntu", size=14))
+        self.cmb_porta = ctk.CTkComboBox(box_hw, values=porte, width=200, font=ctk.CTkFont(family="Montserrat", size=14))
         self.cmb_porta.set(leggi_impostazione("porta_tornello", porte[0]))
         self.cmb_porta.pack(side="left")
         
-        ctk.CTkButton(box_hw, text="Connetti / Salva", width=120, height=36, font=ctk.CTkFont(family="Ubuntu", size=13, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.salva_porta).pack(side="left", padx=10)
+        ctk.CTkButton(box_hw, text="Connetti / Salva", width=120, height=36, font=ctk.CTkFont(family="Montserrat", size=13, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.salva_porta).pack(side="left", padx=10)
 
         # ==================== REGOLE DI BLOCCO TORNELLO ====================
         block_frame = ctk.CTkFrame(self.scroll, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         block_frame.pack(padx=30, pady=(0, 15), fill="x")
         
-        ctk.CTkLabel(block_frame, text="🛡️ Regole di Blocco Tornello", font=ctk.CTkFont(family="Ubuntu", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
-        ctk.CTkLabel(block_frame, text="Accendi o spegni temporaneamente i controlli di blocco per gestire tolleranze o periodi di rinnovo.", font=ctk.CTkFont(family="Ubuntu", size=12), text_color=("#86868B", "#98989D")).pack(padx=20, anchor="w")
+        ctk.CTkLabel(block_frame, text="🛡️ Regole di Blocco Tornello", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
+        ctk.CTkLabel(block_frame, text="Accendi o spegni temporaneamente i controlli di blocco per gestire tolleranze o periodi di rinnovo.", font=ctk.CTkFont(family="Montserrat", size=12), text_color=("#86868B", "#98989D")).pack(padx=20, anchor="w")
 
         switches_container = ctk.CTkFrame(block_frame, fg_color="transparent")
         switches_container.pack(pady=(15, 20), padx=20, fill="x")
@@ -73,17 +73,17 @@ class SettingsView(ctk.CTkFrame):
         self.var_blocco_orari = ctk.BooleanVar(value=leggi_impostazione("blocco_orari", True))
         self.var_blocco_cert = ctk.BooleanVar(value=leggi_impostazione("blocco_cert", False)) 
 
-        ctk.CTkSwitch(switches_container, text="Blocca accesso se Iscrizione Annuale Scaduta", variable=self.var_blocco_iscr, command=self.salva_blocchi, font=ctk.CTkFont(family="Ubuntu", size=14), progress_color="#FF3B30").pack(pady=8, anchor="w")
-        ctk.CTkSwitch(switches_container, text="Blocca accesso se Abbonamento / Mensilità Scaduto", variable=self.var_blocco_abb, command=self.salva_blocchi, font=ctk.CTkFont(family="Ubuntu", size=14), progress_color="#FF9500").pack(pady=8, anchor="w")
-        ctk.CTkSwitch(switches_container, text="Blocca accesso se Fuori dalla Fascia Oraria assegnata", variable=self.var_blocco_orari, command=self.salva_blocchi, font=ctk.CTkFont(family="Ubuntu", size=14), progress_color="#34C759").pack(pady=8, anchor="w")
-        ctk.CTkSwitch(switches_container, text="Blocca accesso se Certificato Medico Assente o Scaduto", variable=self.var_blocco_cert, command=self.salva_blocchi, font=ctk.CTkFont(family="Ubuntu", size=14), progress_color="#007AFF").pack(pady=8, anchor="w")
+        ctk.CTkSwitch(switches_container, text="Blocca accesso se Iscrizione Annuale Scaduta", variable=self.var_blocco_iscr, command=self.salva_blocchi, font=ctk.CTkFont(family="Montserrat", size=14), progress_color="#FF3B30").pack(pady=8, anchor="w")
+        ctk.CTkSwitch(switches_container, text="Blocca accesso se Abbonamento / Mensilità Scaduto", variable=self.var_blocco_abb, command=self.salva_blocchi, font=ctk.CTkFont(family="Montserrat", size=14), progress_color="#FF9500").pack(pady=8, anchor="w")
+        ctk.CTkSwitch(switches_container, text="Blocca accesso se Fuori dalla Fascia Oraria assegnata", variable=self.var_blocco_orari, command=self.salva_blocchi, font=ctk.CTkFont(family="Montserrat", size=14), progress_color="#34C759").pack(pady=8, anchor="w")
+        ctk.CTkSwitch(switches_container, text="Blocca accesso se Certificato Medico Assente o Scaduto", variable=self.var_blocco_cert, command=self.salva_blocchi, font=ctk.CTkFont(family="Montserrat", size=14), progress_color="#007AFF").pack(pady=8, anchor="w")
 
         # ==================== MODULI AGGIUNTIVI ====================
         moduli_frame = ctk.CTkFrame(self.scroll, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         moduli_frame.pack(padx=30, pady=(0, 15), fill="x")
         
-        ctk.CTkLabel(moduli_frame, text="🧩 Moduli e Campi Aggiuntivi", font=ctk.CTkFont(family="Ubuntu", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
-        ctk.CTkLabel(moduli_frame, text="Attiva o disattiva le colonne e i campi visivi in giro per il gestionale.", font=ctk.CTkFont(family="Ubuntu", size=12), text_color=("#86868B", "#98989D")).pack(padx=20, anchor="w")
+        ctk.CTkLabel(moduli_frame, text="🧩 Moduli e Campi Aggiuntivi", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
+        ctk.CTkLabel(moduli_frame, text="Attiva o disattiva le colonne e i campi visivi in giro per il gestionale.", font=ctk.CTkFont(family="Montserrat", size=12), text_color=("#86868B", "#98989D")).pack(padx=20, anchor="w")
 
         mod_container = ctk.CTkFrame(moduli_frame, fg_color="transparent")
         mod_container.pack(pady=(15, 20), padx=20, fill="x")
@@ -91,39 +91,39 @@ class SettingsView(ctk.CTkFrame):
         self.var_mostra_costo = ctk.BooleanVar(value=leggi_impostazione("mostra_costo_fasce", False))
         self.var_mostra_eta = ctk.BooleanVar(value=leggi_impostazione("mostra_eta_fasce", False))
 
-        ctk.CTkSwitch(mod_container, text="Mostra modulo 'Costo Monetario' nelle Tariffe", variable=self.var_mostra_costo, command=self.salva_moduli, font=ctk.CTkFont(family="Ubuntu", size=14), progress_color="#007AFF").pack(pady=8, anchor="w")
-        ctk.CTkSwitch(mod_container, text="Mostra modulo 'Limiti di Età' nelle Tariffe", variable=self.var_mostra_eta, command=self.salva_moduli, font=ctk.CTkFont(family="Ubuntu", size=14), progress_color="#007AFF").pack(pady=8, anchor="w")
+        ctk.CTkSwitch(mod_container, text="Mostra modulo 'Costo Monetario' nelle Tariffe", variable=self.var_mostra_costo, command=self.salva_moduli, font=ctk.CTkFont(family="Montserrat", size=14), progress_color="#007AFF").pack(pady=8, anchor="w")
+        ctk.CTkSwitch(mod_container, text="Mostra modulo 'Limiti di Età' nelle Tariffe", variable=self.var_mostra_eta, command=self.salva_moduli, font=ctk.CTkFont(family="Montserrat", size=14), progress_color="#007AFF").pack(pady=8, anchor="w")
 
 
         # ==================== PERSONALIZZAZIONE E WHITELABEL (LOGO) ====================
         pers_frame = ctk.CTkFrame(self.scroll, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         pers_frame.pack(padx=30, pady=(0, 15), fill="x")
         
-        ctk.CTkLabel(pers_frame, text="🏷️ Personalizzazione (Whitelabel)", font=ctk.CTkFont(family="Ubuntu", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
-        ctk.CTkLabel(pers_frame, text="Imposta il nome e il logo della tua struttura. Verranno mostrati nella barra laterale.", font=ctk.CTkFont(family="Ubuntu", size=12), text_color=("#86868B", "#98989D")).pack(padx=20, anchor="w")
+        ctk.CTkLabel(pers_frame, text="🏷️ Personalizzazione (Whitelabel)", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
+        ctk.CTkLabel(pers_frame, text="Imposta il nome e il logo della tua struttura. Verranno mostrati nella barra laterale.", font=ctk.CTkFont(family="Montserrat", size=12), text_color=("#86868B", "#98989D")).pack(padx=20, anchor="w")
         
         input_frame = ctk.CTkFrame(pers_frame, fg_color="transparent")
         input_frame.pack(pady=(10, 5), padx=20, fill="x")
         
-        self.ent_nome_palestra = ctk.CTkEntry(input_frame, width=280, font=ctk.CTkFont(family="Ubuntu", size=14))
+        self.ent_nome_palestra = ctk.CTkEntry(input_frame, width=280, font=ctk.CTkFont(family="Montserrat", size=14))
         self.ent_nome_palestra.insert(0, leggi_impostazione("nome_palestra", "Palestra 3000"))
         self.ent_nome_palestra.pack(side="left")
         
-        ctk.CTkButton(input_frame, text="Salva Nome", width=100, height=36, font=ctk.CTkFont(family="Ubuntu", size=13, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.salva_nome).pack(side="left", padx=10)
+        ctk.CTkButton(input_frame, text="Salva Nome", width=100, height=36, font=ctk.CTkFont(family="Montserrat", size=13, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.salva_nome).pack(side="left", padx=10)
 
         # Nuovo Frame per i bottoni del Logo Immagine
         logo_frame = ctk.CTkFrame(pers_frame, fg_color="transparent")
         logo_frame.pack(pady=(0, 20), padx=20, fill="x")
 
-        ctk.CTkButton(logo_frame, text="🖼️ Carica Logo", width=140, height=36, font=ctk.CTkFont(family="Ubuntu", size=13, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.carica_logo).pack(side="left")
-        ctk.CTkButton(logo_frame, text="🗑️ Rimuovi Logo", width=140, height=36, font=ctk.CTkFont(family="Ubuntu", size=13, weight="bold"), fg_color="#FF3B30", hover_color="#c0392b", command=self.rimuovi_logo).pack(side="left", padx=10)
+        ctk.CTkButton(logo_frame, text="🖼️ Carica Logo", width=140, height=36, font=ctk.CTkFont(family="Montserrat", size=13, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.carica_logo).pack(side="left")
+        ctk.CTkButton(logo_frame, text="🗑️ Rimuovi Logo", width=140, height=36, font=ctk.CTkFont(family="Montserrat", size=13, weight="bold"), fg_color="#FF3B30", hover_color="#c0392b", command=self.rimuovi_logo).pack(side="left", padx=10)
 
 
         # ==================== CARD TEMA VISIVO ====================
         theme_frame = ctk.CTkFrame(self.scroll, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         theme_frame.pack(padx=30, pady=(0, 15), fill="x")
         
-        ctk.CTkLabel(theme_frame, text="🎨 Aspetto e Tema", font=ctk.CTkFont(family="Ubuntu", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
+        ctk.CTkLabel(theme_frame, text="🎨 Aspetto e Tema", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
         
         tema_attuale = leggi_impostazione("tema", "Light")
         self.theme_var = ctk.StringVar(value=tema_attuale)
@@ -135,7 +135,7 @@ class SettingsView(ctk.CTkFrame):
         db_frame = ctk.CTkFrame(self.scroll, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         db_frame.pack(padx=30, pady=(0, 20), fill="x")
 
-        ctk.CTkLabel(db_frame, text="💾 Gestione Database Locale", font=ctk.CTkFont(family="Ubuntu", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
+        ctk.CTkLabel(db_frame, text="💾 Gestione Database Locale", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
         
         base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         self.db_path = os.path.join(base_dir, "palestra3000.db")
@@ -148,13 +148,13 @@ class SettingsView(ctk.CTkFrame):
             stato_testo = "Stato: Database non trovato!"
             colore_stato = "#FF3B30" 
 
-        ctk.CTkLabel(db_frame, text=stato_testo, text_color=colore_stato, font=ctk.CTkFont(family="Ubuntu", weight="bold")).pack(padx=20, anchor="w")
+        ctk.CTkLabel(db_frame, text=stato_testo, text_color=colore_stato, font=ctk.CTkFont(family="Montserrat", weight="bold")).pack(padx=20, anchor="w")
 
         btn_db_frame = ctk.CTkFrame(db_frame, fg_color="transparent")
         btn_db_frame.pack(pady=(15, 20), padx=20, fill="x")
 
-        ctk.CTkButton(btn_db_frame, text="Crea Backup", width=140, height=38, font=ctk.CTkFont(family="Ubuntu", size=14, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.esegui_backup).pack(side="left")
-        ctk.CTkButton(btn_db_frame, text="Ripristina Dati", width=140, height=38, font=ctk.CTkFont(family="Ubuntu", size=14, weight="bold"), fg_color="#FF9500", hover_color="#d35400", command=self.ripristina_backup).pack(side="right")
+        ctk.CTkButton(btn_db_frame, text="Crea Backup", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.esegui_backup).pack(side="left")
+        ctk.CTkButton(btn_db_frame, text="Ripristina Dati", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#FF9500", hover_color="#d35400", command=self.ripristina_backup).pack(side="right")
 
     # --- FUNZIONALITA' ---
     def salva_blocchi(self):

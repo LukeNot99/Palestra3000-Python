@@ -36,29 +36,29 @@ class TariffeView(ctk.CTkFrame):
         form_frame.grid_columnconfigure((0, 1, 2, 3), weight=1, uniform="colonna")
 
         # Dichiaro tutti i widget, ma li posiziono solo se necessario!
-        self.lbl_sigla = ctk.CTkLabel(form_frame, text="Sigla Fascia:", text_color=("#86868B", "#98989D"), font=ctk.CTkFont(family="Ubuntu", weight="bold"))
-        self.ent_sigla = ctk.CTkEntry(form_frame, width=180, font=ctk.CTkFont(family="Ubuntu"))
+        self.lbl_sigla = ctk.CTkLabel(form_frame, text="Sigla Fascia:", text_color=("#86868B", "#98989D"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
+        self.ent_sigla = ctk.CTkEntry(form_frame, width=180, font=ctk.CTkFont(family="Montserrat"))
 
-        self.lbl_costo = ctk.CTkLabel(form_frame, text="Costo (€):", text_color=("#86868B", "#98989D"), font=ctk.CTkFont(family="Ubuntu", weight="bold"))
-        self.ent_costo = ctk.CTkEntry(form_frame, width=180, justify="center", placeholder_text="0.00", font=ctk.CTkFont(family="Ubuntu"))
+        self.lbl_costo = ctk.CTkLabel(form_frame, text="Costo (€):", text_color=("#86868B", "#98989D"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
+        self.ent_costo = ctk.CTkEntry(form_frame, width=180, justify="center", placeholder_text="0.00", font=ctk.CTkFont(family="Montserrat"))
 
-        self.lbl_eta = ctk.CTkLabel(form_frame, text="Età (Min - Max):", text_color=("#86868B", "#98989D"), font=ctk.CTkFont(family="Ubuntu", weight="bold"))
+        self.lbl_eta = ctk.CTkLabel(form_frame, text="Età (Min - Max):", text_color=("#86868B", "#98989D"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
         self.frame_eta = ctk.CTkFrame(form_frame, fg_color="transparent")
-        self.ent_eta_min = ctk.CTkEntry(self.frame_eta, width=70, justify="center", font=ctk.CTkFont(family="Ubuntu")); self.ent_eta_min.insert(0, "0"); self.ent_eta_min.pack(side="left")
-        ctk.CTkLabel(self.frame_eta, text=" - ", font=ctk.CTkFont(family="Ubuntu")).pack(side="left", padx=5)
-        self.ent_eta_max = ctk.CTkEntry(self.frame_eta, width=70, justify="center", font=ctk.CTkFont(family="Ubuntu")); self.ent_eta_max.insert(0, "200"); self.ent_eta_max.pack(side="left")
+        self.ent_eta_min = ctk.CTkEntry(self.frame_eta, width=70, justify="center", font=ctk.CTkFont(family="Montserrat")); self.ent_eta_min.insert(0, "0"); self.ent_eta_min.pack(side="left")
+        ctk.CTkLabel(self.frame_eta, text=" - ", font=ctk.CTkFont(family="Montserrat")).pack(side="left", padx=5)
+        self.ent_eta_max = ctk.CTkEntry(self.frame_eta, width=70, justify="center", font=ctk.CTkFont(family="Montserrat")); self.ent_eta_max.insert(0, "200"); self.ent_eta_max.pack(side="left")
 
-        self.lbl_orari = ctk.CTkLabel(form_frame, text="Orari Accesso (HH:MM):", text_color=("#86868B", "#98989D"), font=ctk.CTkFont(family="Ubuntu", weight="bold"))
+        self.lbl_orari = ctk.CTkLabel(form_frame, text="Orari Accesso (HH:MM):", text_color=("#86868B", "#98989D"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
         self.frame_orari = ctk.CTkFrame(form_frame, fg_color="transparent")
-        self.ent_accesso = ctk.CTkEntry(self.frame_orari, width=70, justify="center", font=ctk.CTkFont(family="Ubuntu")); self.ent_accesso.insert(0, "00:00"); self.ent_accesso.pack(side="left")
-        ctk.CTkLabel(self.frame_orari, text=" - ", font=ctk.CTkFont(family="Ubuntu")).pack(side="left", padx=5)
-        self.ent_uscita = ctk.CTkEntry(self.frame_orari, width=70, justify="center", font=ctk.CTkFont(family="Ubuntu")); self.ent_uscita.insert(0, "23:59"); self.ent_uscita.pack(side="left")
+        self.ent_accesso = ctk.CTkEntry(self.frame_orari, width=70, justify="center", font=ctk.CTkFont(family="Montserrat")); self.ent_accesso.insert(0, "00:00"); self.ent_accesso.pack(side="left")
+        ctk.CTkLabel(self.frame_orari, text=" - ", font=ctk.CTkFont(family="Montserrat")).pack(side="left", padx=5)
+        self.ent_uscita = ctk.CTkEntry(self.frame_orari, width=70, justify="center", font=ctk.CTkFont(family="Montserrat")); self.ent_uscita.insert(0, "23:59"); self.ent_uscita.pack(side="left")
 
-        self.lbl_durata = ctk.CTkLabel(form_frame, text="Durata Abbonamento (Mesi):", text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Ubuntu", weight="bold"))
-        self.ent_durata = ctk.CTkEntry(form_frame, width=180, justify="center", text_color=("#007AFF", "#0A84FF"), font=ctk.CTkFont(family="Ubuntu", weight="bold")); self.ent_durata.insert(0, "1")
+        self.lbl_durata = ctk.CTkLabel(form_frame, text="Durata Abbonamento (Mesi):", text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
+        self.ent_durata = ctk.CTkEntry(form_frame, width=180, justify="center", text_color=("#007AFF", "#0A84FF"), font=ctk.CTkFont(family="Montserrat", weight="bold")); self.ent_durata.insert(0, "1")
 
-        self.lbl_ingressi = ctk.CTkLabel(form_frame, text="Carnet (0 = Illimitati):", text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Ubuntu", weight="bold"))
-        self.ent_ingressi = ctk.CTkEntry(form_frame, width=180, justify="center", text_color=("#007AFF", "#0A84FF"), font=ctk.CTkFont(family="Ubuntu", weight="bold")); self.ent_ingressi.insert(0, "0")
+        self.lbl_ingressi = ctk.CTkLabel(form_frame, text="Carnet (0 = Illimitati):", text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
+        self.ent_ingressi = ctk.CTkEntry(form_frame, width=180, justify="center", text_color=("#007AFF", "#0A84FF"), font=ctk.CTkFont(family="Montserrat", weight="bold")); self.ent_ingressi.insert(0, "0")
 
         # LOGICA DI GRIGLIA INTELLIGENTE
         # Aggiungo i campi alla lista di visualizzazione solo se l'interruttore è acceso!
@@ -80,13 +80,13 @@ class TariffeView(ctk.CTkFrame):
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=5)
 
-        self.btn_salva = ctk.CTkButton(btn_frame, text="Salva Dati", width=140, height=38, font=ctk.CTkFont(family="Ubuntu", size=14, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.salva_tariffa)
+        self.btn_salva = ctk.CTkButton(btn_frame, text="Salva Dati", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.salva_tariffa)
         self.btn_salva.pack(side="left", padx=(0, 10))
 
-        ctk.CTkButton(btn_frame, text="Svuota Form", width=120, height=38, font=ctk.CTkFont(family="Ubuntu", size=14, weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.svuota_form).pack(side="left")
+        ctk.CTkButton(btn_frame, text="Svuota Form", width=120, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.svuota_form).pack(side="left")
         
-        ctk.CTkButton(btn_frame, text="✏️ Modifica", width=140, height=38, font=ctk.CTkFont(family="Ubuntu", size=14, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.carica_in_form).pack(side="left", padx=(20, 10))
-        ctk.CTkButton(btn_frame, text="🗑️ Elimina", width=120, height=38, font=ctk.CTkFont(family="Ubuntu", size=14, weight="bold"), fg_color="#FF3B30", hover_color="#e03026", command=self.elimina_tariffa).pack(side="right")
+        ctk.CTkButton(btn_frame, text="✏️ Modifica", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.carica_in_form).pack(side="left", padx=(20, 10))
+        ctk.CTkButton(btn_frame, text="🗑️ Elimina", width=120, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#FF3B30", hover_color="#e03026", command=self.elimina_tariffa).pack(side="right")
 
         # ==================== DATA GRID (COLONNE DINAMICHE) ====================
         self.table_container = ctk.CTkFrame(self, fg_color="transparent")
@@ -106,7 +106,7 @@ class TariffeView(ctk.CTkFrame):
         
         for i, col in enumerate(self.cols):
             header_frame.grid_columnconfigure(i, weight=col[2], uniform="colonna")
-            ctk.CTkLabel(header_frame, text=col[1], font=ctk.CTkFont(family="Ubuntu", size=12, weight="bold"), text_color=("#86868B", "#98989D"), anchor=col[3]).grid(row=0, column=i, padx=10, pady=5, sticky="ew")
+            ctk.CTkLabel(header_frame, text=col[1], font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"), text_color=("#86868B", "#98989D"), anchor=col[3]).grid(row=0, column=i, padx=10, pady=5, sticky="ew")
 
         self.scroll_table = ctk.CTkScrollableFrame(self.table_container, fg_color="transparent")
         self.scroll_table.pack(fill="both", expand=True)
@@ -160,7 +160,7 @@ class TariffeView(ctk.CTkFrame):
         
         for i, val in enumerate(valori):
             riga_frame.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
-            lbl = ctk.CTkLabel(riga_frame, text=val, font=ctk.CTkFont(family="Ubuntu", size=13), text_color=("#1D1D1F", "#FFFFFF"), anchor=self.cols[i][3])
+            lbl = ctk.CTkLabel(riga_frame, text=val, font=ctk.CTkFont(family="Montserrat", size=13), text_color=("#1D1D1F", "#FFFFFF"), anchor=self.cols[i][3])
             lbl.grid(row=0, column=i, padx=10, pady=10, sticky="ew")
             elementi_riga.append(lbl)
 

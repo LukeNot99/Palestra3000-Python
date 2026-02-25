@@ -19,7 +19,7 @@ class SocioFormWindow(ctk.CTkToplevel):
         self.grab_set()
         self.protocol("WM_DELETE_WINDOW", self.chiudi)
 
-        lbl_titolo = ctk.CTkLabel(self, text="Scheda Anagrafica e Iscrizione", font=ctk.CTkFont(family="Ubuntu", size=22, weight="bold"), text_color="#007AFF")
+        lbl_titolo = ctk.CTkLabel(self, text="Scheda Anagrafica e Iscrizione", font=ctk.CTkFont(family="Montserrat", size=22, weight="bold"), text_color="#007AFF")
         lbl_titolo.pack(pady=(15, 5))
 
         self.scroll_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
@@ -38,45 +38,45 @@ class SocioFormWindow(ctk.CTkToplevel):
         frame_sx = ctk.CTkFrame(grid_container, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         frame_sx.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
 
-        ctk.CTkLabel(frame_sx, text="👤 Dati Personali", font=ctk.CTkFont(family="Ubuntu", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(15, 15))
+        ctk.CTkLabel(frame_sx, text="👤 Dati Personali", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(15, 15))
 
-        ctk.CTkLabel(frame_sx, text="Numero Scheda:", font=ctk.CTkFont(family="Ubuntu"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
+        ctk.CTkLabel(frame_sx, text="Numero Scheda:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.ent_scheda = ctk.CTkEntry(frame_sx, placeholder_text="Es. 000123")
         self.ent_scheda.pack(pady=(0, 15), padx=20, fill="x")
 
-        ctk.CTkLabel(frame_sx, text="Nome:", font=ctk.CTkFont(family="Ubuntu"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
+        ctk.CTkLabel(frame_sx, text="Nome:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.ent_nome = ctk.CTkEntry(frame_sx)
         self.ent_nome.pack(pady=(0, 15), padx=20, fill="x")
 
-        ctk.CTkLabel(frame_sx, text="Cognome:", font=ctk.CTkFont(family="Ubuntu"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
+        ctk.CTkLabel(frame_sx, text="Cognome:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.ent_cognome = ctk.CTkEntry(frame_sx)
         self.ent_cognome.pack(pady=(0, 15), padx=20, fill="x")
 
-        ctk.CTkLabel(frame_sx, text="Data di Nascita (GG/MM/AAAA):", font=ctk.CTkFont(family="Ubuntu"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
+        ctk.CTkLabel(frame_sx, text="Data di Nascita (GG/MM/AAAA):", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.ent_data_nascita = ctk.CTkEntry(frame_sx, placeholder_text="Es. 15/08/1985")
         self.ent_data_nascita.pack(pady=(0, 15), padx=20, fill="x")
 
-        ctk.CTkLabel(frame_sx, text="Luogo di Nascita:", font=ctk.CTkFont(family="Ubuntu"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
+        ctk.CTkLabel(frame_sx, text="Luogo di Nascita:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.cmb_luogo_nascita = ctk.CTkComboBox(frame_sx, values=luoghi_unici)
         self.cmb_luogo_nascita.pack(pady=(0, 15), padx=20, fill="x")
 
-        ctk.CTkLabel(frame_sx, text="Comune di Residenza:", font=ctk.CTkFont(family="Ubuntu"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
+        ctk.CTkLabel(frame_sx, text="Comune di Residenza:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.cmb_comune = ctk.CTkComboBox(frame_sx, values=comuni_unici)
         self.cmb_comune.pack(pady=(0, 15), padx=20, fill="x")
 
-        ctk.CTkLabel(frame_sx, text="Indirizzo:", font=ctk.CTkFont(family="Ubuntu"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
+        ctk.CTkLabel(frame_sx, text="Indirizzo:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.ent_indirizzo = ctk.CTkEntry(frame_sx)
         self.ent_indirizzo.pack(pady=(0, 15), padx=20, fill="x")
 
-        ctk.CTkLabel(frame_sx, text="Telefono:", font=ctk.CTkFont(family="Ubuntu"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
+        ctk.CTkLabel(frame_sx, text="Telefono:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.ent_telefono = ctk.CTkEntry(frame_sx)
         self.ent_telefono.pack(pady=(0, 15), padx=20, fill="x")
 
-        ctk.CTkLabel(frame_sx, text="Altro Recapito (Es. Tel fisso o Parenti):", font=ctk.CTkFont(family="Ubuntu"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
+        ctk.CTkLabel(frame_sx, text="Altro Recapito (Es. Tel fisso o Parenti):", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.ent_altro_recapito = ctk.CTkEntry(frame_sx, placeholder_text="Opzionale")
         self.ent_altro_recapito.pack(pady=(0, 15), padx=20, fill="x")
 
-        ctk.CTkLabel(frame_sx, text="Sesso:", font=ctk.CTkFont(family="Ubuntu"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
+        ctk.CTkLabel(frame_sx, text="Sesso:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.cmb_sesso = ctk.CTkOptionMenu(frame_sx, values=["M", "F"])
         self.cmb_sesso.pack(pady=(0, 20), padx=20, fill="x")
 
@@ -84,38 +84,38 @@ class SocioFormWindow(ctk.CTkToplevel):
         frame_dx = ctk.CTkFrame(grid_container, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         frame_dx.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
 
-        ctk.CTkLabel(frame_dx, text="🏷️ Dati Iscrizione e Abbonamento", font=ctk.CTkFont(family="Ubuntu", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(15, 15))
+        ctk.CTkLabel(frame_dx, text="🏷️ Dati Iscrizione e Abbonamento", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(15, 15))
 
-        ctk.CTkLabel(frame_dx, text="Scadenza Iscrizione Annuale (Quota):", font=ctk.CTkFont(family="Ubuntu", weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(0,5))
-        self.ent_scadenza_iscr = ctk.CTkEntry(frame_dx, placeholder_text="Es. 30/12/2026", text_color=("#FF9500", "#FF9500"), font=ctk.CTkFont(family="Ubuntu", weight="bold"))
+        ctk.CTkLabel(frame_dx, text="Scadenza Iscrizione Annuale (Quota):", font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(0,5))
+        self.ent_scadenza_iscr = ctk.CTkEntry(frame_dx, placeholder_text="Es. 30/12/2026", text_color=("#FF9500", "#FF9500"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
         self.ent_scadenza_iscr.pack(pady=(0, 25), padx=20, fill="x")
 
         self.tiers = self.db.query(Tier).all()
         tier_names = ["Nessuna fascia"] + [t.name for t in self.tiers]
         
-        ctk.CTkLabel(frame_dx, text="Seleziona Fascia Abbonamento:", font=ctk.CTkFont(family="Ubuntu", weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(0, 5))
+        ctk.CTkLabel(frame_dx, text="Seleziona Fascia Abbonamento:", font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(0, 5))
         self.cmb_fascia = ctk.CTkOptionMenu(frame_dx, values=tier_names, command=self.aggiorna_fascia_selezionata)
         self.cmb_fascia.pack(pady=(0, 15), padx=20, fill="x")
 
-        ctk.CTkLabel(frame_dx, text="Ingressi Rimanenti (Carnet):", font=ctk.CTkFont(family="Ubuntu", weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(0,5))
-        self.ent_ingressi = ctk.CTkEntry(frame_dx, placeholder_text="Es. 10 o Illimitati", font=ctk.CTkFont(family="Ubuntu", weight="bold"), text_color=("#007AFF", "#0A84FF"))
+        ctk.CTkLabel(frame_dx, text="Ingressi Rimanenti (Carnet):", font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(0,5))
+        self.ent_ingressi = ctk.CTkEntry(frame_dx, placeholder_text="Es. 10 o Illimitati", font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color=("#007AFF", "#0A84FF"))
         self.ent_ingressi.pack(pady=(0, 15), padx=20, fill="x")
 
-        ctk.CTkLabel(frame_dx, text="Data PARTENZA Mensilità:", font=ctk.CTkFont(family="Ubuntu"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(0,5))
-        self.ent_partenza_mensilita = ctk.CTkEntry(frame_dx, placeholder_text="Data inizio", text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Ubuntu"))
+        ctk.CTkLabel(frame_dx, text="Data PARTENZA Mensilità:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(0,5))
+        self.ent_partenza_mensilita = ctk.CTkEntry(frame_dx, placeholder_text="Data inizio", text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Montserrat"))
         self.ent_partenza_mensilita.pack(pady=(0, 15), padx=20, fill="x")
         self.ent_partenza_mensilita.bind("<Return>", lambda e: self.calcola_scadenza_automatica())
         self.ent_partenza_mensilita.bind("<FocusOut>", lambda e: self.calcola_scadenza_automatica())
 
-        ctk.CTkLabel(frame_dx, text="Data SCADENZA Mensilità (Calcolo Auto):", font=ctk.CTkFont(family="Ubuntu"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(0,5))
-        self.ent_scadenza_mensilita = ctk.CTkEntry(frame_dx, placeholder_text="Scadenza fine abbonamento", text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Ubuntu", weight="bold"))
+        ctk.CTkLabel(frame_dx, text="Data SCADENZA Mensilità (Calcolo Auto):", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(0,5))
+        self.ent_scadenza_mensilita = ctk.CTkEntry(frame_dx, placeholder_text="Scadenza fine abbonamento", text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
         self.ent_scadenza_mensilita.pack(pady=(0, 30), padx=20, fill="x")
 
-        ctk.CTkLabel(frame_dx, text="Dati Medici (Promemoria non bloccante):", font=ctk.CTkFont(family="Ubuntu", weight="bold"), text_color=("#86868B", "#98989D")).pack(anchor="w", padx=20, pady=(0,10))
-        self.chk_certificato = ctk.CTkCheckBox(frame_dx, text="Certificato Medico Consegnato", font=ctk.CTkFont(family="Ubuntu"), text_color=("#1D1D1F", "#FFFFFF"))
+        ctk.CTkLabel(frame_dx, text="Dati Medici (Promemoria non bloccante):", font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color=("#86868B", "#98989D")).pack(anchor="w", padx=20, pady=(0,10))
+        self.chk_certificato = ctk.CTkCheckBox(frame_dx, text="Certificato Medico Consegnato", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF"))
         self.chk_certificato.pack(pady=(0, 15), padx=20, anchor="w")
 
-        ctk.CTkLabel(frame_dx, text="Scadenza Certificato (GG/MM/AAAA):", font=ctk.CTkFont(family="Ubuntu"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
+        ctk.CTkLabel(frame_dx, text="Scadenza Certificato (GG/MM/AAAA):", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.ent_scadenza_cert = ctk.CTkEntry(frame_dx)
         self.ent_scadenza_cert.pack(pady=(0, 20), padx=20, fill="x")
 
@@ -133,8 +133,8 @@ class SocioFormWindow(ctk.CTkToplevel):
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.pack(pady=(15, 20), fill="x", padx=40)
         
-        ctk.CTkButton(btn_frame, text="OK / Salva", width=140, height=38, font=ctk.CTkFont(family="Ubuntu", size=14, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.salva_socio).pack(side="left")
-        ctk.CTkButton(btn_frame, text="Annulla", width=140, height=38, font=ctk.CTkFont(family="Ubuntu", size=14, weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.chiudi).pack(side="right")
+        ctk.CTkButton(btn_frame, text="OK / Salva", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.salva_socio).pack(side="left")
+        ctk.CTkButton(btn_frame, text="Annulla", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.chiudi).pack(side="right")
 
     def chiudi(self):
         self.db.close()
@@ -299,35 +299,35 @@ class SociView(ctk.CTkFrame):
         row1 = ctk.CTkFrame(search_frame, fg_color="transparent")
         row1.pack(pady=(15, 5), fill="x", padx=15)
 
-        ctk.CTkLabel(row1, text="Nome:", font=ctk.CTkFont(family="Ubuntu", weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=(0, 5))
-        self.src_nome = ctk.CTkEntry(row1, width=160, font=ctk.CTkFont(family="Ubuntu"))
+        ctk.CTkLabel(row1, text="Nome:", font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=(0, 5))
+        self.src_nome = ctk.CTkEntry(row1, width=160, font=ctk.CTkFont(family="Montserrat"))
         self.src_nome.pack(side="left", padx=(0, 20))
 
-        ctk.CTkLabel(row1, text="Cognome:", font=ctk.CTkFont(family="Ubuntu", weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=(0, 5))
-        self.src_cognome = ctk.CTkEntry(row1, width=160, font=ctk.CTkFont(family="Ubuntu"))
+        ctk.CTkLabel(row1, text="Cognome:", font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=(0, 5))
+        self.src_cognome = ctk.CTkEntry(row1, width=160, font=ctk.CTkFont(family="Montserrat"))
         self.src_cognome.pack(side="left", padx=(0, 20))
 
-        ctk.CTkLabel(row1, text="Telefono:", font=ctk.CTkFont(family="Ubuntu", weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=(0, 5))
-        self.src_telefono = ctk.CTkEntry(row1, width=160, font=ctk.CTkFont(family="Ubuntu"))
+        ctk.CTkLabel(row1, text="Telefono:", font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=(0, 5))
+        self.src_telefono = ctk.CTkEntry(row1, width=160, font=ctk.CTkFont(family="Montserrat"))
         self.src_telefono.pack(side="left", padx=(0, 20))
 
         # --- RIGA 2: Dati Iscrizione e Bottoni ---
         row2 = ctk.CTkFrame(search_frame, fg_color="transparent")
         row2.pack(pady=(5, 15), fill="x", padx=15)
 
-        ctk.CTkLabel(row2, text="Num. Scheda:", font=ctk.CTkFont(family="Ubuntu", weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=(0, 5))
-        self.src_scheda = ctk.CTkEntry(row2, width=120, font=ctk.CTkFont(family="Ubuntu"))
+        ctk.CTkLabel(row2, text="Num. Scheda:", font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=(0, 5))
+        self.src_scheda = ctk.CTkEntry(row2, width=120, font=ctk.CTkFont(family="Montserrat"))
         self.src_scheda.pack(side="left", padx=(0, 20))
 
-        ctk.CTkLabel(row2, text="Fascia Abbonamento:", font=ctk.CTkFont(family="Ubuntu", weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=(0, 5))
-        self.src_fascia = ctk.CTkComboBox(row2, values=tier_names, width=160, font=ctk.CTkFont(family="Ubuntu"))
+        ctk.CTkLabel(row2, text="Fascia Abbonamento:", font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=(0, 5))
+        self.src_fascia = ctk.CTkComboBox(row2, values=tier_names, width=160, font=ctk.CTkFont(family="Montserrat"))
         self.src_fascia.set("Tutte")
         self.src_fascia.pack(side="left", padx=(0, 20))
 
-        btn_annulla = ctk.CTkButton(row2, text="Resetta", width=100, height=32, font=ctk.CTkFont(family="Ubuntu", weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.reset_ricerca)
+        btn_annulla = ctk.CTkButton(row2, text="Resetta", width=100, height=32, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.reset_ricerca)
         btn_annulla.pack(side="right", padx=(10, 0))
 
-        btn_cerca = ctk.CTkButton(row2, text="Cerca", width=100, height=32, font=ctk.CTkFont(family="Ubuntu", weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.carica_dati)
+        btn_cerca = ctk.CTkButton(row2, text="Cerca", width=100, height=32, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.carica_dati)
         btn_cerca.pack(side="right")
 
         self.table_container = ctk.CTkFrame(self, fg_color="transparent")
@@ -347,7 +347,7 @@ class SociView(ctk.CTkFrame):
         
         for i, col in enumerate(self.cols):
             header_frame.grid_columnconfigure(i, weight=col[2], uniform="colonna")
-            ctk.CTkLabel(header_frame, text=col[1], font=ctk.CTkFont(family="Ubuntu", size=12, weight="bold"), text_color=("#86868B", "#98989D"), anchor=col[3]).grid(row=0, column=i, padx=10, pady=5, sticky="ew")
+            ctk.CTkLabel(header_frame, text=col[1], font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"), text_color=("#86868B", "#98989D"), anchor=col[3]).grid(row=0, column=i, padx=10, pady=5, sticky="ew")
 
         self.scroll_table = ctk.CTkScrollableFrame(self.table_container, fg_color="transparent")
         self.scroll_table.pack(fill="both", expand=True)
@@ -355,9 +355,9 @@ class SociView(ctk.CTkFrame):
         bottom_frame = ctk.CTkFrame(self, fg_color="transparent")
         bottom_frame.grid(row=3, column=0, sticky="ew", padx=20, pady=15)
 
-        ctk.CTkButton(bottom_frame, text="+ Nuovo Socio", width=150, height=38, font=ctk.CTkFont(family="Ubuntu", size=14, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.apri_form_nuovo).pack(side="left", padx=(0, 10))
-        ctk.CTkButton(bottom_frame, text="✏️ Modifica", width=150, height=38, font=ctk.CTkFont(family="Ubuntu", size=14, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.apri_form_modifica).pack(side="left", padx=10)
-        ctk.CTkButton(bottom_frame, text="🗑️ Elimina", width=150, height=38, font=ctk.CTkFont(family="Ubuntu", size=14, weight="bold"), fg_color="#FF3B30", hover_color="#e03026", command=self.elimina_socio).pack(side="right")
+        ctk.CTkButton(bottom_frame, text="+ Nuovo Socio", width=150, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.apri_form_nuovo).pack(side="left", padx=(0, 10))
+        ctk.CTkButton(bottom_frame, text="✏️ Modifica", width=150, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.apri_form_modifica).pack(side="left", padx=10)
+        ctk.CTkButton(bottom_frame, text="🗑️ Elimina", width=150, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#FF3B30", hover_color="#e03026", command=self.elimina_socio).pack(side="right")
 
         self.carica_dati()
 
@@ -395,7 +395,7 @@ class SociView(ctk.CTkFrame):
         
         for i, val in enumerate(valori):
             riga_frame.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
-            lbl = ctk.CTkLabel(riga_frame, text=val, font=ctk.CTkFont(family="Ubuntu", size=13), text_color=("#1D1D1F", "#FFFFFF"), anchor=self.cols[i][3])
+            lbl = ctk.CTkLabel(riga_frame, text=val, font=ctk.CTkFont(family="Montserrat", size=13), text_color=("#1D1D1F", "#FFFFFF"), anchor=self.cols[i][3])
             lbl.grid(row=0, column=i, padx=10, pady=10, sticky="ew")
             elementi_riga.append(lbl)
 

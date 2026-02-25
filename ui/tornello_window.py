@@ -10,18 +10,18 @@ class TornelloView(ctk.CTkFrame):
 
         top_frame = ctk.CTkFrame(self, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         top_frame.pack(fill="x", pady=(0, 20))
-        ctk.CTkLabel(top_frame, text="Inserimento Manuale", font=ctk.CTkFont(family="Ubuntu", size=18, weight="bold")).pack(pady=(15, 5))
+        ctk.CTkLabel(top_frame, text="Inserimento Manuale", font=ctk.CTkFont(family="Montserrat", size=18, weight="bold")).pack(pady=(15, 5))
         
         input_row = ctk.CTkFrame(top_frame, fg_color="transparent"); input_row.pack(pady=(0, 20))
-        self.ent_id = ctk.CTkEntry(input_row, width=200, font=ctk.CTkFont(family="Ubuntu", size=18, weight="bold"), justify="center", placeholder_text="Num. Scheda")
+        self.ent_id = ctk.CTkEntry(input_row, width=200, font=ctk.CTkFont(family="Montserrat", size=18, weight="bold"), justify="center", placeholder_text="Num. Scheda")
         self.ent_id.pack(side="left", padx=10)
         self.ent_id.bind("<Return>", lambda e: self.simula_strisciata())
-        ctk.CTkButton(input_row, text="Verifica", width=120, height=38, font=ctk.CTkFont(family="Ubuntu", weight="bold"), fg_color="#007AFF", command=self.simula_strisciata).pack(side="left", padx=5)
-        ctk.CTkButton(input_row, text="Apri (Forzato)", width=140, height=38, font=ctk.CTkFont(family="Ubuntu", weight="bold"), fg_color="#FF3B30", command=self.app.apertura_manuale_globale).pack(side="left", padx=(15, 10))
+        ctk.CTkButton(input_row, text="Verifica", width=120, height=38, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#007AFF", command=self.simula_strisciata).pack(side="left", padx=5)
+        ctk.CTkButton(input_row, text="Apri (Forzato)", width=140, height=38, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#FF3B30", command=self.app.apertura_manuale_globale).pack(side="left", padx=(15, 10))
 
         log_frame = ctk.CTkFrame(self, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         log_frame.pack(fill="both", expand=True)
-        ctk.CTkLabel(log_frame, text="Cronologia (Doppio clic sul log per aprire l'anagrafica)", font=ctk.CTkFont(family="Ubuntu", size=14, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(10, 5))
+        ctk.CTkLabel(log_frame, text="Cronologia (Doppio clic sul log per aprire l'anagrafica)", font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), anchor="w").pack(fill="x", padx=15, pady=(10, 5))
         self.txt_log = ctk.CTkTextbox(log_frame, state="disabled", fg_color=("#F8F8F9", "#1C1C1E"), font=ctk.CTkFont(family="Consolas", size=13))
         self.txt_log.pack(padx=15, pady=(0, 15), fill="both", expand=True)
         self.txt_log.bind("<Double-Button-1>", self.apri_scheda)

@@ -13,7 +13,7 @@ class PrenotazioneFormWindow(ctk.CTkToplevel):
         self.transient(parent.winfo_toplevel())
         self.grab_set()
 
-        ctk.CTkLabel(self, text="Nuova Prenotazione", font=ctk.CTkFont(family="Ubuntu", size=22, weight="bold")).pack(pady=(20, 10))
+        ctk.CTkLabel(self, text="Nuova Prenotazione", font=ctk.CTkFont(family="Montserrat", size=22, weight="bold")).pack(pady=(20, 10))
         self.db = SessionLocal()
         self.socio_selezionato = ctk.IntVar(value=0)
         self.lezione_selezionata = ctk.IntVar(value=0)
@@ -21,27 +21,27 @@ class PrenotazioneFormWindow(ctk.CTkToplevel):
         self.lezioni = self.db.query(Lesson).filter(Lesson.date >= datetime.now().strftime("%Y-%m-%d")).order_by(Lesson.date, Lesson.start_time).all()
 
         f_socio = ctk.CTkFrame(self, fg_color="transparent"); f_socio.pack(fill="x", padx=30, pady=(10, 5))
-        ctk.CTkLabel(f_socio, text="1. Socio:", font=ctk.CTkFont(family="Ubuntu", weight="bold")).pack(side="left")
+        ctk.CTkLabel(f_socio, text="1. Socio:", font=ctk.CTkFont(family="Montserrat", weight="bold")).pack(side="left")
         self.ent_ricerca_socio = ctk.CTkEntry(f_socio, placeholder_text="Cerca...", width=250); self.ent_ricerca_socio.pack(side="right")
         self.ent_ricerca_socio.bind("<KeyRelease>", self.filtra_soci)
         self.scroll_soci = ctk.CTkScrollableFrame(self, height=150, fg_color=("#FFFFFF", "#2C2C2E"), border_width=1, border_color=("#E5E5EA", "#3A3A3C")); self.scroll_soci.pack(fill="x", padx=30, pady=(0, 15)); self.filtra_soci() 
 
         f_lez = ctk.CTkFrame(self, fg_color="transparent"); f_lez.pack(fill="x", padx=30, pady=(10, 5))
-        ctk.CTkLabel(f_lez, text="2. Lezione:", font=ctk.CTkFont(family="Ubuntu", weight="bold")).pack(side="left")
+        ctk.CTkLabel(f_lez, text="2. Lezione:", font=ctk.CTkFont(family="Montserrat", weight="bold")).pack(side="left")
         self.ent_ricerca_lez = ctk.CTkEntry(f_lez, placeholder_text="Cerca...", width=250); self.ent_ricerca_lez.pack(side="right")
         self.ent_ricerca_lez.bind("<KeyRelease>", self.filtra_lezioni)
         self.scroll_lezioni = ctk.CTkScrollableFrame(self, height=150, fg_color=("#FFFFFF", "#2C2C2E"), border_width=1, border_color=("#E5E5EA", "#3A3A3C")); self.scroll_lezioni.pack(fill="x", padx=30, pady=(0, 20)); self.filtra_lezioni() 
 
-        ctk.CTkButton(self, text="Conferma", width=200, height=38, font=ctk.CTkFont(family="Ubuntu", weight="bold"), fg_color="#34C759", command=self.salva_prenotazione).pack(pady=10)
+        ctk.CTkButton(self, text="Conferma", width=200, height=38, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#34C759", command=self.salva_prenotazione).pack(pady=10)
 
     def filtra_soci(self, event=None):
         t = self.ent_ricerca_socio.get().lower(); trovati = 0
         for w in self.scroll_soci.winfo_children(): w.destroy()
         for s in self.soci:
             if t in f"{s.first_name} {s.last_name} {s.badge_number or ''}".lower():
-                rb = ctk.CTkRadioButton(self.scroll_soci, text=f"Scheda: {s.badge_number or '-'} | {s.first_name} {s.last_name}", variable=self.socio_selezionato, value=s.id, font=ctk.CTkFont(family="Ubuntu"))
+                rb = ctk.CTkRadioButton(self.scroll_soci, text=f"Scheda: {s.badge_number or '-'} | {s.first_name} {s.last_name}", variable=self.socio_selezionato, value=s.id, font=ctk.CTkFont(family="Montserrat"))
                 rb.pack(anchor="w", pady=5, padx=10); trovati += 1
-        if not trovati: ctk.CTkLabel(self.scroll_soci, text="Nessun socio.", font=ctk.CTkFont(family="Ubuntu", slant="italic")).pack(pady=10)
+        if not trovati: ctk.CTkLabel(self.scroll_soci, text="Nessun socio.", font=ctk.CTkFont(family="Montserrat", slant="italic")).pack(pady=10)
 
     def filtra_lezioni(self, event=None):
         t = self.ent_ricerca_lez.get().lower(); trovati = 0
@@ -52,10 +52,10 @@ class PrenotazioneFormWindow(ctk.CTkToplevel):
             if t in f"{att} {d_ita} {l.start_time}".lower():
                 occ = self.db.query(Booking).filter(Booking.lesson_id == l.id).count()
                 testo = f"{d_ita} ore {l.start_time} - {att} [{occ}/{l.total_seats}]"
-                rb = ctk.CTkRadioButton(self.scroll_lezioni, text=testo, variable=self.lezione_selezionata, value=l.id, font=ctk.CTkFont(family="Ubuntu"))
+                rb = ctk.CTkRadioButton(self.scroll_lezioni, text=testo, variable=self.lezione_selezionata, value=l.id, font=ctk.CTkFont(family="Montserrat"))
                 if occ >= l.total_seats: rb.configure(state="disabled", text=testo + " (ESAURITA)")
                 rb.pack(anchor="w", pady=5, padx=10); trovati += 1
-        if not trovati: ctk.CTkLabel(self.scroll_lezioni, text="Nessuna lezione.", font=ctk.CTkFont(family="Ubuntu", slant="italic")).pack(pady=10)
+        if not trovati: ctk.CTkLabel(self.scroll_lezioni, text="Nessuna lezione.", font=ctk.CTkFont(family="Montserrat", slant="italic")).pack(pady=10)
 
     def salva_prenotazione(self):
         s_id = self.socio_selezionato.get(); l_id = self.lezione_selezionata.get()
@@ -87,18 +87,18 @@ class PrenotazioniView(ctk.CTkFrame):
         self.grid_columnconfigure(0, weight=1)
 
         top = ctk.CTkFrame(self, fg_color="transparent"); top.grid(row=0, column=0, sticky="ew", pady=(0, 20))
-        ctk.CTkLabel(top, text="Prenotazioni Attive", font=ctk.CTkFont(family="Ubuntu", size=24, weight="bold")).pack(side="left")
-        ctk.CTkButton(top, text="+ Nuova", width=150, height=38, font=ctk.CTkFont(family="Ubuntu", weight="bold"), fg_color="#34C759", command=self.apri_form).pack(side="right")
+        ctk.CTkLabel(top, text="Prenotazioni Attive", font=ctk.CTkFont(family="Montserrat", size=24, weight="bold")).pack(side="left")
+        ctk.CTkButton(top, text="+ Nuova", width=150, height=38, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#34C759", command=self.apri_form).pack(side="right")
 
         self.table_container = ctk.CTkFrame(self, fg_color="transparent"); self.table_container.grid(row=1, column=0, sticky="nsew")
         self.cols = [("socio", "Socio", 2), ("attivita", "Attività", 2), ("data", "Data", 1), ("ora", "Ora", 1)]
         h = ctk.CTkFrame(self.table_container, fg_color=("#E5E5EA", "#3A3A3C"), height=35, corner_radius=6); h.pack(fill="x", pady=(0, 5))
         for i, col in enumerate(self.cols):
             h.grid_columnconfigure(i, weight=col[2])
-            ctk.CTkLabel(h, text=col[1], font=ctk.CTkFont(family="Ubuntu", size=12, weight="bold")).grid(row=0, column=i, padx=10, pady=5, sticky="w")
+            ctk.CTkLabel(h, text=col[1], font=ctk.CTkFont(family="Montserrat", size=12, weight="bold")).grid(row=0, column=i, padx=10, pady=5, sticky="w")
         self.scroll_table = ctk.CTkScrollableFrame(self.table_container, fg_color="transparent"); self.scroll_table.pack(fill="both", expand=True)
 
-        ctk.CTkButton(self, text="🗑️ Annulla Prenotazione", width=200, height=38, font=ctk.CTkFont(family="Ubuntu", weight="bold"), fg_color="#FF3B30", command=self.elimina_prenotazione).grid(row=2, column=0, pady=15, sticky="e")
+        ctk.CTkButton(self, text="🗑️ Annulla Prenotazione", width=200, height=38, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#FF3B30", command=self.elimina_prenotazione).grid(row=2, column=0, pady=15, sticky="e")
         self.carica_dati()
 
     def seleziona_riga(self, b_id):
@@ -112,7 +112,7 @@ class PrenotazioniView(ctk.CTkFrame):
         el = [f]
         for i, val in enumerate(v):
             f.grid_columnconfigure(i, weight=self.cols[i][2])
-            l = ctk.CTkLabel(f, text=val, font=ctk.CTkFont(family="Ubuntu", size=13)); l.grid(row=0, column=i, padx=10, pady=10, sticky="w"); el.append(l)
+            l = ctk.CTkLabel(f, text=val, font=ctk.CTkFont(family="Montserrat", size=13)); l.grid(row=0, column=i, padx=10, pady=10, sticky="w"); el.append(l)
         for w in el:
             w.bind("<Button-1>", lambda e, id=p.id: self.seleziona_riga(id))
             w.bind("<Enter>", lambda e, fr=f, id=p.id: fr.configure(fg_color=("#F8F8F9", "#3A3A3C")) if self.selected_booking_id != id else None)

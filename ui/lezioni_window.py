@@ -19,7 +19,7 @@ class LezioniView(ctk.CTkFrame):
         left_frame = ctk.CTkFrame(self, width=240, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 20))
         
-        ctk.CTkLabel(left_frame, text="📅 Periodo Generazione", font=ctk.CTkFont(family="Ubuntu", size=16, weight="bold")).pack(pady=(20, 5))
+        ctk.CTkLabel(left_frame, text="📅 Periodo Generazione", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")).pack(pady=(20, 5))
         
         self.ent_data_inizio = ctk.CTkEntry(left_frame, placeholder_text="Dal: GG/MM/AAAA", justify="center")
         self.ent_data_inizio.pack(pady=5, padx=20, fill="x")
@@ -30,21 +30,21 @@ class LezioniView(ctk.CTkFrame):
         futuro = datetime.now() + timedelta(days=30)
         self.ent_data_fine.insert(0, futuro.strftime("%d/%m/%Y"))
 
-        ctk.CTkLabel(left_frame, text="Giorni della Settimana:", font=ctk.CTkFont(family="Ubuntu", weight="bold")).pack(pady=(15, 5))
+        ctk.CTkLabel(left_frame, text="Giorni della Settimana:", font=ctk.CTkFont(family="Montserrat", weight="bold")).pack(pady=(15, 5))
         self.giorni_vars = {i: ctk.IntVar() for i in range(7)}
         for i, nome in enumerate(["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]):
-            ctk.CTkCheckBox(left_frame, text=nome, variable=self.giorni_vars[i], font=ctk.CTkFont(family="Ubuntu")).pack(anchor="w", padx=30, pady=3)
+            ctk.CTkCheckBox(left_frame, text=nome, variable=self.giorni_vars[i], font=ctk.CTkFont(family="Montserrat")).pack(anchor="w", padx=30, pady=3)
 
-        ctk.CTkLabel(left_frame, text="Inizio (19:00):", font=ctk.CTkFont(family="Ubuntu", weight="bold")).pack(pady=(15, 0))
+        ctk.CTkLabel(left_frame, text="Inizio (19:00):", font=ctk.CTkFont(family="Montserrat", weight="bold")).pack(pady=(15, 0))
         self.ent_inizio = ctk.CTkEntry(left_frame, justify="center"); self.ent_inizio.pack(pady=5, padx=20, fill="x")
         
-        ctk.CTkLabel(left_frame, text="Fine (20:00):", font=ctk.CTkFont(family="Ubuntu", weight="bold")).pack(pady=(5, 0))
+        ctk.CTkLabel(left_frame, text="Fine (20:00):", font=ctk.CTkFont(family="Montserrat", weight="bold")).pack(pady=(5, 0))
         self.ent_fine = ctk.CTkEntry(left_frame, justify="center"); self.ent_fine.pack(pady=5, padx=20, fill="x")
         
-        ctk.CTkLabel(left_frame, text="Posti:", font=ctk.CTkFont(family="Ubuntu", weight="bold")).pack(pady=(5, 0))
+        ctk.CTkLabel(left_frame, text="Posti:", font=ctk.CTkFont(family="Montserrat", weight="bold")).pack(pady=(5, 0))
         self.ent_posti = ctk.CTkEntry(left_frame, justify="center"); self.ent_posti.insert(0, "60"); self.ent_posti.pack(pady=5, padx=20, fill="x")
 
-        ctk.CTkButton(left_frame, text="⚡ Genera Periodo", width=160, height=38, font=ctk.CTkFont(family="Ubuntu", weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.genera_lezioni).pack(pady=20)
+        ctk.CTkButton(left_frame, text="⚡ Genera Periodo", width=160, height=38, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.genera_lezioni).pack(pady=20)
 
         # ==================== PANNELLO DESTRO: TABELLA CORSI ====================
         right_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -56,12 +56,12 @@ class LezioniView(ctk.CTkFrame):
         top_right = ctk.CTkFrame(right_frame, fg_color="transparent")
         top_right.grid(row=0, column=0, sticky="ew", pady=(0, 15))
         
-        ctk.CTkLabel(top_right, text="Seleziona l'attività da programmare:", font=ctk.CTkFont(family="Ubuntu", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=(0, 15))
+        ctk.CTkLabel(top_right, text="Seleziona l'attività da programmare:", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=(0, 15))
         
         self.activities = self.db.query(Activity).order_by(Activity.name).all()
         act_names = [a.name for a in self.activities] if self.activities else ["Nessuna attività registrata"]
         
-        self.cmb_attivita = ctk.CTkOptionMenu(top_right, values=act_names, font=ctk.CTkFont(family="Ubuntu", size=15), width=250, fg_color="#007AFF", command=self.carica_tabella)
+        self.cmb_attivita = ctk.CTkOptionMenu(top_right, values=act_names, font=ctk.CTkFont(family="Montserrat", size=15), width=250, fg_color="#007AFF", command=self.carica_tabella)
         self.cmb_attivita.pack(side="left")
 
         # TABELLA E CONTENITORE
@@ -79,13 +79,13 @@ class LezioniView(ctk.CTkFrame):
         header_tab.pack(fill="x", pady=(0, 5))
         for i, col in enumerate(self.cols):
             header_tab.grid_columnconfigure(i, weight=col[2], uniform="colonna")
-            ctk.CTkLabel(header_tab, text=col[1], font=ctk.CTkFont(family="Ubuntu", size=12, weight="bold"), anchor=col[3]).grid(row=0, column=i, padx=10, pady=5, sticky="ew")
+            ctk.CTkLabel(header_tab, text=col[1], font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"), anchor=col[3]).grid(row=0, column=i, padx=10, pady=5, sticky="ew")
 
         self.scroll_table = ctk.CTkScrollableFrame(self.table_container, fg_color="transparent")
         self.scroll_table.pack(fill="both", expand=True)
 
-        ctk.CTkLabel(right_frame, text="💡 Suggerimento: Tieni premuto 'Ctrl' (Windows) o 'Cmd' (Mac) per selezionare o deselezionare più lezioni.", font=ctk.CTkFont(family="Ubuntu", size=12, slant="italic"), text_color=("#86868B", "#98989D")).grid(row=2, column=0, pady=(15, 0), sticky="w")
-        ctk.CTkButton(right_frame, text="🗑️ Elimina Selezionate", width=200, height=38, font=ctk.CTkFont(family="Ubuntu", weight="bold"), fg_color="#FF3B30", hover_color="#c0392b", command=self.elimina_lezione).grid(row=2, column=0, pady=(15, 0), sticky="e")
+        ctk.CTkLabel(right_frame, text="💡 Suggerimento: Tieni premuto 'Ctrl' (Windows) o 'Cmd' (Mac) per selezionare o deselezionare più lezioni.", font=ctk.CTkFont(family="Montserrat", size=12, slant="italic"), text_color=("#86868B", "#98989D")).grid(row=2, column=0, pady=(15, 0), sticky="w")
+        ctk.CTkButton(right_frame, text="🗑️ Elimina Selezionate", width=200, height=38, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#FF3B30", hover_color="#c0392b", command=self.elimina_lezione).grid(row=2, column=0, pady=(15, 0), sticky="e")
 
         self.carica_tabella()
 
@@ -118,7 +118,7 @@ class LezioniView(ctk.CTkFrame):
         elems = [f]
         for i, val in enumerate(valori):
             f.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
-            lbl = ctk.CTkLabel(f, text=val, font=ctk.CTkFont(family="Ubuntu", size=13), anchor=self.cols[i][3])
+            lbl = ctk.CTkLabel(f, text=val, font=ctk.CTkFont(family="Montserrat", size=13), anchor=self.cols[i][3])
             lbl.grid(row=0, column=i, padx=10, pady=10, sticky="ew")
             elems.append(lbl)
             

@@ -30,7 +30,7 @@ class CalendarioView(ctk.CTkFrame):
         header_cal.pack(fill="x", pady=(20, 10), padx=15)
 
         ctk.CTkButton(header_cal, text="◀", width=35, height=30, fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.mese_prec).pack(side="left")
-        self.lbl_mese_anno = ctk.CTkLabel(header_cal, text="Mese Anno", font=ctk.CTkFont(family="Ubuntu", size=18, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
+        self.lbl_mese_anno = ctk.CTkLabel(header_cal, text="Mese Anno", font=ctk.CTkFont(family="Montserrat", size=18, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
         self.lbl_mese_anno.pack(side="left", expand=True)
         ctk.CTkButton(header_cal, text="▶", width=35, height=30, fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.mese_succ).pack(side="right")
 
@@ -43,7 +43,7 @@ class CalendarioView(ctk.CTkFrame):
         corsi_panel = ctk.CTkFrame(self, fg_color="transparent")
         corsi_panel.grid(row=0, column=1, sticky="nsew", padx=10, pady=20)
 
-        self.lbl_data_corsi = ctk.CTkLabel(corsi_panel, text="Corsi del Giorno", font=ctk.CTkFont(family="Ubuntu", size=20, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
+        self.lbl_data_corsi = ctk.CTkLabel(corsi_panel, text="Corsi del Giorno", font=ctk.CTkFont(family="Montserrat", size=20, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
         self.lbl_data_corsi.pack(anchor="w", pady=(0, 15))
 
         self.scroll_lezioni = ctk.CTkScrollableFrame(corsi_panel, fg_color="transparent")
@@ -53,13 +53,13 @@ class CalendarioView(ctk.CTkFrame):
         self.dettaglio_panel = ctk.CTkFrame(self, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=16, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         self.dettaglio_panel.grid(row=0, column=2, sticky="nsew", padx=(10, 20), pady=20)
 
-        self.lbl_dettaglio_titolo = ctk.CTkLabel(self.dettaglio_panel, text="Seleziona un corso", font=ctk.CTkFont(family="Ubuntu", size=22, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
+        self.lbl_dettaglio_titolo = ctk.CTkLabel(self.dettaglio_panel, text="Seleziona un corso", font=ctk.CTkFont(family="Montserrat", size=22, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
         self.lbl_dettaglio_titolo.pack(pady=(20, 5), padx=15)
 
-        self.lbl_dettaglio_orario = ctk.CTkLabel(self.dettaglio_panel, text="Per vedere i partecipanti", font=ctk.CTkFont(family="Ubuntu", size=15), text_color=("#86868B", "#98989D"))
+        self.lbl_dettaglio_orario = ctk.CTkLabel(self.dettaglio_panel, text="Per vedere i partecipanti", font=ctk.CTkFont(family="Montserrat", size=15), text_color=("#86868B", "#98989D"))
         self.lbl_dettaglio_orario.pack(pady=(0, 15))
 
-        self.lbl_occupazione = ctk.CTkLabel(self.dettaglio_panel, text="", font=ctk.CTkFont(family="Ubuntu", size=15, weight="bold"))
+        self.lbl_occupazione = ctk.CTkLabel(self.dettaglio_panel, text="", font=ctk.CTkFont(family="Montserrat", size=15, weight="bold"))
         self.lbl_occupazione.pack(pady=(0, 15))
 
         self.scroll_partecipanti = ctk.CTkScrollableFrame(self.dettaglio_panel, fg_color="transparent")
@@ -103,7 +103,7 @@ class CalendarioView(ctk.CTkFrame):
 
         giorni_sett = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]
         for i, g in enumerate(giorni_sett):
-            ctk.CTkLabel(self.grid_giorni, text=g, font=ctk.CTkFont(family="Ubuntu", weight="bold"), text_color=("#86868B", "#98989D")).grid(row=0, column=i, padx=5, pady=5)
+            ctk.CTkLabel(self.grid_giorni, text=g, font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color=("#86868B", "#98989D")).grid(row=0, column=i, padx=5, pady=5)
 
         mese_str = f"{self.anno_corrente}-{self.mese_corrente:02d}-"
         lezioni_mese = self.db.query(Lesson.date).filter(Lesson.date.like(f"{mese_str}%")).all()
@@ -140,7 +140,7 @@ class CalendarioView(ctk.CTkFrame):
                     btn = ctk.CTkButton(self.grid_giorni, text=str(giorno), width=40, height=40, corner_radius=20,
                                         fg_color=fg_color, text_color=text_color, hover_color=("#E5E5EA", "#3A3A3C"),
                                         border_color=border_color, border_width=border_width,
-                                        font=ctk.CTkFont(family="Ubuntu", size=14, weight="bold"),
+                                        font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"),
                                         command=lambda g=giorno: self.seleziona_data(g))
                     btn.grid(row=riga+1, column=col, padx=4, pady=4)
         
@@ -168,7 +168,7 @@ class CalendarioView(ctk.CTkFrame):
         lezioni = self.db.query(Lesson).filter(Lesson.date == data_db_str).order_by(Lesson.start_time).all()
 
         if not lezioni:
-            ctk.CTkLabel(self.scroll_lezioni, text="Nessun corso in programma oggi.", font=ctk.CTkFont(family="Ubuntu", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=40)
+            ctk.CTkLabel(self.scroll_lezioni, text="Nessun corso in programma oggi.", font=ctk.CTkFont(family="Montserrat", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=40)
             return
 
         for l in lezioni:
@@ -185,8 +185,8 @@ class CalendarioView(ctk.CTkFrame):
         left_side = ctk.CTkFrame(card, fg_color="transparent")
         left_side.pack(side="left", padx=15, expand=True, fill="both")
 
-        ctk.CTkLabel(left_side, text=nome_att, font=ctk.CTkFont(family="Ubuntu", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"), anchor="w").pack(anchor="w", pady=(10, 0))
-        ctk.CTkLabel(left_side, text=f"🕒 {l.start_time} - {l.end_time}", font=ctk.CTkFont(family="Ubuntu", size=12), text_color=("#86868B", "#98989D"), anchor="w").pack(anchor="w")
+        ctk.CTkLabel(left_side, text=nome_att, font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"), anchor="w").pack(anchor="w", pady=(10, 0))
+        ctk.CTkLabel(left_side, text=f"🕒 {l.start_time} - {l.end_time}", font=ctk.CTkFont(family="Montserrat", size=12), text_color=("#86868B", "#98989D"), anchor="w").pack(anchor="w")
 
         colore_badge = "#34C759" 
         if occupati >= l.total_seats: colore_badge = "#FF3B30" 
@@ -195,7 +195,7 @@ class CalendarioView(ctk.CTkFrame):
         badge = ctk.CTkFrame(card, fg_color=colore_badge, corner_radius=8, width=60, height=30)
         badge.pack(side="right", padx=15)
         badge.pack_propagate(False)
-        ctk.CTkLabel(badge, text=f"{occupati}/{l.total_seats}", text_color="white", font=ctk.CTkFont(family="Ubuntu", size=13, weight="bold")).place(relx=0.5, rely=0.5, anchor="center")
+        ctk.CTkLabel(badge, text=f"{occupati}/{l.total_seats}", text_color="white", font=ctk.CTkFont(family="Montserrat", size=13, weight="bold")).place(relx=0.5, rely=0.5, anchor="center")
 
         elementi = [card, left_side, badge] + left_side.winfo_children() + badge.winfo_children()
         for w in elementi:
@@ -238,7 +238,7 @@ class CalendarioView(ctk.CTkFrame):
         self.lbl_occupazione.configure(text=testo_occ, text_color=colore_testo)
 
         if not prenotazioni:
-            ctk.CTkLabel(self.scroll_partecipanti, text="Nessun iscritto al momento.", font=ctk.CTkFont(family="Ubuntu", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=20)
+            ctk.CTkLabel(self.scroll_partecipanti, text="Nessun iscritto al momento.", font=ctk.CTkFont(family="Montserrat", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=20)
         else:
             prenotazioni_ordinate = sorted(prenotazioni, key=lambda p: (p.member.first_name, p.member.last_name) if p.member else ("", ""))
             for i, p in enumerate(prenotazioni_ordinate):
@@ -246,13 +246,13 @@ class CalendarioView(ctk.CTkFrame):
                     riga = ctk.CTkFrame(self.scroll_partecipanti, fg_color="transparent")
                     riga.pack(fill="x", pady=2, padx=5)
                     
-                    num = ctk.CTkLabel(riga, text=f"{i+1}.", font=ctk.CTkFont(family="Ubuntu", weight="bold"), text_color=("#86868B", "#98989D"), width=25, anchor="e")
+                    num = ctk.CTkLabel(riga, text=f"{i+1}.", font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color=("#86868B", "#98989D"), width=25, anchor="e")
                     num.pack(side="left", padx=(0, 10))
                     
                     nome_cognome = f"{p.member.first_name} {p.member.last_name}"
-                    ctk.CTkLabel(riga, text=nome_cognome, font=ctk.CTkFont(family="Ubuntu", size=14), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left")
+                    ctk.CTkLabel(riga, text=nome_cognome, font=ctk.CTkFont(family="Montserrat", size=14), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left")
                     
                     if p.member.badge_number:
-                        ctk.CTkLabel(riga, text=f"(Id: {p.member.badge_number})", font=ctk.CTkFont(family="Ubuntu", size=12), text_color=("#86868B", "#98989D")).pack(side="right")
+                        ctk.CTkLabel(riga, text=f"(Id: {p.member.badge_number})", font=ctk.CTkFont(family="Montserrat", size=12), text_color=("#86868B", "#98989D")).pack(side="right")
                     
                     ctk.CTkFrame(self.scroll_partecipanti, height=1, fg_color=("#E5E5EA", "#3A3A3C")).pack(fill="x")

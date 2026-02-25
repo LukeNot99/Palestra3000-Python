@@ -61,7 +61,7 @@ class App(ctk.CTk):
         self.logo_container = None
         self.aggiorna_logo() 
 
-        ctk.CTkLabel(self.sidebar, text="QUOTIDIANO", font=ctk.CTkFont(family="Ubuntu", size=12, weight="bold"), text_color=("#86868B", "#98989D")).grid(row=1, column=0, padx=24, pady=(0, 10), sticky="w")
+        ctk.CTkLabel(self.sidebar, text="QUOTIDIANO", font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"), text_color=("#86868B", "#98989D")).grid(row=1, column=0, padx=24, pady=(0, 10), sticky="w")
 
         self.bottoni_menu = {}
         self.current_view_name = None
@@ -73,7 +73,7 @@ class App(ctk.CTk):
         self.crea_bottone_menu("calendario", "Calendario Corsi", "calendario", row=5)
         self.crea_bottone_menu("prenotazioni", "Prenotazioni", "prenotazioni", row=6)
 
-        ctk.CTkLabel(self.sidebar, text="AMMINISTRAZIONE", font=ctk.CTkFont(family="Ubuntu", size=12, weight="bold"), text_color=("#86868B", "#98989D")).grid(row=7, column=0, padx=24, pady=(30, 10), sticky="w")
+        ctk.CTkLabel(self.sidebar, text="AMMINISTRAZIONE", font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"), text_color=("#86868B", "#98989D")).grid(row=7, column=0, padx=24, pady=(30, 10), sticky="w")
 
         self.crea_bottone_menu("lezioni", "Piani Settimanali", "lezioni", row=8)
         self.crea_bottone_menu("tariffe", "Tariffario e Costi", "tariffe", row=9)
@@ -110,7 +110,7 @@ class App(ctk.CTk):
                 pass 
 
         # Mostra il testo della palestra con "wraplength"
-        self.lbl_nome_palestra = ctk.CTkLabel(self.logo_container, text=nome_palestra, font=ctk.CTkFont(family="Ubuntu", size=22, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"), wraplength=220, justify="left")
+        self.lbl_nome_palestra = ctk.CTkLabel(self.logo_container, text=nome_palestra, font=ctk.CTkFont(family="Montserrat", size=22, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"), wraplength=220, justify="left")
         self.lbl_nome_palestra.pack(anchor="w")
 
     # --- ROUTING E NAVIGAZIONE ---
@@ -123,11 +123,11 @@ class App(ctk.CTk):
             if name == view_name:
                 btn_f.configure(fg_color=("#F2F2F7", "#3A3A3C"))
                 l_icon.configure(text_color=("#007AFF", "#0A84FF"))
-                l_text.configure(text_color=("#007AFF", "#0A84FF"), font=ctk.CTkFont(family="Ubuntu", size=14, weight="bold"))
+                l_text.configure(text_color=("#007AFF", "#0A84FF"), font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"))
             else:
                 btn_f.configure(fg_color="transparent")
                 l_icon.configure(text_color=("#1D1D1F", "#FFFFFF"))
-                l_text.configure(text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Ubuntu", size=14, weight="normal"))
+                l_text.configure(text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Montserrat", size=14, weight="normal"))
         
         if self.current_frame: self.current_frame.destroy()
             
@@ -150,10 +150,10 @@ class App(ctk.CTk):
         
         icona_img = self.carica_icona(nome_icona, 20)
         if icona_img: lbl_icon = ctk.CTkLabel(btn_frame, text="", image=icona_img, width=35, anchor="center")
-        else: lbl_icon = ctk.CTkLabel(btn_frame, text="▪", font=ctk.CTkFont(family="Ubuntu", size=18), text_color=("#1D1D1F", "#FFFFFF"), width=35, anchor="center")
+        else: lbl_icon = ctk.CTkLabel(btn_frame, text="▪", font=ctk.CTkFont(family="Montserrat", size=18), text_color=("#1D1D1F", "#FFFFFF"), width=35, anchor="center")
         lbl_icon.pack(side="left", padx=(10, 0))
         
-        lbl_text = ctk.CTkLabel(btn_frame, text=testo, font=ctk.CTkFont(family="Ubuntu", size=14, weight="normal"), text_color=("#1D1D1F", "#FFFFFF"), anchor="w")
+        lbl_text = ctk.CTkLabel(btn_frame, text=testo, font=ctk.CTkFont(family="Montserrat", size=14, weight="normal"), text_color=("#1D1D1F", "#FFFFFF"), anchor="w")
         lbl_text.pack(side="left", fill="x", expand=True, padx=(5, 10))
         
         def on_click(e): self.show_view(view_name)
@@ -221,8 +221,8 @@ class App(ctk.CTk):
         y = self.winfo_screenheight() - 150
         toast.geometry(f"350x100+{x}+{y}")
         toast.configure(fg_color=colore_sfondo)
-        ctk.CTkLabel(toast, text=titolo, font=ctk.CTkFont(family="Ubuntu", size=18, weight="bold"), text_color="white").pack(pady=(15, 5))
-        ctk.CTkLabel(toast, text=messaggio, font=ctk.CTkFont(family="Ubuntu", size=14), text_color="white").pack()
+        ctk.CTkLabel(toast, text=titolo, font=ctk.CTkFont(family="Montserrat", size=18, weight="bold"), text_color="white").pack(pady=(15, 5))
+        ctk.CTkLabel(toast, text=messaggio, font=ctk.CTkFont(family="Montserrat", size=14), text_color="white").pack()
         self.after(3500, toast.destroy)
 
     def gestisci_accesso_globale(self, scheda_str):
@@ -346,9 +346,6 @@ class DashboardView(ctk.CTkFrame):
         super().__init__(parent, fg_color="transparent")
         self.app = app
         
-        ora_attuale = datetime.now().hour
-        saluto = "Buongiorno" if 5 <= ora_attuale < 17 else "Buonasera"
-        
         giorni_ita = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
         mesi_ita = ["", "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
         oggi = datetime.now()
@@ -357,8 +354,11 @@ class DashboardView(ctk.CTkFrame):
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
         header_frame.pack(fill="x", pady=(0, 30))
 
-        ctk.CTkLabel(header_frame, text=f"{saluto}, Segreteria! 👋", font=ctk.CTkFont(family="Ubuntu", size=34, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w")
-        ctk.CTkLabel(header_frame, text=data_oggi, font=ctk.CTkFont(family="Ubuntu", size=16), text_color=("#86868B", "#98989D")).pack(anchor="w", pady=(5, 0))
+        title_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
+        title_frame.pack(side="left")
+
+        ctk.CTkLabel(title_frame, text="Dashboard", font=ctk.CTkFont(family="Montserrat", size=34, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w")
+        ctk.CTkLabel(title_frame, text=data_oggi, font=ctk.CTkFont(family="Montserrat", size=16), text_color=("#86868B", "#98989D")).pack(anchor="w", pady=(5, 0))
 
         self.cards_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.cards_frame.pack(fill="x", pady=(0, 30))
@@ -381,7 +381,7 @@ class DashboardView(ctk.CTkFrame):
         actions_frame = ctk.CTkFrame(bottom_layout, fg_color="transparent")
         actions_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 15))
 
-        ctk.CTkLabel(actions_frame, text="⚡ Azioni Rapide", font=ctk.CTkFont(family="Ubuntu", size=18, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", pady=(0, 15))
+        ctk.CTkLabel(actions_frame, text="⚡ Azioni Rapide", font=ctk.CTkFont(family="Montserrat", size=18, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", pady=(0, 15))
 
         grid_azioni = ctk.CTkFrame(actions_frame, fg_color="transparent")
         grid_azioni.pack(fill="both", expand=True)
@@ -396,7 +396,7 @@ class DashboardView(ctk.CTkFrame):
         agenda_frame = ctk.CTkFrame(bottom_layout, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=16, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         agenda_frame.grid(row=0, column=1, sticky="nsew", padx=(15, 0))
         
-        ctk.CTkLabel(agenda_frame, text="📍 Agenda di Oggi", font=ctk.CTkFont(family="Ubuntu", size=18, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(20, 15))
+        ctk.CTkLabel(agenda_frame, text="📍 Agenda di Oggi", font=ctk.CTkFont(family="Montserrat", size=18, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(20, 15))
         
         self.scroll_agenda = ctk.CTkScrollableFrame(agenda_frame, fg_color="transparent")
         self.scroll_agenda.pack(fill="both", expand=True, padx=10, pady=(0, 15))
@@ -404,7 +404,7 @@ class DashboardView(ctk.CTkFrame):
         self.load_stats()
 
     def crea_bottone_azione(self, parent, row, col, testo, colore, comando):
-        btn = ctk.CTkButton(parent, text=testo, command=comando, font=ctk.CTkFont(family="Ubuntu", size=16, weight="bold"), fg_color=("#FFFFFF", "#2C2C2E"), text_color=colore, hover_color=("#F8F8F9", "#3A3A3C"), border_width=1, border_color=("#E5E5EA", "#3A3A3C"), corner_radius=16)
+        btn = ctk.CTkButton(parent, text=testo, command=comando, font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), fg_color=("#FFFFFF", "#2C2C2E"), text_color=colore, hover_color=("#F8F8F9", "#3A3A3C"), border_width=1, border_color=("#E5E5EA", "#3A3A3C"), corner_radius=16)
         btn.grid(row=row, column=col, sticky="nsew", padx=8, pady=8)
 
     def create_card(self, parent, col, title, text_variable, nome_icona, accent_color):
@@ -418,9 +418,9 @@ class DashboardView(ctk.CTkFrame):
         icon_box.pack_propagate(False)
         icona_img = self.app.carica_icona(f"{nome_icona}_white", 20) or self.app.carica_icona(nome_icona, 20)
         if icona_img: ctk.CTkLabel(icon_box, text="", image=icona_img).place(relx=0.5, rely=0.5, anchor="center")
-        else: ctk.CTkLabel(icon_box, text="▪", text_color="white", font=ctk.CTkFont(family="Ubuntu", size=16)).place(relx=0.5, rely=0.5, anchor="center")
-        ctk.CTkLabel(header, text=title, font=ctk.CTkFont(family="Ubuntu", size=15, weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=12)
-        lbl_val = ctk.CTkLabel(card, textvariable=text_variable, font=ctk.CTkFont(family="Ubuntu", size=42, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
+        else: ctk.CTkLabel(icon_box, text="▪", text_color="white", font=ctk.CTkFont(family="Montserrat", size=16)).place(relx=0.5, rely=0.5, anchor="center")
+        ctk.CTkLabel(header, text=title, font=ctk.CTkFont(family="Montserrat", size=15, weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=12)
+        lbl_val = ctk.CTkLabel(card, textvariable=text_variable, font=ctk.CTkFont(family="Montserrat", size=42, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
         lbl_val.pack(anchor="w", padx=20)
 
     def load_stats(self):
@@ -433,20 +433,20 @@ class DashboardView(ctk.CTkFrame):
         for widget in self.scroll_agenda.winfo_children(): widget.destroy()
         lezioni_oggi = db.query(Lesson).filter(Lesson.date == oggi_str).order_by(Lesson.start_time).all()
         if not lezioni_oggi:
-            ctk.CTkLabel(self.scroll_agenda, text="Nessun corso programmato per oggi.", font=ctk.CTkFont(family="Ubuntu", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=30)
+            ctk.CTkLabel(self.scroll_agenda, text="Nessun corso programmato per oggi.", font=ctk.CTkFont(family="Montserrat", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=30)
         else:
             for l in lezioni_oggi:
                 riga = ctk.CTkFrame(self.scroll_agenda, fg_color="transparent")
                 riga.pack(fill="x", pady=5, padx=10)
-                ctk.CTkLabel(riga, text=f"🕒 {l.start_time[:5]}", font=ctk.CTkFont(family="Ubuntu", weight="bold", size=13), text_color=("#1D1D1F", "#FFFFFF"), width=70, anchor="w").pack(side="left")
+                ctk.CTkLabel(riga, text=f"🕒 {l.start_time[:5]}", font=ctk.CTkFont(family="Montserrat", weight="bold", size=13), text_color=("#1D1D1F", "#FFFFFF"), width=70, anchor="w").pack(side="left")
                 nome_att = l.activity.name if l.activity else "Attività"
                 occupati = db.query(Booking).filter(Booking.lesson_id == l.id).count()
-                ctk.CTkLabel(riga, text=nome_att, font=ctk.CTkFont(family="Ubuntu", size=13), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=10)
+                ctk.CTkLabel(riga, text=nome_att, font=ctk.CTkFont(family="Montserrat", size=13), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=10)
                 badge_color = "#34C759" if occupati < l.total_seats else "#FF3B30"
                 badge = ctk.CTkFrame(riga, fg_color=badge_color, corner_radius=6, height=20, width=50)
                 badge.pack(side="right")
                 badge.pack_propagate(False)
-                ctk.CTkLabel(badge, text=f"{occupati}/{l.total_seats}", text_color="white", font=ctk.CTkFont(family="Ubuntu", size=11, weight="bold")).place(relx=0.5, rely=0.5, anchor="center")
+                ctk.CTkLabel(badge, text=f"{occupati}/{l.total_seats}", text_color="white", font=ctk.CTkFont(family="Montserrat", size=11, weight="bold")).place(relx=0.5, rely=0.5, anchor="center")
                 ctk.CTkFrame(self.scroll_agenda, height=1, fg_color=("#E5E5EA", "#3A3A3C")).pack(fill="x", padx=10)
         db.close()
 
