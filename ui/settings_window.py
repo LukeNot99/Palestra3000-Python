@@ -27,7 +27,7 @@ def leggi_impostazione(chiave, default):
     return default
 
 
-# ==================== SCHEDA PRINCIPALE: SettingsView (COME FRAME!) ====================
+# ==================== SCHEDA PRINCIPALE: SettingsView ====================
 class SettingsView(ctk.CTkFrame):
     def __init__(self, parent, controller=None, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
@@ -57,6 +57,28 @@ class SettingsView(ctk.CTkFrame):
         self.cmb_porta.pack(side="left")
         
         ctk.CTkButton(box_hw, text="Connetti / Salva", width=120, height=36, font=ctk.CTkFont(family="Ubuntu", size=13, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.salva_porta).pack(side="left", padx=10)
+
+        # ==================== REGOLE DI BLOCCO TORNELLO ====================
+        block_frame = ctk.CTkFrame(self.scroll, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
+        block_frame.pack(padx=30, pady=(0, 15), fill="x")
+        
+        ctk.CTkLabel(block_frame, text="🛡️ Regole di Blocco Tornello", font=ctk.CTkFont(family="Ubuntu", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
+        ctk.CTkLabel(block_frame, text="Accendi o spegni temporaneamente i controlli di blocco per gestire tolleranze o periodi di rinnovo.", font=ctk.CTkFont(family="Ubuntu", size=12), text_color=("#86868B", "#98989D")).pack(padx=20, anchor="w")
+
+        switches_container = ctk.CTkFrame(block_frame, fg_color="transparent")
+        switches_container.pack(pady=(15, 20), padx=20, fill="x")
+
+        # Variabili di stato collegate al file di configurazione
+        self.var_blocco_iscr = ctk.BooleanVar(value=leggi_impostazione("blocco_iscr", True))
+        self.var_blocco_abb = ctk.BooleanVar(value=leggi_impostazione("blocco_abb", True))
+        self.var_blocco_orari = ctk.BooleanVar(value=leggi_impostazione("blocco_orari", True))
+        self.var_blocco_cert = ctk.BooleanVar(value=leggi_impostazione("blocco_cert", False)) # Di default il certificato non blocca
+
+        # Interruttori (Switch)
+        ctk.CTkSwitch(switches_container, text="Blocca accesso se Iscrizione Annuale Scaduta", variable=self.var_blocco_iscr, command=self.salva_blocchi, font=ctk.CTkFont(family="Ubuntu", size=14), progress_color="#FF3B30").pack(pady=8, anchor="w")
+        ctk.CTkSwitch(switches_container, text="Blocca accesso se Abbonamento / Mensilità Scaduto", variable=self.var_blocco_abb, command=self.salva_blocchi, font=ctk.CTkFont(family="Ubuntu", size=14), progress_color="#FF9500").pack(pady=8, anchor="w")
+        ctk.CTkSwitch(switches_container, text="Blocca accesso se Fuori dalla Fascia Oraria assegnata", variable=self.var_blocco_orari, command=self.salva_blocchi, font=ctk.CTkFont(family="Ubuntu", size=14), progress_color="#34C759").pack(pady=8, anchor="w")
+        ctk.CTkSwitch(switches_container, text="Blocca accesso se Certificato Medico Assente o Scaduto", variable=self.var_blocco_cert, command=self.salva_blocchi, font=ctk.CTkFont(family="Ubuntu", size=14), progress_color="#007AFF").pack(pady=8, anchor="w")
 
         # ==================== CARD NOME PALESTRA ====================
         pers_frame = ctk.CTkFrame(self.scroll, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
@@ -111,6 +133,13 @@ class SettingsView(ctk.CTkFrame):
         ctk.CTkButton(btn_db_frame, text="Ripristina Dati", width=140, height=38, font=ctk.CTkFont(family="Ubuntu", size=14, weight="bold"), fg_color="#FF9500", hover_color="#d35400", command=self.ripristina_backup).pack(side="right")
 
     # --- FUNZIONALITA' ---
+    def salva_blocchi(self):
+        """Salva lo stato degli interruttori di blocco nel file JSON"""
+        salva_impostazione("blocco_iscr", self.var_blocco_iscr.get())
+        salva_impostazione("blocco_abb", self.var_blocco_abb.get())
+        salva_impostazione("blocco_orari", self.var_blocco_orari.get())
+        salva_impostazione("blocco_cert", self.var_blocco_cert.get())
+
     def salva_porta(self):
         porta = self.cmb_porta.get()
         salva_impostazione("porta_tornello", porta)
@@ -156,5 +185,5 @@ class SettingsView(ctk.CTkFrame):
                 except Exception as e:
                     messagebox.showerror("Errore", f"Impossibile ripristinare il database:\n{e}")
 
-# Alias di sicurezza per evitare problemi di import
+# Alias
 SettingsWindow = SettingsView

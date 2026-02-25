@@ -10,7 +10,6 @@ from PIL import Image
 
 from core.database import SessionLocal, Member, Lesson, Booking, seed_data
 
-# Importiamo le nuove VISTE (Frame)
 from ui.soci_window import SociView
 from ui.tariffe_window import TariffeView
 from ui.attivita_window import AttivitaView
@@ -62,7 +61,6 @@ class App(ctk.CTk):
 
         ctk.CTkLabel(self.sidebar, text="QUOTIDIANO", font=ctk.CTkFont(family="Ubuntu", size=12, weight="bold"), text_color=("#86868B", "#98989D")).grid(row=1, column=0, padx=24, pady=(0, 10), sticky="w")
 
-        # Dizionario per gestire gli stili attivi/disattivi
         self.bottoni_menu = {}
         self.current_view_name = None
         self.current_frame = None
@@ -80,19 +78,16 @@ class App(ctk.CTk):
         self.crea_bottone_menu("attivita", "Gestione Attività", "attivita", row=10)
         self.crea_bottone_menu("impostazioni", "Impostazioni", "impostazioni", row=11, extra_pady=(2, 20))
 
-        # ==================== MAIN CONTENT CONTAINER ====================
         self.main_content = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         self.main_content.grid(row=0, column=1, sticky="nsew", padx=40, pady=40)
         
-        # Avvia la vista principale
         self.show_view("dashboard")
 
-    # --- ROUTING E NAVIGAZIONE (SPA) ---
+    # --- ROUTING E NAVIGAZIONE ---
     def show_view(self, view_name):
         if self.current_view_name == view_name: return
         self.current_view_name = view_name
         
-        # Aggiorna Colori Menu
         for name, data in self.bottoni_menu.items():
             btn_f, l_icon, l_text = data
             if name == view_name:
@@ -104,11 +99,8 @@ class App(ctk.CTk):
                 l_icon.configure(text_color=("#1D1D1F", "#FFFFFF"))
                 l_text.configure(text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Ubuntu", size=14, weight="normal"))
         
-        # Distrugge la vecchia vista
-        if self.current_frame:
-            self.current_frame.destroy()
+        if self.current_frame: self.current_frame.destroy()
             
-        # Istanzia la nuova vista iniettandola nel main_content
         if view_name == "dashboard": self.current_frame = DashboardView(self.main_content, self)
         elif view_name == "soci": self.current_frame = SociView(self.main_content, self)
         elif view_name == "tariffe": self.current_frame = TariffeView(self.main_content, self)
@@ -141,9 +133,7 @@ class App(ctk.CTk):
             if self.current_view_name != view_name: btn_frame.configure(fg_color="transparent")
 
         for w in [btn_frame, lbl_icon, lbl_text]:
-            w.bind("<Button-1>", on_click)
-            w.bind("<Enter>", on_enter)
-            w.bind("<Leave>", on_leave)
+            w.bind("<Button-1>", on_click); w.bind("<Enter>", on_enter); w.bind("<Leave>", on_leave)
             
         self.bottoni_menu[view_name] = (btn_frame, lbl_icon, lbl_text)
 
@@ -179,7 +169,6 @@ class App(ctk.CTk):
                 except Exception: pass
 
     def riproduci_audio(self, nome_file):
-        """Metodo robusto multipiattaforma: usa winsound su PC e afplay su Mac"""
         base_dir = os.path.dirname(os.path.abspath(__file__))
         percorso = os.path.join(base_dir, "messaggi", nome_file)
         if os.path.exists(percorso):
@@ -213,6 +202,7 @@ class App(ctk.CTk):
         socio = db.query(Member).filter(Member.badge_number == scheda_str).first()
         ora_str = datetime.now().strftime("%H:%M:%S")
 
+        # CONTROLLO 1: Esistenza
         if not socio:
             self.mostra_toast_notifica("ACCESSO NEGATO", "Scheda Non Registrata!", "#FF3B30")
             self.riproduci_audio("NonValida.wav")
@@ -222,7 +212,31 @@ class App(ctk.CTk):
         nome_completo = f"{socio.first_name} {socio.last_name}"
         adesso = datetime.now()
 
-        if socio.enrollment_expiration:
+        # Legge le preferenze di blocco dalle impostazioni
+        blocco_iscr = carica_impostazione_iniziale("blocco_iscr", True)
+        blocco_abb = carica_impostazione_iniziale("blocco_abb", True)
+        blocco_orari = carica_impostazione_iniziale("blocco_orari", True)
+        blocco_cert = carica_impostazione_iniziale("blocco_cert", False)
+
+        # CONTROLLO 2: Certificato Medico (Opzionale)
+        if blocco_cert:
+            if not socio.has_medical_certificate:
+                self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nCertificato Medico Mancante!", "#007AFF")
+                self.riproduci_audio("HeyOp.wav")
+                self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Cert. Medico Assente) #-")
+                db.close(); return
+            if socio.certificate_expiration:
+                try:
+                    scad_cert = datetime.strptime(socio.certificate_expiration, "%d/%m/%Y") if "/" in socio.certificate_expiration else datetime.strptime(socio.certificate_expiration, "%Y-%m-%d")
+                    if adesso > scad_cert:
+                        self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nCertificato Medico Scaduto!", "#007AFF")
+                        self.riproduci_audio("HeyOp.wav")
+                        self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Cert. Medico Scaduto) #-")
+                        db.close(); return
+                except ValueError: pass
+
+        # CONTROLLO 3: Iscrizione Annuale (Opzionale)
+        if blocco_iscr and socio.enrollment_expiration:
             try:
                 scad_iscr = datetime.strptime(socio.enrollment_expiration, "%d/%m/%Y") if "/" in socio.enrollment_expiration else datetime.strptime(socio.enrollment_expiration, "%Y-%m-%d")
                 if adesso > scad_iscr:
@@ -232,7 +246,8 @@ class App(ctk.CTk):
                     db.close(); return
             except ValueError: pass 
 
-        if socio.membership_expiration:
+        # CONTROLLO 4: Abbonamento/Mensilità (Opzionale)
+        if blocco_abb and socio.membership_expiration:
             try:
                 scadenza = datetime.strptime(socio.membership_expiration, "%d/%m/%Y") if "/" in socio.membership_expiration else datetime.strptime(socio.membership_expiration, "%Y-%m-%d")
                 if adesso > scadenza:
@@ -242,6 +257,7 @@ class App(ctk.CTk):
                     db.close(); return
             except ValueError: pass 
 
+        # CONTROLLO 5: Fascia Assegnata (Fondamentale)
         if not socio.tier:
             self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nNessuna fascia assegnata.", "#FF9500")
             self.riproduci_audio("HeyOp.wav")
@@ -250,24 +266,27 @@ class App(ctk.CTk):
 
         tier = socio.tier
 
-        try:
-            ora_inizio = datetime.strptime(tier.start_time, "%H:%M:%S").time()
-            ora_fine = datetime.strptime(tier.end_time, "%H:%M:%S").time()
-            ora_attuale = adesso.time()
-            
-            if ora_inizio <= ora_fine:
-                in_orario = ora_inizio <= ora_attuale <= ora_fine
-            else:
-                in_orario = ora_attuale >= ora_inizio or ora_attuale <= ora_fine
+        # CONTROLLO 6: Orari di Accesso (Opzionale)
+        if blocco_orari:
+            try:
+                ora_inizio = datetime.strptime(tier.start_time, "%H:%M:%S").time()
+                ora_fine = datetime.strptime(tier.end_time, "%H:%M:%S").time()
+                ora_attuale = adesso.time()
                 
-            if not in_orario:
-                self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nFuori orario consentito!", "#FF3B30")
-                self.riproduci_audio("FuoriOrario.wav")
-                self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Fuori Orario) #-")
-                db.close()
-                return
-        except ValueError: pass
+                if ora_inizio <= ora_fine:
+                    in_orario = ora_inizio <= ora_attuale <= ora_fine
+                else:
+                    in_orario = ora_attuale >= ora_inizio or ora_attuale <= ora_fine
+                    
+                if not in_orario:
+                    self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nFuori orario consentito!", "#FF3B30")
+                    self.riproduci_audio("FuoriOrario.wav")
+                    self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Fuori Orario) #-")
+                    db.close()
+                    return
+            except ValueError: pass
 
+        # CONTROLLO 7: Carnet Ingressi
         messaggio_extra = ""
         log_ingressi = "#∞"
         if tier.max_entries > 0:
@@ -284,6 +303,7 @@ class App(ctk.CTk):
                 messaggio_extra = f"\nIngressi residui: {ingressi_rimanenti}"
                 log_ingressi = f"#{ingressi_rimanenti}"
 
+        # ACCESSO CONSENTITO
         self.mostra_toast_notifica("ACCESSO CONSENTITO", f"Benvenuto {nome_completo}{messaggio_extra}", "#34C759")
         self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : OK {log_ingressi}")
         if self.serial_conn and self.serial_conn.is_open:
@@ -309,7 +329,6 @@ class DashboardView(ctk.CTkFrame):
         ora_attuale = datetime.now().hour
         saluto = "Buongiorno" if 5 <= ora_attuale < 17 else "Buonasera"
         
-        # FIX DEFINITIVO PER LE ACCENTATE CORROTTE DELLA DATA (Non usa Windows locale)
         giorni_ita = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
         mesi_ita = ["", "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
         oggi = datetime.now()
