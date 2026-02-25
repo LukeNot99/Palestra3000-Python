@@ -1,0 +1,53 @@
+# ==========================================
+# FILE SPECIFICI DEL PROGETTO PALESTRA 3000
+# ==========================================
+
+# Database e dati locali (NON caricare dati reali su Git!)
+palestra3000.db
+backup_palestra_*.db
+*.sqlite3
+
+# Configurazione locale (Impostazioni hardware e tema)
+config.json
+
+# ==========================================
+# PYINSTALLER (File di compilazione .exe / .app)
+# ==========================================
+build/
+dist/
+*.spec
+_internal/
+
+# ==========================================
+# PYTHON (Cache e file di sistema)
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# ==========================================
+# VIRTUAL ENVIRONMENTS (Librerie installate)
+# ==========================================
+venv/
+env/
+ENV/
+.venv/
+
+# ==========================================
+# FILE DI SISTEMA OPERATIVO (Windows / macOS)
+# ==========================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ==========================================
+# IDE E SETTINGS EDITOR (VS Code, PyCharm, ecc.)
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.suo
