@@ -15,12 +15,13 @@ class Tier(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
     cost = Column(Float, default=0.0)
-    start_time = Column(String, default="00:00:00")
-    end_time = Column(String, default="23:59:59")
+    # RIMOSSI I SECONDI DAI VALORI DI DEFAULT!
+    start_time = Column(String, default="00:00")
+    end_time = Column(String, default="23:59")
     min_age = Column(Integer, default=0)
     max_age = Column(Integer, default=999)
     max_entries = Column(Integer, default=0) 
-    duration_months = Column(Integer, default=1) # NUOVO: Durata in Mesi dell'abbonamento
+    duration_months = Column(Integer, default=1) 
 
 class Member(Base):
     __tablename__ = "members"
@@ -71,7 +72,6 @@ class Booking(Base):
 
 Base.metadata.create_all(bind=engine)
 
-# Script per aggiungere le nuove colonne al volo
 try:
     with engine.connect() as conn:
         conn.execute(text("ALTER TABLE members ADD COLUMN enrollment_expiration VARCHAR"))
@@ -90,7 +90,6 @@ try:
         conn.commit()
 except Exception: pass
 
-# MIGRATION PER LA DURATA MESI
 try:
     with engine.connect() as conn:
         conn.execute(text("ALTER TABLE tiers ADD COLUMN duration_months INTEGER DEFAULT 1"))
@@ -102,9 +101,10 @@ def seed_data():
     db = SessionLocal()
     if db.query(Tier).count() == 0:
         db.add_all([
-            Tier(name="Mensile Open", cost=50.0, start_time="06:00:00", end_time="23:59:59", max_entries=0, duration_months=1),
-            Tier(name="Trimestrale", cost=130.0, start_time="06:00:00", end_time="23:59:59", max_entries=0, duration_months=3),
-            Tier(name="10 Ingressi (Valido 2 Mesi)", cost=40.0, start_time="06:00:00", end_time="23:59:59", max_entries=10, duration_months=2)
+            # ANCHE QUI, INIZIALIZZAZIONE SENZA I SECONDI
+            Tier(name="Mensile Open", cost=50.0, start_time="06:00", end_time="23:59", max_entries=0, duration_months=1),
+            Tier(name="Trimestrale", cost=130.0, start_time="06:00", end_time="23:59", max_entries=0, duration_months=3),
+            Tier(name="10 Ingressi (Valido 2 Mesi)", cost=40.0, start_time="06:00", end_time="23:59", max_entries=10, duration_months=2)
         ])
         db.commit()
     db.close()

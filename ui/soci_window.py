@@ -292,46 +292,47 @@ class SociView(ctk.CTkFrame):
         search_frame = ctk.CTkFrame(self, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         search_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=20)
 
-        comuni_unici = sorted(list(set([m.city for m in self.db.query(Member.city).filter(Member.city != None).all()])))
         tiers = self.db.query(Tier).all()
         tier_names = ["Tutte"] + [t.name for t in tiers]
 
-        ctk.CTkLabel(search_frame, text="Scheda:", font=ctk.CTkFont(family="Ubuntu"), text_color=("#86868B", "#98989D")).grid(row=0, column=0, padx=10, pady=(15, 10), sticky="e")
-        self.src_scheda = ctk.CTkEntry(search_frame, width=120)
-        self.src_scheda.grid(row=0, column=1, padx=5, pady=(15, 10), sticky="w")
-        
-        ctk.CTkLabel(search_frame, text="Fascia:", font=ctk.CTkFont(family="Ubuntu"), text_color=("#86868B", "#98989D")).grid(row=0, column=2, padx=10, pady=(15, 10), sticky="e")
-        self.src_fascia = ctk.CTkComboBox(search_frame, values=tier_names, width=150)
+        # --- RIGA 1: Dati Anagrafici ---
+        row1 = ctk.CTkFrame(search_frame, fg_color="transparent")
+        row1.pack(pady=(15, 5), fill="x", padx=15)
+
+        ctk.CTkLabel(row1, text="Nome:", font=ctk.CTkFont(family="Ubuntu", weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=(0, 5))
+        self.src_nome = ctk.CTkEntry(row1, width=160, font=ctk.CTkFont(family="Ubuntu"))
+        self.src_nome.pack(side="left", padx=(0, 20))
+
+        ctk.CTkLabel(row1, text="Cognome:", font=ctk.CTkFont(family="Ubuntu", weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=(0, 5))
+        self.src_cognome = ctk.CTkEntry(row1, width=160, font=ctk.CTkFont(family="Ubuntu"))
+        self.src_cognome.pack(side="left", padx=(0, 20))
+
+        ctk.CTkLabel(row1, text="Telefono:", font=ctk.CTkFont(family="Ubuntu", weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=(0, 5))
+        self.src_telefono = ctk.CTkEntry(row1, width=160, font=ctk.CTkFont(family="Ubuntu"))
+        self.src_telefono.pack(side="left", padx=(0, 20))
+
+        # --- RIGA 2: Dati Iscrizione e Bottoni ---
+        row2 = ctk.CTkFrame(search_frame, fg_color="transparent")
+        row2.pack(pady=(5, 15), fill="x", padx=15)
+
+        ctk.CTkLabel(row2, text="Num. Scheda:", font=ctk.CTkFont(family="Ubuntu", weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=(0, 5))
+        self.src_scheda = ctk.CTkEntry(row2, width=120, font=ctk.CTkFont(family="Ubuntu"))
+        self.src_scheda.pack(side="left", padx=(0, 20))
+
+        ctk.CTkLabel(row2, text="Fascia Abbonamento:", font=ctk.CTkFont(family="Ubuntu", weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=(0, 5))
+        self.src_fascia = ctk.CTkComboBox(row2, values=tier_names, width=160, font=ctk.CTkFont(family="Ubuntu"))
         self.src_fascia.set("Tutte")
-        self.src_fascia.grid(row=0, column=3, padx=5, pady=(15, 10), sticky="w")
+        self.src_fascia.pack(side="left", padx=(0, 20))
 
-        btn_cerca = ctk.CTkButton(search_frame, text="Cerca", width=120, height=36, font=ctk.CTkFont(family="Ubuntu", size=14, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.carica_dati)
-        btn_cerca.grid(row=0, column=4, padx=(20, 5), pady=(15, 10))
+        btn_annulla = ctk.CTkButton(row2, text="Resetta", width=100, height=32, font=ctk.CTkFont(family="Ubuntu", weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.reset_ricerca)
+        btn_annulla.pack(side="right", padx=(10, 0))
 
-        btn_annulla = ctk.CTkButton(search_frame, text="Resetta", width=120, height=36, font=ctk.CTkFont(family="Ubuntu", size=14, weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.reset_ricerca)
-        btn_annulla.grid(row=0, column=5, padx=5, pady=(15, 10))
-
-        ctk.CTkLabel(search_frame, text="Nome:", font=ctk.CTkFont(family="Ubuntu"), text_color=("#86868B", "#98989D")).grid(row=1, column=0, padx=10, pady=(0, 15), sticky="e")
-        self.src_nome = ctk.CTkEntry(search_frame, width=150)
-        self.src_nome.grid(row=1, column=1, padx=5, pady=(0, 15), sticky="w")
-
-        ctk.CTkLabel(search_frame, text="Cognome:", font=ctk.CTkFont(family="Ubuntu"), text_color=("#86868B", "#98989D")).grid(row=1, column=2, padx=10, pady=(0, 15), sticky="e")
-        self.src_cognome = ctk.CTkEntry(search_frame, width=150)
-        self.src_cognome.grid(row=1, column=3, padx=5, pady=(0, 15), sticky="w")
-
-        ctk.CTkLabel(search_frame, text="Telefono:", font=ctk.CTkFont(family="Ubuntu"), text_color=("#86868B", "#98989D")).grid(row=1, column=4, padx=10, pady=(0, 15), sticky="e")
-        self.src_telefono = ctk.CTkEntry(search_frame, width=150)
-        self.src_telefono.grid(row=1, column=5, padx=5, pady=(0, 15), sticky="w")
-
-        ctk.CTkLabel(search_frame, text="Comune:", font=ctk.CTkFont(family="Ubuntu"), text_color=("#86868B", "#98989D")).grid(row=2, column=0, padx=10, pady=(0, 15), sticky="e")
-        self.src_comune = ctk.CTkComboBox(search_frame, values=[""] + comuni_unici, width=150)
-        self.src_comune.set("")
-        self.src_comune.grid(row=2, column=1, padx=5, pady=(0, 15), sticky="w")
+        btn_cerca = ctk.CTkButton(row2, text="Cerca", width=100, height=32, font=ctk.CTkFont(family="Ubuntu", weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.carica_dati)
+        btn_cerca.pack(side="right")
 
         self.table_container = ctk.CTkFrame(self, fg_color="transparent")
         self.table_container.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 10))
         
-        # AGGIUNTO L'ALLINEAMENTO NELLA CONFIGURAZIONE DELLE COLONNE
         self.cols = [
             ("scheda", "Scheda", 1, "center"), 
             ("nome", "Nome", 2, "w"), 
@@ -345,7 +346,6 @@ class SociView(ctk.CTkFrame):
         header_frame.pack(fill="x", pady=(0, 5))
         
         for i, col in enumerate(self.cols):
-            # IL SEGRETO E' QUI: uniform="colonna" applicato agli header
             header_frame.grid_columnconfigure(i, weight=col[2], uniform="colonna")
             ctk.CTkLabel(header_frame, text=col[1], font=ctk.CTkFont(family="Ubuntu", size=12, weight="bold"), text_color=("#86868B", "#98989D"), anchor=col[3]).grid(row=0, column=i, padx=10, pady=5, sticky="ew")
 
@@ -367,7 +367,6 @@ class SociView(ctk.CTkFrame):
         self.src_nome.delete(0, 'end')
         self.src_cognome.delete(0, 'end')
         self.src_telefono.delete(0, 'end') 
-        self.src_comune.set("")
         self.carica_dati()
 
     def seleziona_riga(self, socio_id):
@@ -395,13 +394,11 @@ class SociView(ctk.CTkFrame):
         elementi_riga = [riga_frame]
         
         for i, val in enumerate(valori):
-            # IL SEGRETO E' ANCHE QUI: uniform="colonna" applicato ai dati
             riga_frame.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
             lbl = ctk.CTkLabel(riga_frame, text=val, font=ctk.CTkFont(family="Ubuntu", size=13), text_color=("#1D1D1F", "#FFFFFF"), anchor=self.cols[i][3])
             lbl.grid(row=0, column=i, padx=10, pady=10, sticky="ew")
             elementi_riga.append(lbl)
 
-        # EVENTO DOPPIO CLIC sulla riga
         for w in elementi_riga:
             w.bind("<Button-1>", lambda e, s_id=socio.id: self.seleziona_riga(s_id))
             w.bind("<Double-Button-1>", lambda e, s_id=socio.id: self.apri_form_modifica(force_id=s_id))
@@ -433,9 +430,6 @@ class SociView(ctk.CTkFrame):
         
         telefono = self.src_telefono.get().strip()
         if telefono: query = query.filter(Member.phone.ilike(f"%{telefono}%"))
-        
-        comune = self.src_comune.get().strip()
-        if comune: query = query.filter(Member.city.ilike(f"%{comune}%"))
 
         soci = query.all()
         for socio in soci:

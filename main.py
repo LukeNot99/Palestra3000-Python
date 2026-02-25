@@ -53,11 +53,13 @@ class App(ctk.CTk):
         # ==================== SIDEBAR ====================
         self.sidebar = ctk.CTkFrame(self, width=280, corner_radius=0, fg_color=("#FFFFFF", "#2C2C2E"), border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         self.sidebar.grid(row=0, column=0, sticky="nsew")
+        self.sidebar.grid_propagate(False) 
+        self.sidebar.grid_columnconfigure(0, weight=1)
         self.sidebar.grid_rowconfigure(10, weight=1) 
 
-        nome_palestra = carica_impostazione_iniziale("nome_palestra", "Palestra 3000")
-        self.logo = ctk.CTkLabel(self.sidebar, text=nome_palestra, font=ctk.CTkFont(family="Ubuntu", size=22, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
-        self.logo.grid(row=0, column=0, padx=20, pady=(30, 40), sticky="w")
+        # Variabile per il contenitore del Logo
+        self.logo_container = None
+        self.aggiorna_logo() 
 
         ctk.CTkLabel(self.sidebar, text="QUOTIDIANO", font=ctk.CTkFont(family="Ubuntu", size=12, weight="bold"), text_color=("#86868B", "#98989D")).grid(row=1, column=0, padx=24, pady=(0, 10), sticky="w")
 
@@ -79,9 +81,37 @@ class App(ctk.CTk):
         self.crea_bottone_menu("impostazioni", "Impostazioni", "impostazioni", row=11, extra_pady=(2, 20))
 
         self.main_content = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
-        self.main_content.grid(row=0, column=1, sticky="nsew", padx=40, pady=40)
+        self.main_content.grid(row=0, column=1, sticky="nsew", padx=30, pady=30)
         
         self.show_view("dashboard")
+
+    # --- FUNZIONE COSTRUZIONE LOGO WHITELABEL ---
+    def aggiorna_logo(self):
+        if self.logo_container:
+            self.logo_container.destroy()
+
+        self.logo_container = ctk.CTkFrame(self.sidebar, fg_color="transparent")
+        self.logo_container.grid(row=0, column=0, padx=20, pady=(30, 30), sticky="ew")
+        
+        percorso_logo = carica_impostazione_iniziale("percorso_logo", "")
+        nome_palestra = carica_impostazione_iniziale("nome_palestra", "Palestra 3000")
+
+        # Se esiste un'immagine, la carica e la adatta
+        if percorso_logo and os.path.exists(percorso_logo):
+            try:
+                img = Image.open(percorso_logo)
+                # Crea una "miniatura" rispettando le proporzioni (max 220px larghezza, 100px altezza)
+                img.thumbnail((220, 100))
+                ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=img.size)
+                
+                lbl_img = ctk.CTkLabel(self.logo_container, text="", image=ctk_img)
+                lbl_img.pack(anchor="w", pady=(0, 10))
+            except Exception:
+                pass 
+
+        # Mostra il testo della palestra con "wraplength"
+        self.lbl_nome_palestra = ctk.CTkLabel(self.logo_container, text=nome_palestra, font=ctk.CTkFont(family="Ubuntu", size=22, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"), wraplength=220, justify="left")
+        self.lbl_nome_palestra.pack(anchor="w")
 
     # --- ROUTING E NAVIGAZIONE ---
     def show_view(self, view_name):
@@ -147,7 +177,6 @@ class App(ctk.CTk):
         except Exception: pass
         return None
 
-    # --- LOGICA BACKGROUND TORNELLO E LOG ---
     def avvia_ascolto_hardware(self, porta):
         if self.serial_conn and self.serial_conn.is_open:
             self.stop_serial_thread.set()
@@ -202,7 +231,6 @@ class App(ctk.CTk):
         socio = db.query(Member).filter(Member.badge_number == scheda_str).first()
         ora_str = datetime.now().strftime("%H:%M:%S")
 
-        # CONTROLLO 1: Esistenza
         if not socio:
             self.mostra_toast_notifica("ACCESSO NEGATO", "Scheda Non Registrata!", "#FF3B30")
             self.riproduci_audio("NonValida.wav")
@@ -212,13 +240,11 @@ class App(ctk.CTk):
         nome_completo = f"{socio.first_name} {socio.last_name}"
         adesso = datetime.now()
 
-        # Legge le preferenze di blocco dalle impostazioni
         blocco_iscr = carica_impostazione_iniziale("blocco_iscr", True)
         blocco_abb = carica_impostazione_iniziale("blocco_abb", True)
         blocco_orari = carica_impostazione_iniziale("blocco_orari", True)
         blocco_cert = carica_impostazione_iniziale("blocco_cert", False)
 
-        # CONTROLLO 2: Certificato Medico (Opzionale)
         if blocco_cert:
             if not socio.has_medical_certificate:
                 self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nCertificato Medico Mancante!", "#007AFF")
@@ -235,7 +261,6 @@ class App(ctk.CTk):
                         db.close(); return
                 except ValueError: pass
 
-        # CONTROLLO 3: Iscrizione Annuale (Opzionale)
         if blocco_iscr and socio.enrollment_expiration:
             try:
                 scad_iscr = datetime.strptime(socio.enrollment_expiration, "%d/%m/%Y") if "/" in socio.enrollment_expiration else datetime.strptime(socio.enrollment_expiration, "%Y-%m-%d")
@@ -246,7 +271,6 @@ class App(ctk.CTk):
                     db.close(); return
             except ValueError: pass 
 
-        # CONTROLLO 4: Abbonamento/Mensilità (Opzionale)
         if blocco_abb and socio.membership_expiration:
             try:
                 scadenza = datetime.strptime(socio.membership_expiration, "%d/%m/%Y") if "/" in socio.membership_expiration else datetime.strptime(socio.membership_expiration, "%Y-%m-%d")
@@ -257,7 +281,6 @@ class App(ctk.CTk):
                     db.close(); return
             except ValueError: pass 
 
-        # CONTROLLO 5: Fascia Assegnata (Fondamentale)
         if not socio.tier:
             self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nNessuna fascia assegnata.", "#FF9500")
             self.riproduci_audio("HeyOp.wav")
@@ -266,11 +289,10 @@ class App(ctk.CTk):
 
         tier = socio.tier
 
-        # CONTROLLO 6: Orari di Accesso (Opzionale)
         if blocco_orari:
             try:
-                ora_inizio = datetime.strptime(tier.start_time, "%H:%M:%S").time()
-                ora_fine = datetime.strptime(tier.end_time, "%H:%M:%S").time()
+                ora_inizio = datetime.strptime(tier.start_time[:5], "%H:%M").time()
+                ora_fine = datetime.strptime(tier.end_time[:5], "%H:%M").time()
                 ora_attuale = adesso.time()
                 
                 if ora_inizio <= ora_fine:
@@ -286,7 +308,6 @@ class App(ctk.CTk):
                     return
             except ValueError: pass
 
-        # CONTROLLO 7: Carnet Ingressi
         messaggio_extra = ""
         log_ingressi = "#∞"
         if tier.max_entries > 0:
@@ -303,7 +324,6 @@ class App(ctk.CTk):
                 messaggio_extra = f"\nIngressi residui: {ingressi_rimanenti}"
                 log_ingressi = f"#{ingressi_rimanenti}"
 
-        # ACCESSO CONSENTITO
         self.mostra_toast_notifica("ACCESSO CONSENTITO", f"Benvenuto {nome_completo}{messaggio_extra}", "#34C759")
         self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : OK {log_ingressi}")
         if self.serial_conn and self.serial_conn.is_open:
@@ -418,7 +438,7 @@ class DashboardView(ctk.CTkFrame):
             for l in lezioni_oggi:
                 riga = ctk.CTkFrame(self.scroll_agenda, fg_color="transparent")
                 riga.pack(fill="x", pady=5, padx=10)
-                ctk.CTkLabel(riga, text=f"🕒 {l.start_time}", font=ctk.CTkFont(family="Ubuntu", weight="bold", size=13), text_color=("#1D1D1F", "#FFFFFF"), width=70, anchor="w").pack(side="left")
+                ctk.CTkLabel(riga, text=f"🕒 {l.start_time[:5]}", font=ctk.CTkFont(family="Ubuntu", weight="bold", size=13), text_color=("#1D1D1F", "#FFFFFF"), width=70, anchor="w").pack(side="left")
                 nome_att = l.activity.name if l.activity else "Attività"
                 occupati = db.query(Booking).filter(Booking.lesson_id == l.id).count()
                 ctk.CTkLabel(riga, text=nome_att, font=ctk.CTkFont(family="Ubuntu", size=13), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=10)

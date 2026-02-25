@@ -68,32 +68,56 @@ class SettingsView(ctk.CTkFrame):
         switches_container = ctk.CTkFrame(block_frame, fg_color="transparent")
         switches_container.pack(pady=(15, 20), padx=20, fill="x")
 
-        # Variabili di stato collegate al file di configurazione
         self.var_blocco_iscr = ctk.BooleanVar(value=leggi_impostazione("blocco_iscr", True))
         self.var_blocco_abb = ctk.BooleanVar(value=leggi_impostazione("blocco_abb", True))
         self.var_blocco_orari = ctk.BooleanVar(value=leggi_impostazione("blocco_orari", True))
-        self.var_blocco_cert = ctk.BooleanVar(value=leggi_impostazione("blocco_cert", False)) # Di default il certificato non blocca
+        self.var_blocco_cert = ctk.BooleanVar(value=leggi_impostazione("blocco_cert", False)) 
 
-        # Interruttori (Switch)
         ctk.CTkSwitch(switches_container, text="Blocca accesso se Iscrizione Annuale Scaduta", variable=self.var_blocco_iscr, command=self.salva_blocchi, font=ctk.CTkFont(family="Ubuntu", size=14), progress_color="#FF3B30").pack(pady=8, anchor="w")
         ctk.CTkSwitch(switches_container, text="Blocca accesso se Abbonamento / Mensilità Scaduto", variable=self.var_blocco_abb, command=self.salva_blocchi, font=ctk.CTkFont(family="Ubuntu", size=14), progress_color="#FF9500").pack(pady=8, anchor="w")
         ctk.CTkSwitch(switches_container, text="Blocca accesso se Fuori dalla Fascia Oraria assegnata", variable=self.var_blocco_orari, command=self.salva_blocchi, font=ctk.CTkFont(family="Ubuntu", size=14), progress_color="#34C759").pack(pady=8, anchor="w")
         ctk.CTkSwitch(switches_container, text="Blocca accesso se Certificato Medico Assente o Scaduto", variable=self.var_blocco_cert, command=self.salva_blocchi, font=ctk.CTkFont(family="Ubuntu", size=14), progress_color="#007AFF").pack(pady=8, anchor="w")
 
-        # ==================== CARD NOME PALESTRA ====================
+        # ==================== MODULI AGGIUNTIVI ====================
+        moduli_frame = ctk.CTkFrame(self.scroll, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
+        moduli_frame.pack(padx=30, pady=(0, 15), fill="x")
+        
+        ctk.CTkLabel(moduli_frame, text="🧩 Moduli e Campi Aggiuntivi", font=ctk.CTkFont(family="Ubuntu", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
+        ctk.CTkLabel(moduli_frame, text="Attiva o disattiva le colonne e i campi visivi in giro per il gestionale.", font=ctk.CTkFont(family="Ubuntu", size=12), text_color=("#86868B", "#98989D")).pack(padx=20, anchor="w")
+
+        mod_container = ctk.CTkFrame(moduli_frame, fg_color="transparent")
+        mod_container.pack(pady=(15, 20), padx=20, fill="x")
+
+        self.var_mostra_costo = ctk.BooleanVar(value=leggi_impostazione("mostra_costo_fasce", False))
+        self.var_mostra_eta = ctk.BooleanVar(value=leggi_impostazione("mostra_eta_fasce", False))
+
+        ctk.CTkSwitch(mod_container, text="Mostra modulo 'Costo Monetario' nelle Tariffe", variable=self.var_mostra_costo, command=self.salva_moduli, font=ctk.CTkFont(family="Ubuntu", size=14), progress_color="#007AFF").pack(pady=8, anchor="w")
+        ctk.CTkSwitch(mod_container, text="Mostra modulo 'Limiti di Età' nelle Tariffe", variable=self.var_mostra_eta, command=self.salva_moduli, font=ctk.CTkFont(family="Ubuntu", size=14), progress_color="#007AFF").pack(pady=8, anchor="w")
+
+
+        # ==================== PERSONALIZZAZIONE E WHITELABEL (LOGO) ====================
         pers_frame = ctk.CTkFrame(self.scroll, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         pers_frame.pack(padx=30, pady=(0, 15), fill="x")
         
-        ctk.CTkLabel(pers_frame, text="🏷️ Nome Palestra", font=ctk.CTkFont(family="Ubuntu", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
+        ctk.CTkLabel(pers_frame, text="🏷️ Personalizzazione (Whitelabel)", font=ctk.CTkFont(family="Ubuntu", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
+        ctk.CTkLabel(pers_frame, text="Imposta il nome e il logo della tua struttura. Verranno mostrati nella barra laterale.", font=ctk.CTkFont(family="Ubuntu", size=12), text_color=("#86868B", "#98989D")).pack(padx=20, anchor="w")
         
         input_frame = ctk.CTkFrame(pers_frame, fg_color="transparent")
-        input_frame.pack(pady=(10, 20), padx=20, fill="x")
+        input_frame.pack(pady=(10, 5), padx=20, fill="x")
         
         self.ent_nome_palestra = ctk.CTkEntry(input_frame, width=280, font=ctk.CTkFont(family="Ubuntu", size=14))
         self.ent_nome_palestra.insert(0, leggi_impostazione("nome_palestra", "Palestra 3000"))
         self.ent_nome_palestra.pack(side="left")
         
-        ctk.CTkButton(input_frame, text="Salva", width=100, height=36, font=ctk.CTkFont(family="Ubuntu", size=13, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.salva_nome).pack(side="left", padx=10)
+        ctk.CTkButton(input_frame, text="Salva Nome", width=100, height=36, font=ctk.CTkFont(family="Ubuntu", size=13, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.salva_nome).pack(side="left", padx=10)
+
+        # Nuovo Frame per i bottoni del Logo Immagine
+        logo_frame = ctk.CTkFrame(pers_frame, fg_color="transparent")
+        logo_frame.pack(pady=(0, 20), padx=20, fill="x")
+
+        ctk.CTkButton(logo_frame, text="🖼️ Carica Logo", width=140, height=36, font=ctk.CTkFont(family="Ubuntu", size=13, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.carica_logo).pack(side="left")
+        ctk.CTkButton(logo_frame, text="🗑️ Rimuovi Logo", width=140, height=36, font=ctk.CTkFont(family="Ubuntu", size=13, weight="bold"), fg_color="#FF3B30", hover_color="#c0392b", command=self.rimuovi_logo).pack(side="left", padx=10)
+
 
         # ==================== CARD TEMA VISIVO ====================
         theme_frame = ctk.CTkFrame(self.scroll, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
@@ -134,11 +158,14 @@ class SettingsView(ctk.CTkFrame):
 
     # --- FUNZIONALITA' ---
     def salva_blocchi(self):
-        """Salva lo stato degli interruttori di blocco nel file JSON"""
         salva_impostazione("blocco_iscr", self.var_blocco_iscr.get())
         salva_impostazione("blocco_abb", self.var_blocco_abb.get())
         salva_impostazione("blocco_orari", self.var_blocco_orari.get())
         salva_impostazione("blocco_cert", self.var_blocco_cert.get())
+
+    def salva_moduli(self):
+        salva_impostazione("mostra_costo_fasce", self.var_mostra_costo.get())
+        salva_impostazione("mostra_eta_fasce", self.var_mostra_eta.get())
 
     def salva_porta(self):
         porta = self.cmb_porta.get()
@@ -151,9 +178,24 @@ class SettingsView(ctk.CTkFrame):
         nuovo_nome = self.ent_nome_palestra.get().strip()
         if nuovo_nome:
             salva_impostazione("nome_palestra", nuovo_nome)
-            if self.controller and hasattr(self.controller, "logo"):
-                self.controller.logo.configure(text=nuovo_nome)
+            # Ricarica l'intera logica visiva della sidebar
+            if self.controller and hasattr(self.controller, "aggiorna_logo"):
+                self.controller.aggiorna_logo()
             messagebox.showinfo("Salvato", "Nome palestra aggiornato con successo!")
+
+    def carica_logo(self):
+        percorso = filedialog.askopenfilename(title="Seleziona Logo", filetypes=[("Immagini", "*.png *.jpg *.jpeg *.bmp")])
+        if percorso:
+            salva_impostazione("percorso_logo", percorso)
+            if self.controller and hasattr(self.controller, "aggiorna_logo"):
+                self.controller.aggiorna_logo()
+            messagebox.showinfo("Completato", "Logo caricato con successo!")
+
+    def rimuovi_logo(self):
+        salva_impostazione("percorso_logo", "")
+        if self.controller and hasattr(self.controller, "aggiorna_logo"):
+            self.controller.aggiorna_logo()
+        messagebox.showinfo("Completato", "Logo rimosso. Verrà mostrato solo il testo.")
 
     def cambia_tema(self, nuovo_tema):
         ctk.set_appearance_mode(nuovo_tema)

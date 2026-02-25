@@ -148,7 +148,15 @@ class CalendarioView(ctk.CTkFrame):
 
     # --- LOGICA COLONNA CENTRALE (Lista Corsi) ---
     def aggiorna_lista_corsi(self):
-        data_str_formattata = self.giorno_selezionato.strftime("%A, %d %B").capitalize()
+        # FIX DEFINITIVO ITALIANO: Svincoliamoci dal formato di sistema per evitare l'inglese
+        giorni_ita = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
+        mesi_ita = ["", "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
+        
+        nome_giorno = giorni_ita[self.giorno_selezionato.weekday()]
+        nome_mese = mesi_ita[self.giorno_selezionato.month]
+        
+        # Formatta es: "Lunedì, 25 Febbraio"
+        data_str_formattata = f"{nome_giorno}, {self.giorno_selezionato.day} {nome_mese}"
         self.lbl_data_corsi.configure(text=data_str_formattata)
         
         for widget in self.scroll_lezioni.winfo_children(): widget.destroy()
