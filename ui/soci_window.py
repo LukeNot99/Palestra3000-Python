@@ -165,7 +165,6 @@ class SocioFormWindow(ctk.CTkToplevel):
         partenza_str = self.ent_partenza_mensilita.get().strip()
         if not partenza_str: return
             
-        # Recupera la durata esatta in mesi della fascia selezionata
         tier = next((t for t in self.tiers if t.name == fascia_scelta), None)
         mesi_durata = tier.duration_months if tier else 1
             
@@ -173,12 +172,10 @@ class SocioFormWindow(ctk.CTkToplevel):
             if "/" in partenza_str: d_partenza = datetime.strptime(partenza_str, "%d/%m/%Y")
             else: d_partenza = datetime.strptime(partenza_str, "%Y-%m-%d")
             
-            # Nuovo Algoritmo Matematico Robusto per aggiungere N mesi
             mese_target = d_partenza.month - 1 + mesi_durata
             anno_succ = d_partenza.year + (mese_target // 12)
             mese_succ = (mese_target % 12) + 1
             
-            # Evita l'errore del "31 Febbraio"
             giorni_nel_mese_dest = calendar.monthrange(anno_succ, mese_succ)[1]
             giorno = min(d_partenza.day, giorni_nel_mese_dest) 
             
@@ -281,8 +278,8 @@ class SocioFormWindow(ctk.CTkToplevel):
 
 # ==================== SCHEDA PRINCIPALE: SociView (COME FRAME!) ====================
 class SociView(ctk.CTkFrame):
-    def __init__(self, parent, *args, **kwargs):
-        super().__init__(parent, fg_color="transparent")
+    def __init__(self, parent, controller=None, **kwargs):
+        super().__init__(parent, fg_color="transparent", **kwargs)
         
         self.db = SessionLocal()
         
@@ -334,15 +331,23 @@ class SociView(ctk.CTkFrame):
         self.table_container = ctk.CTkFrame(self, fg_color="transparent")
         self.table_container.grid(row=2, column=0, sticky="nsew", padx=20, pady=(0, 10))
         
-        self.cols = [("scheda", "Scheda", 1), ("nome", "Nome", 2), ("cognome", "Cognome", 2), 
-                     ("fascia", "Fascia", 1), ("scadenza", "Scad. Abb.", 1), ("scad_iscr", "Scad. Iscr.", 1)]
+        # AGGIUNTO L'ALLINEAMENTO NELLA CONFIGURAZIONE DELLE COLONNE
+        self.cols = [
+            ("scheda", "Scheda", 1, "center"), 
+            ("nome", "Nome", 2, "w"), 
+            ("cognome", "Cognome", 2, "w"), 
+            ("fascia", "Fascia", 1, "center"), 
+            ("scadenza", "Scad. Abb.", 1, "center"), 
+            ("scad_iscr", "Scad. Iscr.", 1, "center")
+        ]
 
         header_frame = ctk.CTkFrame(self.table_container, fg_color=("#E5E5EA", "#3A3A3C"), height=35, corner_radius=6)
         header_frame.pack(fill="x", pady=(0, 5))
         
         for i, col in enumerate(self.cols):
-            header_frame.grid_columnconfigure(i, weight=col[2])
-            ctk.CTkLabel(header_frame, text=col[1], font=ctk.CTkFont(family="Ubuntu", size=12, weight="bold"), text_color=("#86868B", "#98989D"), anchor="w").grid(row=0, column=i, padx=10, pady=5, sticky="w")
+            # IL SEGRETO E' QUI: uniform="colonna" applicato agli header
+            header_frame.grid_columnconfigure(i, weight=col[2], uniform="colonna")
+            ctk.CTkLabel(header_frame, text=col[1], font=ctk.CTkFont(family="Ubuntu", size=12, weight="bold"), text_color=("#86868B", "#98989D"), anchor=col[3]).grid(row=0, column=i, padx=10, pady=5, sticky="ew")
 
         self.scroll_table = ctk.CTkScrollableFrame(self.table_container, fg_color="transparent")
         self.scroll_table.pack(fill="both", expand=True)
@@ -390,9 +395,10 @@ class SociView(ctk.CTkFrame):
         elementi_riga = [riga_frame]
         
         for i, val in enumerate(valori):
-            riga_frame.grid_columnconfigure(i, weight=self.cols[i][2])
-            lbl = ctk.CTkLabel(riga_frame, text=val, font=ctk.CTkFont(family="Ubuntu", size=13), text_color=("#1D1D1F", "#FFFFFF"), anchor="w")
-            lbl.grid(row=0, column=i, padx=10, pady=10, sticky="w")
+            # IL SEGRETO E' ANCHE QUI: uniform="colonna" applicato ai dati
+            riga_frame.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
+            lbl = ctk.CTkLabel(riga_frame, text=val, font=ctk.CTkFont(family="Ubuntu", size=13), text_color=("#1D1D1F", "#FFFFFF"), anchor=self.cols[i][3])
+            lbl.grid(row=0, column=i, padx=10, pady=10, sticky="ew")
             elementi_riga.append(lbl)
 
         # EVENTO DOPPIO CLIC sulla riga

@@ -1,10 +1,9 @@
 import customtkinter as ctk
 from tkinter import messagebox
-from core.database import SessionLocal, Tier
+from core.database import SessionLocal, Tier, Member
 
 # ==================== SCHEDA PRINCIPALE: TariffeView (COME FRAME!) ====================
 class TariffeView(ctk.CTkFrame):
-    # Aggiungiamo 'controller' per assorbire in sicurezza il parametro inviato da main.py
     def __init__(self, parent, controller=None, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
         
@@ -54,7 +53,6 @@ class TariffeView(ctk.CTkFrame):
         self.ent_uscita.insert(0, "23:59:59")
         self.ent_uscita.pack(side="left", padx=5)
 
-        # RIGA 3: REGOLE ABBONAMENTO (Durata Mesi + Ingressi)
         row3 = ctk.CTkFrame(form_frame, fg_color="transparent")
         row3.pack(pady=(5, 15), fill="x", padx=10)
 
@@ -84,14 +82,23 @@ class TariffeView(ctk.CTkFrame):
         self.table_container = ctk.CTkFrame(self, fg_color="transparent")
         self.table_container.grid(row=2, column=0, sticky="nsew", padx=20, pady=(10, 20))
         
-        self.cols = [("sigla", "Sigla Fascia", 2), ("costo", "Costo", 1), ("eta", "Età (Min-Max)", 1), 
-                     ("orari", "Accesso/Uscita", 2), ("durata", "Durata", 1), ("ingressi", "Carnet", 1)]
+        # NUOVA STRUTTURA: Aggiunta informazione sull'allineamento (w=sinistra, center=centro)
+        self.cols = [
+            ("sigla", "Sigla Fascia", 2, "w"), 
+            ("costo", "Costo", 1, "center"), 
+            ("eta", "Età (Min-Max)", 1, "center"), 
+            ("orari", "Accesso/Uscita", 2, "center"), 
+            ("durata", "Durata", 1, "center"), 
+            ("ingressi", "Carnet", 1, "center")
+        ]
 
         header_frame = ctk.CTkFrame(self.table_container, fg_color=("#E5E5EA", "#3A3A3C"), height=35, corner_radius=6)
         header_frame.pack(fill="x", pady=(0, 5))
+        
         for i, col in enumerate(self.cols):
-            header_frame.grid_columnconfigure(i, weight=col[2])
-            ctk.CTkLabel(header_frame, text=col[1], font=ctk.CTkFont(family="Ubuntu", size=12, weight="bold"), text_color=("#86868B", "#98989D"), anchor="w").grid(row=0, column=i, padx=10, pady=5, sticky="w")
+            # IL SEGRETO E' QUI: uniform="colonna"
+            header_frame.grid_columnconfigure(i, weight=col[2], uniform="colonna")
+            ctk.CTkLabel(header_frame, text=col[1], font=ctk.CTkFont(family="Ubuntu", size=12, weight="bold"), text_color=("#86868B", "#98989D"), anchor=col[3]).grid(row=0, column=i, padx=10, pady=5, sticky="ew")
 
         self.scroll_table = ctk.CTkScrollableFrame(self.table_container, fg_color="transparent")
         self.scroll_table.pack(fill="both", expand=True)
@@ -135,9 +142,10 @@ class TariffeView(ctk.CTkFrame):
         elementi_riga = [riga_frame]
         
         for i, val in enumerate(valori):
-            riga_frame.grid_columnconfigure(i, weight=self.cols[i][2])
-            lbl = ctk.CTkLabel(riga_frame, text=val, font=ctk.CTkFont(family="Ubuntu", size=13), text_color=("#1D1D1F", "#FFFFFF"), anchor="w")
-            lbl.grid(row=0, column=i, padx=10, pady=10, sticky="w")
+            # IL SEGRETO E' ANCHE QUI: uniform="colonna" applicato ai dati
+            riga_frame.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
+            lbl = ctk.CTkLabel(riga_frame, text=val, font=ctk.CTkFont(family="Ubuntu", size=13), text_color=("#1D1D1F", "#FFFFFF"), anchor=self.cols[i][3])
+            lbl.grid(row=0, column=i, padx=10, pady=10, sticky="ew")
             elementi_riga.append(lbl)
 
         for w in elementi_riga:
@@ -202,7 +210,6 @@ class TariffeView(ctk.CTkFrame):
     def elimina_tariffa(self):
         if not self.selected_tariffa_id: return messagebox.showwarning("Attenzione", "Seleziona una fascia.")
         
-        # Usa importazione locale per evitare l'errore di importazione circolare con Member
         from core.database import Member 
         soci_collegati = self.db.query(Member).filter(Member.tier_id == self.selected_tariffa_id).count()
         if soci_collegati > 0: return messagebox.showerror("Errore", f"Ci sono {soci_collegati} soci iscritti con questa fascia!")
