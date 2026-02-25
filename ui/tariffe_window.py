@@ -5,7 +5,6 @@ import json
 import os
 from core.database import SessionLocal, Tier, Member
 
-# Funzione per leggere la configurazione locale
 def leggi_impostazione(chiave, default):
     if os.path.exists("config.json"):
         try:
@@ -13,7 +12,6 @@ def leggi_impostazione(chiave, default):
         except: pass
     return default
 
-# ==================== SCHEDA PRINCIPALE: TariffeView ====================
 class TariffeView(ctk.CTkFrame):
     def __init__(self, parent, controller=None, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
@@ -23,19 +21,19 @@ class TariffeView(ctk.CTkFrame):
         self.row_frames = {}
         self.selected_tariffa_id = None
 
-        # Lettura impostazioni moduli (Spenti di Default!)
+        # PRE-CARICAMENTO FONT PER PREVENIRE MEMORY LEAK!
+        self.font_riga = ctk.CTkFont(family="Montserrat", size=13)
+
         self.mostra_costo = leggi_impostazione("mostra_costo_fasce", False)
         self.mostra_eta = leggi_impostazione("mostra_eta_fasce", False)
 
         self.grid_rowconfigure(2, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
-        # ==================== PANNELLO FORM DINAMICO ====================
         form_frame = ctk.CTkFrame(self, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         form_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=20)
         form_frame.grid_columnconfigure((0, 1, 2, 3), weight=1, uniform="colonna")
 
-        # Dichiaro tutti i widget, ma li posiziono solo se necessario!
         self.lbl_sigla = ctk.CTkLabel(form_frame, text="Sigla Fascia:", text_color=("#86868B", "#98989D"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
         self.ent_sigla = ctk.CTkEntry(form_frame, width=180, font=ctk.CTkFont(family="Montserrat"))
 
@@ -60,8 +58,6 @@ class TariffeView(ctk.CTkFrame):
         self.lbl_ingressi = ctk.CTkLabel(form_frame, text="Carnet (0 = Illimitati):", text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
         self.ent_ingressi = ctk.CTkEntry(form_frame, width=180, justify="center", text_color=("#007AFF", "#0A84FF"), font=ctk.CTkFont(family="Montserrat", weight="bold")); self.ent_ingressi.insert(0, "0")
 
-        # LOGICA DI GRIGLIA INTELLIGENTE
-        # Aggiungo i campi alla lista di visualizzazione solo se l'interruttore è acceso!
         active_fields = [(self.lbl_sigla, self.ent_sigla)]
         if self.mostra_costo: active_fields.append((self.lbl_costo, self.ent_costo))
         if self.mostra_eta: active_fields.append((self.lbl_eta, self.frame_eta))
@@ -69,14 +65,12 @@ class TariffeView(ctk.CTkFrame):
         active_fields.append((self.lbl_durata, self.ent_durata))
         active_fields.append((self.lbl_ingressi, self.ent_ingressi))
 
-        # Ciclo che posiziona a "ZIG ZAG" i moduli attivi, riempiendo i buchi da solo!
         for i, (lbl, wgt) in enumerate(active_fields):
             riga = i // 2
             col = (i % 2) * 2
             lbl.grid(row=riga, column=col, sticky="e", padx=(20, 10), pady=15)
             wgt.grid(row=riga, column=col+1, sticky="w", padx=(0, 20), pady=15)
 
-        # ==================== BOTTONIERA STANDARDIZZATA ====================
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=5)
 
@@ -88,7 +82,6 @@ class TariffeView(ctk.CTkFrame):
         ctk.CTkButton(btn_frame, text="✏️ Modifica", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.carica_in_form).pack(side="left", padx=(20, 10))
         ctk.CTkButton(btn_frame, text="🗑️ Elimina", width=120, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#FF3B30", hover_color="#e03026", command=self.elimina_tariffa).pack(side="right")
 
-        # ==================== DATA GRID (COLONNE DINAMICHE) ====================
         self.table_container = ctk.CTkFrame(self, fg_color="transparent")
         self.table_container.grid(row=2, column=0, sticky="nsew", padx=20, pady=(10, 20))
         
@@ -116,10 +109,11 @@ class TariffeView(ctk.CTkFrame):
     def seleziona_riga(self, t_id):
         self.selected_tariffa_id = t_id
         for r_id, frame in self.row_frames.items():
-            if r_id == t_id:
-                frame.configure(fg_color=("#E5F1FF", "#0A2A4A"), border_color="#007AFF")
-            else:
-                frame.configure(fg_color=("#FFFFFF", "#2C2C2E"), border_color=("#E5E5EA", "#3A3A3C"))
+            if frame.winfo_exists():
+                if r_id == t_id:
+                    frame.configure(fg_color=("#E5F1FF", "#0A2A4A"), border_color="#007AFF")
+                else:
+                    frame.configure(fg_color=("#FFFFFF", "#2C2C2E"), border_color=("#E5E5EA", "#3A3A3C"))
 
     def svuota_form(self):
         self.ent_sigla.delete(0, 'end')
@@ -146,7 +140,6 @@ class TariffeView(ctk.CTkFrame):
         riga_frame.pack(fill="x", pady=2)
         riga_frame.pack_propagate(False)
 
-        # Generazione Dinamica dei valori per la tabella
         valori = [t.name]
         if self.mostra_costo: valori.append(f"€ {t.cost:.2f}")
         if self.mostra_eta: valori.append(f"{t.min_age} - {t.max_age} anni")
@@ -160,14 +153,16 @@ class TariffeView(ctk.CTkFrame):
         
         for i, val in enumerate(valori):
             riga_frame.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
-            lbl = ctk.CTkLabel(riga_frame, text=val, font=ctk.CTkFont(family="Montserrat", size=13), text_color=("#1D1D1F", "#FFFFFF"), anchor=self.cols[i][3])
+            # UTILIZZO DEL FONT CACHED PER EVITARE CRASH
+            lbl = ctk.CTkLabel(riga_frame, text=val, font=self.font_riga, text_color=("#1D1D1F", "#FFFFFF"), anchor=self.cols[i][3])
             lbl.grid(row=0, column=i, padx=10, pady=10, sticky="ew")
             elementi_riga.append(lbl)
 
+        # AGGIUNTA SICUREZZA WINFO_EXISTS AGLI EVENTI MOUSE
         for w in elementi_riga:
             w.bind("<Button-1>", lambda e, id=t.id: self.seleziona_riga(id))
-            w.bind("<Enter>", lambda e, f=riga_frame, id=t.id: f.configure(fg_color=("#F8F8F9", "#3A3A3C")) if self.selected_tariffa_id != id else None)
-            w.bind("<Leave>", lambda e, f=riga_frame, id=t.id: f.configure(fg_color=("#FFFFFF", "#2C2C2E")) if self.selected_tariffa_id != id else None)
+            w.bind("<Enter>", lambda e, f=riga_frame, id=t.id: f.configure(fg_color=("#F8F8F9", "#3A3A3C")) if f.winfo_exists() and self.selected_tariffa_id != id else None)
+            w.bind("<Leave>", lambda e, f=riga_frame, id=t.id: f.configure(fg_color=("#FFFFFF", "#2C2C2E")) if f.winfo_exists() and self.selected_tariffa_id != id else None)
 
         self.row_frames[t.id] = riga_frame
 

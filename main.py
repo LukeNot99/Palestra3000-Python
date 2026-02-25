@@ -57,12 +57,14 @@ class App(ctk.CTk):
         self.sidebar.grid_columnconfigure(0, weight=1)
         self.sidebar.grid_rowconfigure(10, weight=1) 
 
-        # Variabile per il contenitore del Logo
         self.logo_container = None
         self.aggiorna_logo() 
 
         ctk.CTkLabel(self.sidebar, text="QUOTIDIANO", font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"), text_color=("#86868B", "#98989D")).grid(row=1, column=0, padx=24, pady=(0, 10), sticky="w")
 
+        # --- SISTEMA CACHE DELLE SCHEDE ---
+        self.views = {} # Dizionario che tiene in memoria le schede aperte
+        
         self.bottoni_menu = {}
         self.current_view_name = None
         self.current_frame = None
@@ -85,7 +87,6 @@ class App(ctk.CTk):
         
         self.show_view("dashboard")
 
-    # --- FUNZIONE COSTRUZIONE LOGO WHITELABEL ---
     def aggiorna_logo(self):
         if self.logo_container:
             self.logo_container.destroy()
@@ -96,11 +97,9 @@ class App(ctk.CTk):
         percorso_logo = carica_impostazione_iniziale("percorso_logo", "")
         nome_palestra = carica_impostazione_iniziale("nome_palestra", "Palestra 3000")
 
-        # Se esiste un'immagine, la carica e la adatta
         if percorso_logo and os.path.exists(percorso_logo):
             try:
                 img = Image.open(percorso_logo)
-                # Crea una "miniatura" rispettando le proporzioni (max 220px larghezza, 100px altezza)
                 img.thumbnail((220, 100))
                 ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=img.size)
                 
@@ -109,15 +108,15 @@ class App(ctk.CTk):
             except Exception:
                 pass 
 
-        # Mostra il testo della palestra con "wraplength"
         self.lbl_nome_palestra = ctk.CTkLabel(self.logo_container, text=nome_palestra, font=ctk.CTkFont(family="Montserrat", size=22, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"), wraplength=220, justify="left")
         self.lbl_nome_palestra.pack(anchor="w")
 
-    # --- ROUTING E NAVIGAZIONE ---
+    # --- ROUTING E NAVIGAZIONE (BLINDATO ANTI-CRASH) ---
     def show_view(self, view_name):
         if self.current_view_name == view_name: return
         self.current_view_name = view_name
         
+        # Colora il pulsante attivo
         for name, data in self.bottoni_menu.items():
             btn_f, l_icon, l_text = data
             if name == view_name:
@@ -129,19 +128,35 @@ class App(ctk.CTk):
                 l_icon.configure(text_color=("#1D1D1F", "#FFFFFF"))
                 l_text.configure(text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Montserrat", size=14, weight="normal"))
         
-        if self.current_frame: self.current_frame.destroy()
+        # NASCONDE LA VECCHIA SCHEDA SENZA DISTRUGGERLA
+        if self.current_frame:
+            self.current_frame.pack_forget()
             
-        if view_name == "dashboard": self.current_frame = DashboardView(self.main_content, self)
-        elif view_name == "soci": self.current_frame = SociView(self.main_content, self)
-        elif view_name == "tariffe": self.current_frame = TariffeView(self.main_content, self)
-        elif view_name == "attivita": self.current_frame = AttivitaView(self.main_content, self)
-        elif view_name == "lezioni": self.current_frame = LezioniView(self.main_content, self)
-        elif view_name == "prenotazioni": self.current_frame = PrenotazioniView(self.main_content, self)
-        elif view_name == "calendario": self.current_frame = CalendarioView(self.main_content, self)
-        elif view_name == "tornello": self.current_frame = TornelloView(self.main_content, self)
-        elif view_name == "impostazioni": self.current_frame = SettingsView(self.main_content, self)
+        # CREA LA SCHEDA SOLO SE NON ESISTE IN MEMORIA
+        if view_name not in self.views:
+            if view_name == "dashboard": self.views[view_name] = DashboardView(self.main_content, self)
+            elif view_name == "soci": self.views[view_name] = SociView(self.main_content, self)
+            elif view_name == "tariffe": self.views[view_name] = TariffeView(self.main_content, self)
+            elif view_name == "attivita": self.views[view_name] = AttivitaView(self.main_content, self)
+            elif view_name == "lezioni": self.views[view_name] = LezioniView(self.main_content, self)
+            elif view_name == "prenotazioni": self.views[view_name] = PrenotazioniView(self.main_content, self)
+            elif view_name == "calendario": self.views[view_name] = CalendarioView(self.main_content, self)
+            elif view_name == "tornello": self.views[view_name] = TornelloView(self.main_content, self)
+            elif view_name == "impostazioni": self.views[view_name] = SettingsView(self.main_content, self)
 
+        # RECUPERA LA SCHEDA DALLA MEMORIA E LA MOSTRA
+        self.current_frame = self.views[view_name]
         self.current_frame.pack(fill="both", expand=True)
+
+        # AGGIORNA I DATI IN TEMPO REALE QUANDO LA SCHEDA RIAPPARE
+        if hasattr(self.current_frame, "carica_dati"):
+            self.current_frame.carica_dati()
+        elif hasattr(self.current_frame, "carica_tabella"):
+            self.current_frame.carica_tabella()
+        elif hasattr(self.current_frame, "load_stats"):
+            self.current_frame.load_stats()
+        elif hasattr(self.current_frame, "disegna_calendario"):
+            self.current_frame.disegna_calendario()
 
     def crea_bottone_menu(self, nome_icona, testo, view_name, row, extra_pady=(2,2)):
         btn_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent", corner_radius=8, height=42, cursor="hand2")
@@ -340,12 +355,18 @@ class App(ctk.CTk):
         self.mostra_toast_notifica("APERTURA D'UFFICIO", "Ingresso autorizzato dall'operatore.", "#007AFF")
 
 
-# ==================== CLASSE VISTA DASHBOARD INTERNA ====================
 class DashboardView(ctk.CTkFrame):
     def __init__(self, parent, app):
         super().__init__(parent, fg_color="transparent")
         self.app = app
         
+        self.font_titolo = ctk.CTkFont(family="Montserrat", size=34, weight="bold")
+        self.font_sottotitolo = ctk.CTkFont(family="Montserrat", size=16)
+        self.font_bold13 = ctk.CTkFont(family="Montserrat", weight="bold", size=13)
+        self.font_norm13 = ctk.CTkFont(family="Montserrat", size=13)
+        self.font_badge = ctk.CTkFont(family="Montserrat", size=11, weight="bold")
+        self.font_italic = ctk.CTkFont(family="Montserrat", slant="italic")
+
         giorni_ita = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
         mesi_ita = ["", "Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"]
         oggi = datetime.now()
@@ -357,8 +378,8 @@ class DashboardView(ctk.CTkFrame):
         title_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
         title_frame.pack(side="left")
 
-        ctk.CTkLabel(title_frame, text="Dashboard", font=ctk.CTkFont(family="Montserrat", size=34, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w")
-        ctk.CTkLabel(title_frame, text=data_oggi, font=ctk.CTkFont(family="Montserrat", size=16), text_color=("#86868B", "#98989D")).pack(anchor="w", pady=(5, 0))
+        ctk.CTkLabel(title_frame, text="Dashboard", font=self.font_titolo, text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w")
+        ctk.CTkLabel(title_frame, text=data_oggi, font=self.font_sottotitolo, text_color=("#86868B", "#98989D")).pack(anchor="w", pady=(5, 0))
 
         self.cards_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.cards_frame.pack(fill="x", pady=(0, 30))
@@ -433,20 +454,20 @@ class DashboardView(ctk.CTkFrame):
         for widget in self.scroll_agenda.winfo_children(): widget.destroy()
         lezioni_oggi = db.query(Lesson).filter(Lesson.date == oggi_str).order_by(Lesson.start_time).all()
         if not lezioni_oggi:
-            ctk.CTkLabel(self.scroll_agenda, text="Nessun corso programmato per oggi.", font=ctk.CTkFont(family="Montserrat", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=30)
+            ctk.CTkLabel(self.scroll_agenda, text="Nessun corso programmato per oggi.", font=self.font_italic, text_color=("#86868B", "#98989D")).pack(pady=30)
         else:
             for l in lezioni_oggi:
                 riga = ctk.CTkFrame(self.scroll_agenda, fg_color="transparent")
                 riga.pack(fill="x", pady=5, padx=10)
-                ctk.CTkLabel(riga, text=f"🕒 {l.start_time[:5]}", font=ctk.CTkFont(family="Montserrat", weight="bold", size=13), text_color=("#1D1D1F", "#FFFFFF"), width=70, anchor="w").pack(side="left")
+                ctk.CTkLabel(riga, text=f"🕒 {l.start_time[:5]}", font=self.font_bold13, text_color=("#1D1D1F", "#FFFFFF"), width=70, anchor="w").pack(side="left")
                 nome_att = l.activity.name if l.activity else "Attività"
                 occupati = db.query(Booking).filter(Booking.lesson_id == l.id).count()
-                ctk.CTkLabel(riga, text=nome_att, font=ctk.CTkFont(family="Montserrat", size=13), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=10)
+                ctk.CTkLabel(riga, text=nome_att, font=self.font_norm13, text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=10)
                 badge_color = "#34C759" if occupati < l.total_seats else "#FF3B30"
                 badge = ctk.CTkFrame(riga, fg_color=badge_color, corner_radius=6, height=20, width=50)
                 badge.pack(side="right")
                 badge.pack_propagate(False)
-                ctk.CTkLabel(badge, text=f"{occupati}/{l.total_seats}", text_color="white", font=ctk.CTkFont(family="Montserrat", size=11, weight="bold")).place(relx=0.5, rely=0.5, anchor="center")
+                ctk.CTkLabel(badge, text=f"{occupati}/{l.total_seats}", text_color="white", font=self.font_badge).place(relx=0.5, rely=0.5, anchor="center")
                 ctk.CTkFrame(self.scroll_agenda, height=1, fg_color=("#E5E5EA", "#3A3A3C")).pack(fill="x", padx=10)
         db.close()
 

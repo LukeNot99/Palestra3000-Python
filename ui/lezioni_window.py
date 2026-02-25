@@ -12,6 +12,9 @@ class LezioniView(ctk.CTkFrame):
         
         self.selected_lesson_ids = set()
 
+        # PRE-CARICAMENTO FONT PER PREVENIRE MEMORY LEAK!
+        self.font_riga = ctk.CTkFont(family="Montserrat", size=13)
+
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
 
@@ -52,7 +55,6 @@ class LezioniView(ctk.CTkFrame):
         right_frame.grid_rowconfigure(1, weight=1)
         right_frame.grid_columnconfigure(0, weight=1)
 
-        # BARRA SUPERIORE PULITA PER SELEZIONE ATTIVITA'
         top_right = ctk.CTkFrame(right_frame, fg_color="transparent")
         top_right.grid(row=0, column=0, sticky="ew", pady=(0, 15))
         
@@ -64,7 +66,6 @@ class LezioniView(ctk.CTkFrame):
         self.cmb_attivita = ctk.CTkOptionMenu(top_right, values=act_names, font=ctk.CTkFont(family="Montserrat", size=15), width=250, fg_color="#007AFF", command=self.carica_tabella)
         self.cmb_attivita.pack(side="left")
 
-        # TABELLA E CONTENITORE
         self.table_container = ctk.CTkFrame(right_frame, fg_color="transparent")
         self.table_container.grid(row=1, column=0, sticky="nsew")
         
@@ -89,7 +90,6 @@ class LezioniView(ctk.CTkFrame):
 
         self.carica_tabella()
 
-    # --- LOGICA SELEZIONE MULTIPLA ---
     def seleziona_riga(self, l_id, multi=False):
         if multi:
             if l_id in self.selected_lesson_ids:
@@ -100,10 +100,11 @@ class LezioniView(ctk.CTkFrame):
             self.selected_lesson_ids = {l_id}
             
         for r_id, f in self.row_frames.items():
-            if r_id in self.selected_lesson_ids:
-                f.configure(fg_color=("#E5F1FF", "#0A2A4A"), border_color="#007AFF")
-            else:
-                f.configure(fg_color=("#FFFFFF", "#2C2C2E"), border_color=("#E5E5EA", "#3A3A3C"))
+            if f.winfo_exists():
+                if r_id in self.selected_lesson_ids:
+                    f.configure(fg_color=("#E5F1FF", "#0A2A4A"), border_color="#007AFF")
+                else:
+                    f.configure(fg_color=("#FFFFFF", "#2C2C2E"), border_color=("#E5E5EA", "#3A3A3C"))
 
     def crea_riga_tabella(self, l):
         f = ctk.CTkFrame(self.scroll_table, fg_color=("#FFFFFF", "#2C2C2E"), height=45, corner_radius=8, border_width=1, border_color=("#E5E5EA", "#3A3A3C"), cursor="hand2")
@@ -118,16 +119,18 @@ class LezioniView(ctk.CTkFrame):
         elems = [f]
         for i, val in enumerate(valori):
             f.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
-            lbl = ctk.CTkLabel(f, text=val, font=ctk.CTkFont(family="Montserrat", size=13), anchor=self.cols[i][3])
+            # UTILIZZO DEL FONT CACHED PER EVITARE CRASH
+            lbl = ctk.CTkLabel(f, text=val, font=self.font_riga, anchor=self.cols[i][3])
             lbl.grid(row=0, column=i, padx=10, pady=10, sticky="ew")
             elems.append(lbl)
             
+        # AGGIUNTA SICUREZZA WINFO_EXISTS AGLI EVENTI MOUSE
         for w in elems:
             w.bind("<Button-1>", lambda e, id=l.id: self.seleziona_riga(id, multi=False))
             w.bind("<Control-Button-1>", lambda e, id=l.id: self.seleziona_riga(id, multi=True)) 
             w.bind("<Command-Button-1>", lambda e, id=l.id: self.seleziona_riga(id, multi=True)) 
-            w.bind("<Enter>", lambda e, fr=f, id=l.id: fr.configure(fg_color=("#F8F8F9", "#3A3A3C")) if id not in self.selected_lesson_ids else None)
-            w.bind("<Leave>", lambda e, fr=f, id=l.id: fr.configure(fg_color=("#FFFFFF", "#2C2C2E")) if id not in self.selected_lesson_ids else None)
+            w.bind("<Enter>", lambda e, fr=f, id=l.id: fr.configure(fg_color=("#F8F8F9", "#3A3A3C")) if fr.winfo_exists() and id not in self.selected_lesson_ids else None)
+            w.bind("<Leave>", lambda e, fr=f, id=l.id: fr.configure(fg_color=("#FFFFFF", "#2C2C2E")) if fr.winfo_exists() and id not in self.selected_lesson_ids else None)
         
         self.row_frames[l.id] = f
 
@@ -147,7 +150,6 @@ class LezioniView(ctk.CTkFrame):
     def genera_lezioni(self):
         nome_att = self.cmb_attivita.get()
         
-        # VINCOLO DI SICUREZZA ANTI-CRASH
         if nome_att == "Nessuna attività registrata":
             return messagebox.showwarning("Attenzione", "Devi prima creare almeno un'attività nella sezione 'Gestione Attività'!")
 
