@@ -52,9 +52,17 @@ class SocioFormWindow(ctk.CTkToplevel):
         self.ent_cognome = ctk.CTkEntry(frame_sx)
         self.ent_cognome.pack(pady=(0, 15), padx=20, fill="x")
 
-        ctk.CTkLabel(frame_sx, text="Data di Nascita (GG/MM/AAAA):", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
+        # --- CONTENITORE DATA E ETÀ (NOVITÀ) ---
+        lbl_nascita_container = ctk.CTkFrame(frame_sx, fg_color="transparent")
+        lbl_nascita_container.pack(anchor="w", padx=20, fill="x")
+        ctk.CTkLabel(lbl_nascita_container, text="Data di Nascita (GG/MM/AAAA):", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left")
+        self.lbl_eta = ctk.CTkLabel(lbl_nascita_container, text="", font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color="#007AFF")
+        self.lbl_eta.pack(side="right")
+
         self.ent_data_nascita = ctk.CTkEntry(frame_sx, placeholder_text="Es. 15/08/1985")
         self.ent_data_nascita.pack(pady=(0, 15), padx=20, fill="x")
+        self.ent_data_nascita.bind("<KeyRelease>", self.calcola_eta_live)
+        self.ent_data_nascita.bind("<FocusOut>", self.calcola_eta_live)
 
         ctk.CTkLabel(frame_sx, text="Luogo di Nascita:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.cmb_luogo_nascita = ctk.CTkComboBox(frame_sx, values=luoghi_unici)
@@ -141,6 +149,25 @@ class SocioFormWindow(ctk.CTkToplevel):
         self.grab_release()
         self.destroy()
 
+    # --- CALCOLO ETÀ LIVE (NOVITÀ) ---
+    def calcola_eta_live(self, event=None):
+        data_str = self.ent_data_nascita.get().strip()
+        if not data_str:
+            self.lbl_eta.configure(text="")
+            return
+            
+        try:
+            if "/" in data_str:
+                nascita = datetime.strptime(data_str, "%d/%m/%Y")
+            else:
+                nascita = datetime.strptime(data_str, "%Y-%m-%d")
+                
+            oggi = datetime.now()
+            eta = oggi.year - nascita.year - ((oggi.month, oggi.day) < (nascita.month, nascita.day))
+            self.lbl_eta.configure(text=f"Età: {eta} anni")
+        except ValueError:
+            self.lbl_eta.configure(text="") 
+
     def aggiorna_fascia_selezionata(self, fascia_scelta):
         tier = next((t for t in self.tiers if t.name == fascia_scelta), None)
         
@@ -192,7 +219,9 @@ class SocioFormWindow(ctk.CTkToplevel):
             if socio.badge_number: self.ent_scheda.insert(0, socio.badge_number)
             self.ent_nome.insert(0, socio.first_name)
             self.ent_cognome.insert(0, socio.last_name)
-            if socio.birth_date: self.ent_data_nascita.insert(0, socio.birth_date)
+            if socio.birth_date: 
+                self.ent_data_nascita.insert(0, socio.birth_date)
+                self.calcola_eta_live() # Calcola l'età automaticamente in apertura
             if socio.birth_place: self.cmb_luogo_nascita.set(socio.birth_place)
             if socio.city: self.cmb_comune.set(socio.city)
             if socio.address: self.ent_indirizzo.insert(0, socio.address)
@@ -232,6 +261,32 @@ class SocioFormWindow(ctk.CTkToplevel):
             if esistente:
                 return messagebox.showerror("Errore", f"Il Numero Scheda {scheda} è già assegnato a {esistente.first_name}!")
         
+        # --- VALIDAZIONE RIGOROSA DELLE DATE ---
+        def data_valida(data_str):
+            if not data_str: return True
+            try:
+                datetime.strptime(data_str, "%d/%m/%Y")
+                return True
+            except ValueError:
+                try:
+                    datetime.strptime(data_str, "%Y-%m-%d") # Per retrocompatibilità database
+                    return True
+                except ValueError:
+                    return False
+                    
+        d_nascita = self.ent_data_nascita.get().strip()
+        d_iscr = self.ent_scadenza_iscr.get().strip()
+        d_partenza = self.ent_partenza_mensilita.get().strip()
+        d_scadenza = self.ent_scadenza_mensilita.get().strip()
+        d_cert = self.ent_scadenza_cert.get().strip()
+        
+        if not data_valida(d_nascita): return messagebox.showwarning("Errore Data", "Data di nascita non valida.\nUsa il formato GG/MM/AAAA (es. 15/08/1985)")
+        if not data_valida(d_iscr): return messagebox.showwarning("Errore Data", "Scadenza iscrizione non valida.\nUsa il formato GG/MM/AAAA")
+        if not data_valida(d_partenza): return messagebox.showwarning("Errore Data", "Data partenza mensilità non valida.\nUsa il formato GG/MM/AAAA")
+        if not data_valida(d_scadenza): return messagebox.showwarning("Errore Data", "Data scadenza mensilità non valida.\nUsa il formato GG/MM/AAAA")
+        if not data_valida(d_cert): return messagebox.showwarning("Errore Data", "Scadenza certificato non valida.\nUsa il formato GG/MM/AAAA")
+        # ----------------------------------------
+
         fascia_selezionata = self.cmb_fascia.get()
         tier = next((t for t in self.tiers if t.name == fascia_selezionata), None)
         tier_id = tier.id if tier else None
@@ -244,7 +299,7 @@ class SocioFormWindow(ctk.CTkToplevel):
         socio.badge_number = scheda if scheda else None
         socio.first_name = nome
         socio.last_name = cognome
-        socio.birth_date = self.ent_data_nascita.get().strip()
+        socio.birth_date = d_nascita
         socio.birth_place = self.cmb_luogo_nascita.get().strip()
         socio.city = self.cmb_comune.get().strip()
         socio.address = self.ent_indirizzo.get().strip()
@@ -252,11 +307,11 @@ class SocioFormWindow(ctk.CTkToplevel):
         socio.other_contact = self.ent_altro_recapito.get().strip()
         socio.gender = self.cmb_sesso.get()
         
-        socio.enrollment_expiration = self.ent_scadenza_iscr.get().strip()
-        socio.membership_start = self.ent_partenza_mensilita.get().strip()
-        socio.membership_expiration = self.ent_scadenza_mensilita.get().strip()
+        socio.enrollment_expiration = d_iscr
+        socio.membership_start = d_partenza
+        socio.membership_expiration = d_scadenza
         socio.has_medical_certificate = self.chk_certificato.get() == 1
-        socio.certificate_expiration = self.ent_scadenza_cert.get().strip()
+        socio.certificate_expiration = d_cert
         
         socio.tier_id = tier_id
         
@@ -282,6 +337,7 @@ class SociView(ctk.CTkFrame):
         super().__init__(parent, fg_color="transparent", **kwargs)
         
         self.db = SessionLocal()
+        self.font_riga = ctk.CTkFont(family="Montserrat", size=13)
         
         self.grid_rowconfigure(2, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -372,10 +428,11 @@ class SociView(ctk.CTkFrame):
     def seleziona_riga(self, socio_id):
         self.selected_socio_id = socio_id
         for s_id, frame in self.row_frames.items():
-            if s_id == socio_id:
-                frame.configure(fg_color=("#E5F1FF", "#0A2A4A"), border_color="#007AFF")
-            else:
-                frame.configure(fg_color=("#FFFFFF", "#2C2C2E"), border_color=("#E5E5EA", "#3A3A3C"))
+            if frame.winfo_exists():
+                if s_id == socio_id:
+                    frame.configure(fg_color=("#E5F1FF", "#0A2A4A"), border_color="#007AFF")
+                else:
+                    frame.configure(fg_color=("#FFFFFF", "#2C2C2E"), border_color=("#E5E5EA", "#3A3A3C"))
 
     def crea_riga_tabella(self, socio):
         riga_frame = ctk.CTkFrame(self.scroll_table, fg_color=("#FFFFFF", "#2C2C2E"), height=45, corner_radius=8, border_width=1, border_color=("#E5E5EA", "#3A3A3C"), cursor="hand2")
@@ -395,15 +452,15 @@ class SociView(ctk.CTkFrame):
         
         for i, val in enumerate(valori):
             riga_frame.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
-            lbl = ctk.CTkLabel(riga_frame, text=val, font=ctk.CTkFont(family="Montserrat", size=13), text_color=("#1D1D1F", "#FFFFFF"), anchor=self.cols[i][3])
+            lbl = ctk.CTkLabel(riga_frame, text=val, font=self.font_riga, text_color=("#1D1D1F", "#FFFFFF"), anchor=self.cols[i][3])
             lbl.grid(row=0, column=i, padx=10, pady=10, sticky="ew")
             elementi_riga.append(lbl)
 
         for w in elementi_riga:
             w.bind("<Button-1>", lambda e, s_id=socio.id: self.seleziona_riga(s_id))
             w.bind("<Double-Button-1>", lambda e, s_id=socio.id: self.apri_form_modifica(force_id=s_id))
-            w.bind("<Enter>", lambda e, f=riga_frame, s_id=socio.id: f.configure(fg_color=("#F8F8F9", "#3A3A3C")) if self.selected_socio_id != s_id else None)
-            w.bind("<Leave>", lambda e, f=riga_frame, s_id=socio.id: f.configure(fg_color=("#FFFFFF", "#2C2C2E")) if self.selected_socio_id != s_id else None)
+            w.bind("<Enter>", lambda e, f=riga_frame, s_id=socio.id: f.configure(fg_color=("#F8F8F9", "#3A3A3C")) if f.winfo_exists() and self.selected_socio_id != s_id else None)
+            w.bind("<Leave>", lambda e, f=riga_frame, s_id=socio.id: f.configure(fg_color=("#FFFFFF", "#2C2C2E")) if f.winfo_exists() and self.selected_socio_id != s_id else None)
 
         self.row_frames[socio.id] = riga_frame
 
