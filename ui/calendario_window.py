@@ -5,7 +5,6 @@ import calendar
 from sqlalchemy import func
 from core.database import SessionLocal, Lesson, Booking, Member
 
-# ==================== POPUP: RICERCA E PRENOTAZIONE RAPIDA ====================
 class PrenotazioneRapidaWindow(ctk.CTkToplevel):
     def __init__(self, parent, lesson_id, refresh_callback):
         super().__init__(parent)
@@ -14,18 +13,22 @@ class PrenotazioneRapidaWindow(ctk.CTkToplevel):
         self.configure(fg_color=("#F2F2F7", "#1C1C1E"))
         self.lesson_id = lesson_id
         self.refresh_callback = refresh_callback
-        self.db = SessionLocal()
-        
-        # --- SISTEMA DI DEBOUNCE PER LA RICERCA FLUIDA ---
         self._search_timer = None 
         
         self.transient(parent.winfo_toplevel())
         self.grab_set()
 
-        lezione = self.db.query(Lesson).get(self.lesson_id)
-        if not lezione: self.destroy()
+        db = SessionLocal()
+        lezione = db.query(Lesson).get(self.lesson_id)
+        if not lezione: 
+            db.close()
+            self.destroy()
+            return
+            
+        titolo = f"Prenota: {lezione.activity.name} ({lezione.start_time[:5]})"
+        db.close()
 
-        ctk.CTkLabel(self, text=f"Prenota: {lezione.activity.name} ({lezione.start_time[:5]})", font=ctk.CTkFont(family="Montserrat", size=18, weight="bold")).pack(pady=(20, 5))
+        ctk.CTkLabel(self, text=titolo, font=ctk.CTkFont(family="Montserrat", size=18, weight="bold")).pack(pady=(20, 5))
         ctk.CTkLabel(self, text="Cerca per Nome, Cognome o Scheda:", font=ctk.CTkFont(family="Montserrat", size=13), text_color=("#86868B", "#98989D")).pack(pady=(5, 10))
 
         search_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -33,7 +36,6 @@ class PrenotazioneRapidaWindow(ctk.CTkToplevel):
         
         self.ent_ricerca = ctk.CTkEntry(search_frame, font=ctk.CTkFont(family="Montserrat", size=14))
         self.ent_ricerca.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        # Uso il debounce invece di lanciare la ricerca a ogni singola lettera premuta
         self.ent_ricerca.bind("<KeyRelease>", self.on_search_change)
         
         ctk.CTkButton(search_frame, text="Cerca", width=80, font=ctk.CTkFont(family="Montserrat", weight="bold"), command=self.cerca_soci).pack(side="right")
@@ -44,31 +46,30 @@ class PrenotazioneRapidaWindow(ctk.CTkToplevel):
         self.cerca_soci() 
 
     def on_search_change(self, event=None):
-        if self._search_timer:
-            self.after_cancel(self._search_timer)
-        self._search_timer = self.after(300, self.cerca_soci) # Aspetta 300ms prima di cercare
+        if self._search_timer: self.after_cancel(self._search_timer)
+        self._search_timer = self.after(300, self.cerca_soci) 
 
     def cerca_soci(self):
         for w in self.scroll_risultati.winfo_children(): w.destroy()
         
         termine = self.ent_ricerca.get().strip()
-        lezione = self.db.query(Lesson).get(self.lesson_id)
         
+        db = SessionLocal()
+        lezione = db.query(Lesson).get(self.lesson_id)
         soci_suggeriti = []
         mostra_suggeriti = False
+        soci = []
 
         if termine:
-            # Ricerca normale testuale (max 30 risultati per evitare lag)
-            soci = self.db.query(Member).filter(
+            soci_db = db.query(Member).filter(
                 (Member.first_name.ilike(f"%{termine}%")) |
                 (Member.last_name.ilike(f"%{termine}%")) |
                 (Member.badge_number.ilike(f"%{termine}%"))
             ).order_by(Member.first_name).limit(30).all()
+            soci = list(soci_db)
         else:
-            # SUGGERIMENTI INTELLIGENTI: Chi si è prenotato a questa attività in passato?
             mostra_suggeriti = True
-            
-            soci_suggeriti = self.db.query(Member).\
+            soci_suggeriti = db.query(Member).\
                 join(Booking).\
                 join(Lesson).\
                 filter(Lesson.activity_id == lezione.activity_id).\
@@ -77,66 +78,72 @@ class PrenotazioneRapidaWindow(ctk.CTkToplevel):
                 limit(15).all()
             
             soci = list(soci_suggeriti)
-            
-            # Se la cronologia non basta a riempire 30 posti, aggiungo i soci normali in ordine alfabetico
             if len(soci) < 30:
                 suggeriti_ids = [s.id for s in soci_suggeriti]
-                query_altri = self.db.query(Member)
-                if suggeriti_ids:
-                    query_altri = query_altri.filter(~Member.id.in_(suggeriti_ids))
-                
+                query_altri = db.query(Member)
+                if suggeriti_ids: query_altri = query_altri.filter(~Member.id.in_(suggeriti_ids))
                 altri_soci = query_altri.order_by(Member.first_name).limit(30 - len(soci)).all()
                 soci.extend(altri_soci)
 
-        if not soci:
+        # Trasferisco in una lista di dict per liberare la sessione DB
+        soci_data = []
+        for s in soci:
+            soci_data.append({
+                "id": s.id,
+                "first_name": s.first_name,
+                "last_name": s.last_name,
+                "badge_number": s.badge_number,
+                "is_abituale": mostra_suggeriti and (s in soci_suggeriti)
+            })
+        db.close()
+
+        if not soci_data:
             ctk.CTkLabel(self.scroll_risultati, text="Nessun socio trovato.", font=ctk.CTkFont(family="Montserrat", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=20)
             return
 
-        if mostra_suggeriti and soci_suggeriti:
+        if mostra_suggeriti and any(s["is_abituale"] for s in soci_data):
             ctk.CTkLabel(self.scroll_risultati, text="💡 In cima: Soci iscritti abitualmente a questo corso", font=ctk.CTkFont(family="Montserrat", size=12, slant="italic"), text_color="#007AFF").pack(pady=(5, 5), padx=10, anchor="w")
 
-        for s in soci:
+        for s in soci_data:
             riga = ctk.CTkFrame(self.scroll_risultati, fg_color="transparent")
             riga.pack(fill="x", pady=5)
             
-            # Metto la stellina se fa parte dei suggeriti abituali
-            is_abituale = mostra_suggeriti and (s in soci_suggeriti)
-            icona_stella = "⭐ " if is_abituale else ""
-            
-            nome_comp = f"{icona_stella}{s.first_name} {s.last_name}"
-            if s.badge_number: nome_comp += f" ({s.badge_number})"
+            icona_stella = "⭐ " if s["is_abituale"] else ""
+            nome_comp = f"{icona_stella}{s['first_name']} {s['last_name']}"
+            if s['badge_number']: nome_comp += f" ({s['badge_number']})"
             
             ctk.CTkLabel(riga, text=nome_comp, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), anchor="w").pack(side="left", padx=10)
-            ctk.CTkButton(riga, text="Prenota", width=80, height=28, fg_color="#34C759", hover_color="#2eb350", font=ctk.CTkFont(family="Montserrat", weight="bold"), command=lambda s_id=s.id: self.effettua_prenotazione(s_id)).pack(side="right", padx=10)
+            ctk.CTkButton(riga, text="Prenota", width=80, height=28, fg_color="#34C759", hover_color="#2eb350", font=ctk.CTkFont(family="Montserrat", weight="bold"), command=lambda s_id=s['id']: self.effettua_prenotazione(s_id)).pack(side="right", padx=10)
             ctk.CTkFrame(self.scroll_risultati, height=1, fg_color=("#E5E5EA", "#3A3A3C")).pack(fill="x", padx=10)
 
     def effettua_prenotazione(self, socio_id):
-        lezione = self.db.query(Lesson).get(self.lesson_id)
+        db = SessionLocal()
+        lezione = db.query(Lesson).get(self.lesson_id)
         
-        esistente = self.db.query(Booking).filter_by(member_id=socio_id, lesson_id=self.lesson_id).first()
+        esistente = db.query(Booking).filter_by(member_id=socio_id, lesson_id=self.lesson_id).first()
         if esistente:
+            db.close()
             return messagebox.showwarning("Attenzione", "Il socio è già prenotato per questo corso!")
         
-        occupati = self.db.query(Booking).filter_by(lesson_id=self.lesson_id).count()
+        occupati = db.query(Booking).filter_by(lesson_id=self.lesson_id).count()
         if occupati >= lezione.total_seats:
             if not messagebox.askyesno("Attenzione", "I posti per questo corso sono esauriti!\nVuoi forzare l'inserimento in Overbooking?"):
+                db.close()
                 return
                 
         nuova = Booking(member_id=socio_id, lesson_id=self.lesson_id)
-        self.db.add(nuova)
-        self.db.commit()
+        db.add(nuova)
+        db.commit()
+        db.close()
         
         self.refresh_callback()
-        self.db.close()
         self.grab_release()
         self.destroy()
 
-# ==================== SCHEDA PRINCIPALE: CalendarioView ====================
 class CalendarioView(ctk.CTkFrame):
     def __init__(self, parent, app):
         super().__init__(parent, fg_color="transparent")
         self.app = app
-        self.db = SessionLocal()
         
         oggi = datetime.now()
         self.current_year = oggi.year
@@ -150,7 +157,6 @@ class CalendarioView(ctk.CTkFrame):
         self.grid_columnconfigure(1, weight=0, minsize=350)
         self.grid_columnconfigure(2, weight=1)
 
-        # ------ COLONNA 0: CALENDARIO ------
         self.cal_frame = ctk.CTkFrame(self, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         self.cal_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         
@@ -173,7 +179,6 @@ class CalendarioView(ctk.CTkFrame):
         for i in range(7): self.grid_giorni.grid_columnconfigure(i, weight=1)
         for i in range(6): self.grid_giorni.grid_rowconfigure(i, weight=1)
 
-        # ------ COLONNA 1: LISTA CORSI ------
         self.les_frame = ctk.CTkFrame(self, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         self.les_frame.grid(row=0, column=1, sticky="nsew", padx=(0, 10))
         
@@ -183,7 +188,6 @@ class CalendarioView(ctk.CTkFrame):
         self.scroll_corsi = ctk.CTkScrollableFrame(self.les_frame, fg_color="transparent")
         self.scroll_corsi.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
-        # ------ COLONNA 2: DETTAGLI PRENOTAZIONI ------
         self.det_frame = ctk.CTkFrame(self, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         self.det_frame.grid(row=0, column=2, sticky="nsew")
         
@@ -245,32 +249,44 @@ class CalendarioView(ctk.CTkFrame):
         data_str = self.selected_date.strftime("%Y-%m-%d")
         self.lbl_data_corsi.configure(text=f"Corsi del {self.selected_date.strftime('%d/%m/%Y')}")
 
-        lezioni = self.db.query(Lesson).filter(Lesson.date == data_str).order_by(Lesson.start_time).all()
+        db = SessionLocal()
+        lezioni = db.query(Lesson).filter(Lesson.date == data_str).order_by(Lesson.start_time).all()
+        
+        lez_data = []
+        for l in lezioni:
+            occupati = db.query(Booking).filter_by(lesson_id=l.id).count()
+            lez_data.append({
+                "id": l.id,
+                "start_time": l.start_time[:5],
+                "end_time": l.end_time[:5],
+                "activity_name": l.activity.name,
+                "total_seats": l.total_seats,
+                "occupati": occupati
+            })
+        db.close()
 
-        if not lezioni:
+        if not lez_data:
             ctk.CTkLabel(self.scroll_corsi, text="Nessun corso programmato.", font=ctk.CTkFont(family="Montserrat", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=40)
             return
 
-        for l in lezioni:
-            occupati = self.db.query(Booking).filter_by(lesson_id=l.id).count()
-            
-            f = ctk.CTkFrame(self.scroll_corsi, fg_color=("#E5F1FF", "#0A2A4A") if self.selected_lesson_id == l.id else "transparent", corner_radius=8, cursor="hand2")
+        for l in lez_data:
+            f = ctk.CTkFrame(self.scroll_corsi, fg_color=("#E5F1FF", "#0A2A4A") if self.selected_lesson_id == l["id"] else "transparent", corner_radius=8, cursor="hand2")
             f.pack(fill="x", pady=2)
             
-            ctk.CTkLabel(f, text=l.start_time[:5], font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), text_color=("#007AFF", "#0A84FF")).pack(side="left", padx=(15, 10), pady=12)
+            ctk.CTkLabel(f, text=l["start_time"], font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), text_color=("#007AFF", "#0A84FF")).pack(side="left", padx=(15, 10), pady=12)
             
             info_frame = ctk.CTkFrame(f, fg_color="transparent")
             info_frame.pack(side="left", fill="x", expand=True)
-            ctk.CTkLabel(info_frame, text=l.activity.name, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), anchor="w").pack(fill="x")
+            ctk.CTkLabel(info_frame, text=l["activity_name"], font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), anchor="w").pack(fill="x")
             
-            badge_color = "#34C759" if occupati < l.total_seats else "#FF3B30"
+            badge_color = "#34C759" if l["occupati"] < l["total_seats"] else "#FF3B30"
             badge = ctk.CTkFrame(f, fg_color=badge_color, corner_radius=6, height=22, width=60)
             badge.pack(side="right", padx=15)
             badge.pack_propagate(False)
-            ctk.CTkLabel(badge, text=f"{occupati}/{l.total_seats}", text_color="white", font=ctk.CTkFont(family="Montserrat", size=12, weight="bold")).place(relx=0.5, rely=0.5, anchor="center")
+            ctk.CTkLabel(badge, text=f"{l['occupati']}/{l['total_seats']}", text_color="white", font=ctk.CTkFont(family="Montserrat", size=12, weight="bold")).place(relx=0.5, rely=0.5, anchor="center")
 
             for widget in [f, info_frame] + info_frame.winfo_children():
-                widget.bind("<Button-1>", lambda e, id=l.id: self.mostra_dettagli_lezione(id))
+                widget.bind("<Button-1>", lambda e, l_id=l["id"]: self.mostra_dettagli_lezione(l_id))
 
     def pulisci_dettagli(self):
         self.lbl_dettaglio_corso.configure(text="Nessun corso selezionato")
@@ -282,44 +298,47 @@ class CalendarioView(ctk.CTkFrame):
         self.selected_lesson_id = lesson_id
         self.carica_corsi_giorno() 
         
-        lezione = self.db.query(Lesson).get(lesson_id)
-        if not lezione: return
-
-        self.lbl_dettaglio_corso.configure(text=lezione.activity.name)
-        self.lbl_info_corso.configure(text=f"Orario: {lezione.start_time[:5]} - {lezione.end_time[:5]}")
-        self.btn_aggiungi_pren.pack(fill="x", padx=20, pady=20)
+        db = SessionLocal()
+        lezione = db.query(Lesson).get(lesson_id)
+        if lezione:
+            self.lbl_dettaglio_corso.configure(text=lezione.activity.name)
+            self.lbl_info_corso.configure(text=f"Orario: {lezione.start_time[:5]} - {lezione.end_time[:5]}")
+            self.btn_aggiungi_pren.pack(fill="x", padx=20, pady=20)
+        db.close()
 
         self.carica_lista_prenotati()
 
     def carica_lista_prenotati(self):
         for w in self.scroll_prenotati.winfo_children(): w.destroy()
-        
         if not self.selected_lesson_id: return
         
-        prenotazioni = self.db.query(Booking).filter_by(lesson_id=self.selected_lesson_id).join(Member).order_by(Member.first_name).all()
+        db = SessionLocal()
+        prenotazioni = db.query(Booking).filter_by(lesson_id=self.selected_lesson_id).join(Member).order_by(Member.first_name).all()
+        pren_data = [{"id": p.id, "nome_comp": f"{p.member.first_name} {p.member.last_name}"} for p in prenotazioni]
+        db.close()
         
-        if not prenotazioni:
+        if not pren_data:
             ctk.CTkLabel(self.scroll_prenotati, text="Nessun socio prenotato.", font=ctk.CTkFont(family="Montserrat", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=40)
             return
 
-        for p in prenotazioni:
+        for p in pren_data:
             f = ctk.CTkFrame(self.scroll_prenotati, fg_color="transparent")
             f.pack(fill="x", pady=2)
             
-            nome_comp = f"{p.member.first_name} {p.member.last_name}"
-            ctk.CTkLabel(f, text=nome_comp, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold")).pack(side="left", padx=10, pady=8)
-            
-            ctk.CTkButton(f, text="X", width=28, height=28, fg_color="#FF3B30", hover_color="#c0392b", font=ctk.CTkFont(family="Montserrat", weight="bold"), command=lambda b_id=p.id: self.rimuovi_prenotazione(b_id)).pack(side="right", padx=10)
+            ctk.CTkLabel(f, text=p["nome_comp"], font=ctk.CTkFont(family="Montserrat", size=14, weight="bold")).pack(side="left", padx=10, pady=8)
+            ctk.CTkButton(f, text="X", width=28, height=28, fg_color="#FF3B30", hover_color="#c0392b", font=ctk.CTkFont(family="Montserrat", weight="bold"), command=lambda b_id=p["id"]: self.rimuovi_prenotazione(b_id)).pack(side="right", padx=10)
             ctk.CTkFrame(self.scroll_prenotati, height=1, fg_color=("#E5E5EA", "#3A3A3C")).pack(fill="x", padx=10)
 
     def rimuovi_prenotazione(self, booking_id):
         if messagebox.askyesno("Conferma", "Vuoi annullare questa prenotazione?"):
-            b = self.db.query(Booking).get(booking_id)
+            db = SessionLocal()
+            b = db.query(Booking).get(booking_id)
             if b:
-                self.db.delete(b)
-                self.db.commit()
-                self.carica_lista_prenotati()
-                self.carica_corsi_giorno() 
+                db.delete(b)
+                db.commit()
+            db.close()
+            self.carica_lista_prenotati()
+            self.carica_corsi_giorno() 
 
     def apri_popup_prenotazione(self):
         if not self.selected_lesson_id: return

@@ -3,8 +3,8 @@ from tkinter import messagebox
 from core.database import SessionLocal, Member, Tier
 from datetime import datetime, timedelta
 import calendar
+from core.utils import parse_date, is_valid_date  # IMPORTIAMO L'UTILITY
 
-# ==================== POPUP: FORM INSERIMENTO/MODIFICA ====================
 class SocioFormWindow(ctk.CTkToplevel):
     def __init__(self, parent, refresh_callback, socio_id=None):
         super().__init__(parent)
@@ -13,11 +13,9 @@ class SocioFormWindow(ctk.CTkToplevel):
         self.configure(fg_color=("#F2F2F7", "#1C1C1E"))
         self.refresh_callback = refresh_callback
         self.socio_id = socio_id
-        self.db = SessionLocal()
         
         self.transient(parent.winfo_toplevel())
         self.grab_set()
-        self.protocol("WM_DELETE_WINDOW", self.chiudi)
 
         lbl_titolo = ctk.CTkLabel(self, text="Scheda Anagrafica e Iscrizione", font=ctk.CTkFont(family="Montserrat", size=22, weight="bold"), text_color="#007AFF")
         lbl_titolo.pack(pady=(15, 5))
@@ -31,10 +29,15 @@ class SocioFormWindow(ctk.CTkToplevel):
         grid_container.grid_columnconfigure(1, weight=1, uniform="colonna")
         grid_container.grid_rowconfigure(0, weight=1)
 
-        comuni_unici = sorted(list(set([m.city for m in self.db.query(Member.city).filter(Member.city != None).all()])))
-        luoghi_unici = sorted(list(set([m.birth_place for m in self.db.query(Member.birth_place).filter(Member.birth_place != None).all()])))
+        db = SessionLocal()
+        comuni_unici = sorted(list(set([m.city for m in db.query(Member.city).filter(Member.city != None).all()])))
+        luoghi_unici = sorted(list(set([m.birth_place for m in db.query(Member.birth_place).filter(Member.birth_place != None).all()])))
+        
+        tiers_db = db.query(Tier).all()
+        self.tiers_data = [{"id": t.id, "name": t.name, "max_entries": t.max_entries, "duration_months": t.duration_months} for t in tiers_db]
+        tier_names = ["Nessuna fascia"] + [t["name"] for t in self.tiers_data]
+        db.close()
 
-        # ---------------- COLONNA SINISTRA: ANAGRAFICA ----------------
         frame_sx = ctk.CTkFrame(grid_container, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         frame_sx.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
 
@@ -87,7 +90,6 @@ class SocioFormWindow(ctk.CTkToplevel):
         self.cmb_sesso = ctk.CTkOptionMenu(frame_sx, values=["M", "F"])
         self.cmb_sesso.pack(pady=(0, 20), padx=20, fill="x")
 
-        # ---------------- COLONNA DESTRA: ABBONAMENTO ----------------
         frame_dx = ctk.CTkFrame(grid_container, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         frame_dx.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
 
@@ -97,9 +99,6 @@ class SocioFormWindow(ctk.CTkToplevel):
         self.ent_scadenza_iscr = ctk.CTkEntry(frame_dx, placeholder_text="Es. 30/12/2026", text_color=("#FF9500", "#FF9500"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
         self.ent_scadenza_iscr.pack(pady=(0, 25), padx=20, fill="x")
 
-        self.tiers = self.db.query(Tier).all()
-        tier_names = ["Nessuna fascia"] + [t.name for t in self.tiers]
-        
         ctk.CTkLabel(frame_dx, text="Seleziona Fascia Abbonamento:", font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(0, 5))
         self.cmb_fascia = ctk.CTkOptionMenu(frame_dx, values=tier_names, command=self.aggiorna_fascia_selezionata)
         self.cmb_fascia.pack(pady=(0, 15), padx=20, fill="x")
@@ -141,35 +140,27 @@ class SocioFormWindow(ctk.CTkToplevel):
         btn_frame.pack(pady=(15, 20), fill="x", padx=40)
         
         ctk.CTkButton(btn_frame, text="OK / Salva", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.salva_socio).pack(side="left")
-        ctk.CTkButton(btn_frame, text="Annulla", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.chiudi).pack(side="right")
+        ctk.CTkButton(btn_frame, text="Annulla", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.destroy).pack(side="right")
 
-    def chiudi(self):
-        self.db.close()
-        self.grab_release()
-        self.destroy()
-
+    # --- USO UTILS PER DATE ---
     def calcola_eta_live(self, event=None):
         data_str = self.ent_data_nascita.get().strip()
-        if not data_str:
+        nascita = parse_date(data_str)
+        if not nascita:
             self.lbl_eta.configure(text="")
             return
             
-        try:
-            if "/" in data_str: nascita = datetime.strptime(data_str, "%d/%m/%Y")
-            else: nascita = datetime.strptime(data_str, "%Y-%m-%d")
-            oggi = datetime.now()
-            eta = oggi.year - nascita.year - ((oggi.month, oggi.day) < (nascita.month, nascita.day))
-            self.lbl_eta.configure(text=f"Età: {eta} anni")
-        except ValueError:
-            self.lbl_eta.configure(text="") 
+        oggi = datetime.now()
+        eta = oggi.year - nascita.year - ((oggi.month, oggi.day) < (nascita.month, nascita.day))
+        self.lbl_eta.configure(text=f"Età: {eta} anni")
 
     def aggiorna_fascia_selezionata(self, fascia_scelta):
-        tier = next((t for t in self.tiers if t.name == fascia_scelta), None)
+        tier_dict = next((t for t in self.tiers_data if t["name"] == fascia_scelta), None)
         self.ent_ingressi.configure(state="normal")
         self.ent_ingressi.delete(0, 'end')
         
-        if tier:
-            if tier.max_entries > 0: self.ent_ingressi.insert(0, str(tier.max_entries))
+        if tier_dict:
+            if tier_dict["max_entries"] > 0: self.ent_ingressi.insert(0, str(tier_dict["max_entries"]))
             else:
                 self.ent_ingressi.insert(0, "Illimitati")
                 self.ent_ingressi.configure(state="disabled") 
@@ -181,31 +172,28 @@ class SocioFormWindow(ctk.CTkToplevel):
     def calcola_scadenza_automatica(self):
         fascia_scelta = self.cmb_fascia.get()
         if fascia_scelta == "Nessuna fascia": return
-        partenza_str = self.ent_partenza_mensilita.get().strip()
-        if not partenza_str: return
-        tier = next((t for t in self.tiers if t.name == fascia_scelta), None)
-        mesi_durata = tier.duration_months if tier else 1
+        
+        d_partenza = parse_date(self.ent_partenza_mensilita.get())
+        if not d_partenza: return
+        
+        tier_dict = next((t for t in self.tiers_data if t["name"] == fascia_scelta), None)
+        mesi_durata = tier_dict["duration_months"] if tier_dict else 1
             
-        try:
-            if "/" in partenza_str: d_partenza = datetime.strptime(partenza_str, "%d/%m/%Y")
-            else: d_partenza = datetime.strptime(partenza_str, "%Y-%m-%d")
-            
-            mese_target = d_partenza.month - 1 + mesi_durata
-            anno_succ = d_partenza.year + (mese_target // 12)
-            mese_succ = (mese_target % 12) + 1
-            
-            giorni_nel_mese_dest = calendar.monthrange(anno_succ, mese_succ)[1]
-            giorno = min(d_partenza.day, giorni_nel_mese_dest) 
-            
-            d_scadenza = datetime(anno_succ, mese_succ, giorno)
-            
-            self.ent_scadenza_mensilita.delete(0, 'end')
-            self.ent_scadenza_mensilita.insert(0, d_scadenza.strftime("%d/%m/%Y"))
-        except ValueError:
-            pass 
+        mese_target = d_partenza.month - 1 + mesi_durata
+        anno_succ = d_partenza.year + (mese_target // 12)
+        mese_succ = (mese_target % 12) + 1
+        
+        giorni_nel_mese_dest = calendar.monthrange(anno_succ, mese_succ)[1]
+        giorno = min(d_partenza.day, giorni_nel_mese_dest) 
+        
+        d_scadenza = datetime(anno_succ, mese_succ, giorno)
+        
+        self.ent_scadenza_mensilita.delete(0, 'end')
+        self.ent_scadenza_mensilita.insert(0, d_scadenza.strftime("%d/%m/%Y"))
 
     def carica_dati_socio(self):
-        socio = self.db.query(Member).filter(Member.id == self.socio_id).first()
+        db = SessionLocal()
+        socio = db.query(Member).filter(Member.id == self.socio_id).first()
         if socio:
             if socio.badge_number: self.ent_scheda.insert(0, socio.badge_number)
             self.ent_nome.insert(0, socio.first_name)
@@ -237,6 +225,7 @@ class SocioFormWindow(ctk.CTkToplevel):
             
             if socio.has_medical_certificate: self.chk_certificato.select()
             if socio.certificate_expiration: self.ent_scadenza_cert.insert(0, socio.certificate_expiration)
+        db.close()
 
     def salva_socio(self):
         nome = self.ent_nome.get().strip()
@@ -244,41 +233,44 @@ class SocioFormWindow(ctk.CTkToplevel):
         scheda = self.ent_scheda.get().strip()
         
         if not nome or not cognome: return messagebox.showwarning("Errore", "Nome e Cognome sono obbligatori!")
-            
-        if scheda:
-            esistente = self.db.query(Member).filter(Member.badge_number == scheda, Member.id != self.socio_id).first()
-            if esistente: return messagebox.showerror("Errore", f"Il Numero Scheda {scheda} è già assegnato a {esistente.first_name}!")
         
-        def data_valida(data_str):
-            if not data_str: return True
-            try:
-                datetime.strptime(data_str, "%d/%m/%Y")
-                return True
-            except ValueError:
-                try:
-                    datetime.strptime(data_str, "%Y-%m-%d")
-                    return True
-                except ValueError: return False
-                    
+        db = SessionLocal()
+        if scheda:
+            esistente = db.query(Member).filter(Member.badge_number == scheda, Member.id != self.socio_id).first()
+            if esistente: 
+                db.close()
+                return messagebox.showerror("Errore", f"Il Numero Scheda {scheda} è già assegnato a {esistente.first_name}!")
+        
         d_nascita = self.ent_data_nascita.get().strip()
         d_iscr = self.ent_scadenza_iscr.get().strip()
         d_partenza = self.ent_partenza_mensilita.get().strip()
         d_scadenza = self.ent_scadenza_mensilita.get().strip()
         d_cert = self.ent_scadenza_cert.get().strip()
         
-        if not data_valida(d_nascita): return messagebox.showwarning("Errore Data", "Data di nascita non valida.\nUsa il formato GG/MM/AAAA (es. 15/08/1985). Attenzione ai mesi di 30/31 giorni o bisestili.")
-        if not data_valida(d_iscr): return messagebox.showwarning("Errore Data", "Scadenza iscrizione non valida.\nUsa il formato GG/MM/AAAA")
-        if not data_valida(d_partenza): return messagebox.showwarning("Errore Data", "Data partenza mensilità non valida.\nUsa il formato GG/MM/AAAA")
-        if not data_valida(d_scadenza): return messagebox.showwarning("Errore Data", "Data scadenza mensilità non valida.\nUsa il formato GG/MM/AAAA")
-        if not data_valida(d_cert): return messagebox.showwarning("Errore Data", "Scadenza certificato non valida.\nUsa il formato GG/MM/AAAA")
+        # USA IS_VALID_DATE DA UTILS.PY
+        if not is_valid_date(d_nascita): 
+            db.close()
+            return messagebox.showwarning("Errore Data", "Data di nascita non valida.\nUsa il formato GG/MM/AAAA (es. 15/08/1985). Attenzione ai mesi di 30/31 giorni o bisestili.")
+        if not is_valid_date(d_iscr): 
+            db.close()
+            return messagebox.showwarning("Errore Data", "Scadenza iscrizione non valida.\nUsa il formato GG/MM/AAAA")
+        if not is_valid_date(d_partenza): 
+            db.close()
+            return messagebox.showwarning("Errore Data", "Data partenza mensilità non valida.\nUsa il formato GG/MM/AAAA")
+        if not is_valid_date(d_scadenza): 
+            db.close()
+            return messagebox.showwarning("Errore Data", "Data scadenza mensilità non valida.\nUsa il formato GG/MM/AAAA")
+        if not is_valid_date(d_cert): 
+            db.close()
+            return messagebox.showwarning("Errore Data", "Scadenza certificato non valida.\nUsa il formato GG/MM/AAAA")
 
         fascia_selezionata = self.cmb_fascia.get()
-        tier = next((t for t in self.tiers if t.name == fascia_selezionata), None)
+        tier_dict = next((t for t in self.tiers_data if t["name"] == fascia_selezionata), None)
         
-        if self.socio_id: socio = self.db.query(Member).filter(Member.id == self.socio_id).first()
+        if self.socio_id: socio = db.query(Member).filter(Member.id == self.socio_id).first()
         else:
             socio = Member()
-            self.db.add(socio)
+            db.add(socio)
             
         socio.badge_number = scheda if scheda else None
         socio.first_name = nome
@@ -296,46 +288,45 @@ class SocioFormWindow(ctk.CTkToplevel):
         socio.membership_expiration = d_scadenza
         socio.has_medical_certificate = self.chk_certificato.get() == 1
         socio.certificate_expiration = d_cert
-        socio.tier_id = tier.id if tier else None
+        socio.tier_id = tier_dict["id"] if tier_dict else None
         
-        if tier and tier.max_entries > 0:
+        if tier_dict and tier_dict["max_entries"] > 0:
             val_ingressi = self.ent_ingressi.get().strip()
             try:
                 rimanenti = int(val_ingressi)
-                socio.entries_used = max(0, tier.max_entries - rimanenti)
-            except ValueError: return messagebox.showwarning("Errore", "Il numero di ingressi rimanenti deve essere un numero valido.")
+                socio.entries_used = max(0, tier_dict["max_entries"] - rimanenti)
+            except ValueError: 
+                db.close()
+                return messagebox.showwarning("Errore", "Il numero di ingressi rimanenti deve essere un numero valido.")
         else:
             socio.entries_used = 0
         
-        self.db.commit()
-        self.db.close()
+        db.commit()
+        db.close()
         self.refresh_callback()
-        self.chiudi()
+        self.destroy()
 
-
-# ==================== SCHEDA PRINCIPALE: SociView ====================
 class SociView(ctk.CTkFrame):
     def __init__(self, parent, controller=None, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
         
-        self.db = SessionLocal()
         self.font_riga = ctk.CTkFont(family="Montserrat", size=13)
-        
         self.grid_rowconfigure(2, weight=1)
         self.grid_columnconfigure(0, weight=1)
 
         self.row_frames = {} 
         self.selected_socio_id = None
         
-        # --- VARIABILI PAGINAZIONE ---
         self.pagina_corrente = 1
         self.elementi_per_pagina = 50
 
         search_frame = ctk.CTkFrame(self, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         search_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=20)
 
-        tiers = self.db.query(Tier).all()
+        db = SessionLocal()
+        tiers = db.query(Tier).all()
         tier_names = ["Tutte"] + [t.name for t in tiers]
+        db.close()
 
         row1 = ctk.CTkFrame(search_frame, fg_color="transparent")
         row1.pack(pady=(15, 5), fill="x", padx=15)
@@ -364,7 +355,6 @@ class SociView(ctk.CTkFrame):
         self.src_fascia.set("Tutte")
         self.src_fascia.pack(side="left", padx=(0, 20))
 
-        # Attenzione: i pulsanti Cerca e Resetta ora resettano anche la paginazione
         btn_annulla = ctk.CTkButton(row2, text="Resetta", width=100, height=32, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.reset_ricerca)
         btn_annulla.pack(side="right", padx=(10, 0))
 
@@ -390,7 +380,6 @@ class SociView(ctk.CTkFrame):
             header_frame.grid_columnconfigure(i, weight=col[2], uniform="colonna")
             ctk.CTkLabel(header_frame, text=col[1], font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"), text_color=("#86868B", "#98989D"), anchor=col[3]).grid(row=0, column=i, padx=10, pady=5, sticky="ew")
 
-        # --- PANNELLO PAGINAZIONE (IN BASSO ALLA TABELLA) ---
         self.pagination_frame = ctk.CTkFrame(self.table_container, fg_color="transparent", height=30)
         self.pagination_frame.pack(side="bottom", fill="x", pady=(5, 0))
         
@@ -403,7 +392,6 @@ class SociView(ctk.CTkFrame):
         self.btn_next = ctk.CTkButton(self.pagination_frame, text="Successiva ▶", width=120, height=28, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.pagina_successiva)
         self.btn_next.pack(side="right")
 
-        # Area scrollabile al centro
         self.scroll_table = ctk.CTkScrollableFrame(self.table_container, fg_color="transparent")
         self.scroll_table.pack(side="top", fill="both", expand=True)
 
@@ -442,18 +430,18 @@ class SociView(ctk.CTkFrame):
                 else:
                     frame.configure(fg_color=("#FFFFFF", "#2C2C2E"), border_color=("#E5E5EA", "#3A3A3C"))
 
-    def crea_riga_tabella(self, socio):
+    def crea_riga_tabella(self, socio_data):
         riga_frame = ctk.CTkFrame(self.scroll_table, fg_color=("#FFFFFF", "#2C2C2E"), height=45, corner_radius=8, border_width=1, border_color=("#E5E5EA", "#3A3A3C"), cursor="hand2")
         riga_frame.pack(fill="x", pady=2)
         riga_frame.pack_propagate(False)
 
         valori = [
-            socio.badge_number if socio.badge_number else "-",
-            socio.first_name,
-            socio.last_name,
-            socio.tier.name if socio.tier else "Nessuna",
-            socio.membership_expiration if socio.membership_expiration else "N/D",
-            socio.enrollment_expiration if socio.enrollment_expiration else "N/D"
+            socio_data["scheda"],
+            socio_data["nome"],
+            socio_data["cognome"],
+            socio_data["fascia"],
+            socio_data["scad_abb"],
+            socio_data["scad_iscr"]
         ]
 
         elementi_riga = [riga_frame]
@@ -464,13 +452,14 @@ class SociView(ctk.CTkFrame):
             lbl.grid(row=0, column=i, padx=10, pady=10, sticky="ew")
             elementi_riga.append(lbl)
 
+        s_id = socio_data["id"]
         for w in elementi_riga:
-            w.bind("<Button-1>", lambda e, s_id=socio.id: self.seleziona_riga(s_id))
-            w.bind("<Double-Button-1>", lambda e, s_id=socio.id: self.apri_form_modifica(force_id=s_id))
-            w.bind("<Enter>", lambda e, f=riga_frame, s_id=socio.id: f.configure(fg_color=("#F8F8F9", "#3A3A3C")) if f.winfo_exists() and self.selected_socio_id != s_id else None)
-            w.bind("<Leave>", lambda e, f=riga_frame, s_id=socio.id: f.configure(fg_color=("#FFFFFF", "#2C2C2E")) if f.winfo_exists() and self.selected_socio_id != s_id else None)
+            w.bind("<Button-1>", lambda e, s=s_id: self.seleziona_riga(s))
+            w.bind("<Double-Button-1>", lambda e, s=s_id: self.apri_form_modifica(force_id=s))
+            w.bind("<Enter>", lambda e, f=riga_frame, s=s_id: f.configure(fg_color=("#F8F8F9", "#3A3A3C")) if f.winfo_exists() and self.selected_socio_id != s else None)
+            w.bind("<Leave>", lambda e, f=riga_frame, s=s_id: f.configure(fg_color=("#FFFFFF", "#2C2C2E")) if f.winfo_exists() and self.selected_socio_id != s else None)
 
-        self.row_frames[socio.id] = riga_frame
+        self.row_frames[s_id] = riga_frame
 
     def carica_dati(self, reset_page=False):
         if reset_page:
@@ -482,7 +471,8 @@ class SociView(ctk.CTkFrame):
         self.row_frames.clear()
         self.selected_socio_id = None
 
-        query = self.db.query(Member)
+        db = SessionLocal()
+        query = db.query(Member)
 
         scheda = self.src_scheda.get().strip()
         if scheda: query = query.filter(Member.badge_number.ilike(f"%{scheda}%"))
@@ -499,21 +489,30 @@ class SociView(ctk.CTkFrame):
         telefono = self.src_telefono.get().strip()
         if telefono: query = query.filter(Member.phone.ilike(f"%{telefono}%"))
 
-        # --- LOGICA DI PAGINAZIONE SUL DATABASE ---
         totale_soci = query.count()
         totale_pagine = max(1, (totale_soci + self.elementi_per_pagina - 1) // self.elementi_per_pagina)
         
-        # Protezione: se elimini l'ultimo elemento di una pagina e questa sparisce
         if self.pagina_corrente > totale_pagine:
             self.pagina_corrente = totale_pagine
 
-        # Ordina alfabeticamente e "Taglia" i risultati scaricandone solo 50!
-        soci = query.order_by(Member.first_name, Member.last_name).offset((self.pagina_corrente - 1) * self.elementi_per_pagina).limit(self.elementi_per_pagina).all()
+        soci_db = query.order_by(Member.first_name, Member.last_name).offset((self.pagina_corrente - 1) * self.elementi_per_pagina).limit(self.elementi_per_pagina).all()
+        
+        soci_data = []
+        for s in soci_db:
+            soci_data.append({
+                "id": s.id,
+                "scheda": s.badge_number if s.badge_number else "-",
+                "nome": s.first_name,
+                "cognome": s.last_name,
+                "fascia": s.tier.name if s.tier else "Nessuna",
+                "scad_abb": s.membership_expiration if s.membership_expiration else "N/D",
+                "scad_iscr": s.enrollment_expiration if s.enrollment_expiration else "N/D"
+            })
+        db.close()
 
-        for socio in soci:
-            self.crea_riga_tabella(socio)
+        for s_data in soci_data:
+            self.crea_riga_tabella(s_data)
             
-        # Aggiornamento visivo della barra di paginazione
         self.lbl_page.configure(text=f"Pagina {self.pagina_corrente} di {totale_pagine} (Totale: {totale_soci} soci)")
         self.btn_prev.configure(state="normal" if self.pagina_corrente > 1 else "disabled")
         self.btn_next.configure(state="normal" if self.pagina_corrente < totale_pagine else "disabled")
@@ -529,10 +528,13 @@ class SociView(ctk.CTkFrame):
 
     def elimina_socio(self):
         if not self.selected_socio_id: return messagebox.showwarning("Attenzione", "Seleziona prima un socio dalla lista.")
-            
-        socio = self.db.query(Member).filter(Member.id == self.selected_socio_id).first()
+        
+        db = SessionLocal()
+        socio = db.query(Member).filter(Member.id == self.selected_socio_id).first()
 
         if socio and messagebox.askyesno("Conferma", f"Vuoi eliminare definitivamente {socio.first_name} {socio.last_name}?"):
-            self.db.delete(socio)
-            self.db.commit()
-            self.carica_dati(reset_page=False) # Rimane sulla stessa pagina dopo aver eliminato
+            db.delete(socio)
+            db.commit()
+            
+        db.close()
+        self.carica_dati(reset_page=False)

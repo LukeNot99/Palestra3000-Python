@@ -15,14 +15,10 @@ def leggi_impostazione(chiave, default):
 class TariffeView(ctk.CTkFrame):
     def __init__(self, parent, controller=None, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
-        
-        self.db = SessionLocal()
         self.tier_id_in_modifica = None
         self.row_frames = {}
         self.selected_tariffa_id = None
-
         self.font_riga = ctk.CTkFont(family="Montserrat", size=13)
-
         self.mostra_costo = leggi_impostazione("mostra_costo_fasce", False)
         self.mostra_eta = leggi_impostazione("mostra_eta_fasce", False)
 
@@ -116,14 +112,10 @@ class TariffeView(ctk.CTkFrame):
 
     def svuota_form(self):
         self.ent_sigla.delete(0, 'end')
-        
         if self.mostra_eta:
             self.ent_eta_min.delete(0, 'end'); self.ent_eta_min.insert(0, "0")
             self.ent_eta_max.delete(0, 'end'); self.ent_eta_max.insert(0, "200")
-        
-        if self.mostra_costo:
-            self.ent_costo.delete(0, 'end')
-            
+        if self.mostra_costo: self.ent_costo.delete(0, 'end')
         self.ent_accesso.delete(0, 'end'); self.ent_accesso.insert(0, "00:00")
         self.ent_uscita.delete(0, 'end'); self.ent_uscita.insert(0, "23:59")
         self.ent_durata.delete(0, 'end'); self.ent_durata.insert(0, "1")
@@ -149,7 +141,6 @@ class TariffeView(ctk.CTkFrame):
         ])
 
         elementi_riga = [riga_frame]
-        
         for i, val in enumerate(valori):
             riga_frame.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
             lbl = ctk.CTkLabel(riga_frame, text=val, font=self.font_riga, text_color=("#1D1D1F", "#FFFFFF"), anchor=self.cols[i][3])
@@ -166,49 +157,44 @@ class TariffeView(ctk.CTkFrame):
     def carica_dati(self):
         for widget in self.scroll_table.winfo_children(): widget.destroy()
         self.row_frames.clear()
-        
-        tariffe = self.db.query(Tier).all()
+        db = SessionLocal()
+        tariffe = db.query(Tier).all()
         for t in tariffe:
             self.crea_riga_tabella(t)
+        db.close()
 
     def carica_in_form(self):
         if not self.selected_tariffa_id: return messagebox.showwarning("Attenzione", "Seleziona una fascia.")
-        tariffa = self.db.query(Tier).filter(Tier.id == self.selected_tariffa_id).first()
-        
+        db = SessionLocal()
+        tariffa = db.query(Tier).filter(Tier.id == self.selected_tariffa_id).first()
         if tariffa:
             self.svuota_form()
             self.ent_sigla.delete(0, 'end'); self.ent_sigla.insert(0, tariffa.name)
-            
             if self.mostra_eta:
                 self.ent_eta_min.delete(0, 'end'); self.ent_eta_min.insert(0, str(tariffa.min_age))
                 self.ent_eta_max.delete(0, 'end'); self.ent_eta_max.insert(0, str(tariffa.max_age))
-            
             if self.mostra_costo:
                 self.ent_costo.delete(0, 'end'); self.ent_costo.insert(0, str(tariffa.cost))
-            
             self.ent_accesso.delete(0, 'end'); self.ent_accesso.insert(0, tariffa.start_time[:5])
             self.ent_uscita.delete(0, 'end'); self.ent_uscita.insert(0, tariffa.end_time[:5])
-            
             self.ent_durata.delete(0, 'end'); self.ent_durata.insert(0, str(tariffa.duration_months))
             self.ent_ingressi.delete(0, 'end'); self.ent_ingressi.insert(0, str(tariffa.max_entries))
             self.tier_id_in_modifica = tariffa.id
             self.btn_salva.configure(text="Aggiorna Dati", fg_color="#007AFF", hover_color="#005ecb")
+        db.close()
 
     def salva_tariffa(self):
         sigla = self.ent_sigla.get().strip()
         if not sigla: return messagebox.showwarning("Errore", "La sigla è obbligatoria.")
-        
         accesso = self.ent_accesso.get().strip()
         uscita = self.ent_uscita.get().strip()
         
-        # VALIDAZIONE RIGOROSA ORARI
         try:
             datetime.strptime(accesso, "%H:%M")
             datetime.strptime(uscita, "%H:%M")
         except ValueError:
-            return messagebox.showwarning("Errore Orario", "Verifica che gli orari di accesso e uscita siano nel formato ore e minuti: HH:MM (es. 08:30).")
+            return messagebox.showwarning("Errore Orario", "Verifica gli orari di accesso e uscita nel formato HH:MM.")
 
-        # VALIDAZIONE RIGOROSA DATI NUMERICI E LOGICA
         try:
             costo = float(self.ent_costo.get().strip().replace(',', '.')) if self.mostra_costo else 0.0
             eta_min = int(self.ent_eta_min.get().strip()) if self.mostra_eta else 0
@@ -217,38 +203,40 @@ class TariffeView(ctk.CTkFrame):
             ingressi = int(self.ent_ingressi.get().strip() or 0)
             
             if costo < 0 or eta_min < 0 or eta_max < 0 or durata_mesi < 1 or ingressi < 0:
-                return messagebox.showwarning("Errore Logico", "Costi, età, durata e ingressi non possono avere valori negativi o pari a zero (la durata deve essere minimo 1).")
-                
+                return messagebox.showwarning("Errore Logico", "Valori negativi o nulli (la durata deve essere minimo 1).")
             if eta_max < eta_min:
                 return messagebox.showwarning("Errore Logico", "L'età massima non può essere inferiore all'età minima.")
-                
         except ValueError:
             return messagebox.showwarning("Errore", "Verifica che Costo, Età, Durata e Ingressi siano numeri validi.")
 
+        db = SessionLocal()
         if self.tier_id_in_modifica:
-            tariffa = self.db.query(Tier).filter(Tier.id == self.tier_id_in_modifica).first()
+            tariffa = db.query(Tier).filter(Tier.id == self.tier_id_in_modifica).first()
             if tariffa:
                 tariffa.name = sigla; tariffa.cost = costo; tariffa.min_age = eta_min; tariffa.max_age = eta_max
                 tariffa.start_time = accesso; tariffa.end_time = uscita
                 tariffa.duration_months = durata_mesi; tariffa.max_entries = ingressi
         else:
             nuova_tariffa = Tier(name=sigla, cost=costo, min_age=eta_min, max_age=eta_max, start_time=accesso, end_time=uscita, duration_months=durata_mesi, max_entries=ingressi)
-            self.db.add(nuova_tariffa)
+            db.add(nuova_tariffa)
 
-        self.db.commit()
+        db.commit()
+        db.close()
         self.svuota_form()
         self.carica_dati()
 
     def elimina_tariffa(self):
         if not self.selected_tariffa_id: return messagebox.showwarning("Attenzione", "Seleziona una fascia.")
-        
-        from core.database import Member 
-        soci_collegati = self.db.query(Member).filter(Member.tier_id == self.selected_tariffa_id).count()
-        if soci_collegati > 0: return messagebox.showerror("Errore", f"Ci sono {soci_collegati} soci iscritti con questa fascia!")
+        db = SessionLocal()
+        soci_collegati = db.query(Member).filter(Member.tier_id == self.selected_tariffa_id).count()
+        if soci_collegati > 0: 
+            db.close()
+            return messagebox.showerror("Errore", f"Ci sono {soci_collegati} soci iscritti con questa fascia!")
 
         if messagebox.askyesno("Conferma", "Sei sicuro di voler eliminare questa fascia?"):
-            tariffa = self.db.query(Tier).filter(Tier.id == self.selected_tariffa_id).first()
+            tariffa = db.query(Tier).filter(Tier.id == self.selected_tariffa_id).first()
             if tariffa:
-                self.db.delete(tariffa)
-                self.db.commit()
+                db.delete(tariffa)
+                db.commit()
             self.svuota_form()
+        db.close()

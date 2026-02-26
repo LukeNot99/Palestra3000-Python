@@ -1,7 +1,8 @@
 import customtkinter as ctk
 import os
+import sys
 import json
-from datetime import datetime, timedelta
+from datetime import datetime
 import threading
 import serial
 import platform
@@ -9,6 +10,7 @@ import subprocess
 from PIL import Image
 
 from core.database import SessionLocal, Member, Lesson, Booking, seed_data
+from core.utils import parse_date  # IMPORTIAMO L'UTILITY DELLE DATE
 
 from ui.soci_window import SociView, SocioFormWindow
 from ui.tariffe_window import TariffeView
@@ -18,10 +20,25 @@ from ui.calendario_window import CalendarioView
 from ui.tornello_window import TornelloView
 from ui.settings_window import SettingsView
 
+def resource_path(relative_path):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+def get_persistent_path(filename):
+    if getattr(sys, 'frozen', False):
+        base_dir = os.path.dirname(sys.executable)
+    else:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_dir, filename)
+
 def carica_impostazione_iniziale(chiave, default):
-    if os.path.exists("config.json"):
+    config_path = get_persistent_path("config.json")
+    if os.path.exists(config_path):
         try:
-            with open("config.json", "r") as f: return json.load(f).get(chiave, default)
+            with open(config_path, "r") as f: return json.load(f).get(chiave, default)
         except: pass
     return default
 
@@ -34,7 +51,7 @@ class App(ctk.CTk):
         self.title("Palestra 3000 - Gestione")
         self.geometry("1350x850") 
         self.configure(fg_color=("#F2F2F7", "#1C1C1E")) 
-        self.icons_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons")
+        self.icons_dir = resource_path("icons")
         
         seed_data()
 
@@ -51,7 +68,6 @@ class App(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
 
-        # ==================== SIDEBAR ====================
         self.sidebar = ctk.CTkFrame(self, width=280, corner_radius=0, fg_color=("#FFFFFF", "#2C2C2E"), border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         self.sidebar.grid(row=0, column=0, sticky="nsew")
         self.sidebar.grid_propagate(False) 
@@ -68,7 +84,6 @@ class App(ctk.CTk):
         self.current_view_name = None
         self.current_frame = None
 
-        # --- MENU PRINCIPALE RICOMPATTATO ---
         self.crea_bottone_menu("dashboard", "Dashboard", "dashboard", row=2)
         self.crea_bottone_menu("tornello", "Controllo Accessi", "tornello", row=3)
         self.crea_bottone_menu("soci", "Anagrafica Soci", "soci", row=4)
@@ -87,9 +102,7 @@ class App(ctk.CTk):
         self.show_view("dashboard")
 
     def aggiorna_logo(self):
-        if self.logo_container:
-            self.logo_container.destroy()
-
+        if self.logo_container: self.logo_container.destroy()
         self.logo_container = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         self.logo_container.grid(row=0, column=0, padx=20, pady=(30, 30), sticky="ew")
         
@@ -103,8 +116,7 @@ class App(ctk.CTk):
                 ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=img.size)
                 lbl_img = ctk.CTkLabel(self.logo_container, text="", image=ctk_img)
                 lbl_img.pack(anchor="w", pady=(0, 10))
-            except Exception:
-                pass 
+            except Exception: pass 
 
         self.lbl_nome_palestra = ctk.CTkLabel(self.logo_container, text=nome_palestra, font=ctk.CTkFont(family="Montserrat", size=22, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"), wraplength=220, justify="left")
         self.lbl_nome_palestra.pack(anchor="w")
@@ -124,8 +136,7 @@ class App(ctk.CTk):
                 l_icon.configure(text_color=("#1D1D1F", "#FFFFFF"))
                 l_text.configure(text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Montserrat", size=14, weight="normal"))
         
-        if self.current_frame:
-            self.current_frame.pack_forget()
+        if self.current_frame: self.current_frame.pack_forget()
             
         if view_name not in self.views:
             if view_name == "dashboard": self.views[view_name] = DashboardView(self.main_content, self)
@@ -203,8 +214,7 @@ class App(ctk.CTk):
                 except Exception: pass
 
     def riproduci_audio(self, nome_file):
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        percorso = os.path.join(base_dir, "messaggi", nome_file)
+        percorso = resource_path(os.path.join("messaggi", nome_file))
         if os.path.exists(percorso):
             sistema_operativo = platform.system()
             if sistema_operativo == "Windows":
@@ -257,41 +267,36 @@ class App(ctk.CTk):
         blocco_orari = carica_impostazione_iniziale("blocco_orari", True)
         blocco_cert = carica_impostazione_iniziale("blocco_cert", False)
 
+        # --- PULIZIA DATE CON UTILS ---
         if blocco_cert:
             if not socio.has_medical_certificate:
                 self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nCertificato Medico Mancante!", "#007AFF")
                 self.riproduci_audio("HeyOp.wav")
                 self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Cert. Medico Assente) #-")
                 db.close(); return
-            if socio.certificate_expiration:
-                try:
-                    scad_cert = datetime.strptime(socio.certificate_expiration, "%d/%m/%Y") if "/" in socio.certificate_expiration else datetime.strptime(socio.certificate_expiration, "%Y-%m-%d")
-                    if adesso > scad_cert:
-                        self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nCertificato Medico Scaduto!", "#007AFF")
-                        self.riproduci_audio("HeyOp.wav")
-                        self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Cert. Medico Scaduto) #-")
-                        db.close(); return
-                except ValueError: pass
+            
+            scad_cert = parse_date(socio.certificate_expiration)
+            if scad_cert and adesso > scad_cert:
+                self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nCertificato Medico Scaduto!", "#007AFF")
+                self.riproduci_audio("HeyOp.wav")
+                self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Cert. Medico Scaduto) #-")
+                db.close(); return
 
-        if blocco_iscr and socio.enrollment_expiration:
-            try:
-                scad_iscr = datetime.strptime(socio.enrollment_expiration, "%d/%m/%Y") if "/" in socio.enrollment_expiration else datetime.strptime(socio.enrollment_expiration, "%Y-%m-%d")
-                if adesso > scad_iscr:
-                    self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nIscrizione Annuale Scaduta!", "#FF3B30")
-                    self.riproduci_audio("HeyOp.wav")
-                    self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Iscrizione Scaduta) #-")
-                    db.close(); return
-            except ValueError: pass 
+        if blocco_iscr:
+            scad_iscr = parse_date(socio.enrollment_expiration)
+            if scad_iscr and adesso > scad_iscr:
+                self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nIscrizione Annuale Scaduta!", "#FF3B30")
+                self.riproduci_audio("HeyOp.wav")
+                self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Iscrizione Scaduta) #-")
+                db.close(); return
 
-        if blocco_abb and socio.membership_expiration:
-            try:
-                scadenza = datetime.strptime(socio.membership_expiration, "%d/%m/%Y") if "/" in socio.membership_expiration else datetime.strptime(socio.membership_expiration, "%Y-%m-%d")
-                if adesso > scadenza:
-                    self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nAbbonamento Scaduto!", "#FF9500")
-                    self.riproduci_audio("HeyOp.wav")
-                    self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Abbonamento Scaduto) #-")
-                    db.close(); return
-            except ValueError: pass 
+        if blocco_abb:
+            scad_abb = parse_date(socio.membership_expiration)
+            if scad_abb and adesso > scad_abb:
+                self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nAbbonamento Scaduto!", "#FF9500")
+                self.riproduci_audio("HeyOp.wav")
+                self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Abbonamento Scaduto) #-")
+                db.close(); return
 
         if not socio.tier:
             self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nNessuna fascia assegnata.", "#FF9500")
@@ -462,6 +467,7 @@ class DashboardView(ctk.CTkFrame):
         oggi_dt = datetime.now()
         oggi_str = oggi_dt.strftime("%Y-%m-%d")
         
+        from datetime import timedelta
         data_oggi = oggi_dt.date()
         data_domani = data_oggi + timedelta(days=1)
         data_dopodomani = data_oggi + timedelta(days=2)
@@ -472,29 +478,16 @@ class DashboardView(ctk.CTkFrame):
         scaduti_lista = []
         
         for socio in tutti_soci:
-            if socio.membership_expiration:
-                try:
-                    if "/" in socio.membership_expiration:
-                        scad = datetime.strptime(socio.membership_expiration, "%d/%m/%Y").date()
-                    else:
-                        scad = datetime.strptime(socio.membership_expiration, "%Y-%m-%d").date()
-                        
-                    if scad in target_dates:
-                        scaduti_lista.append((socio, scad))
-                except ValueError: pass
-
+            scad_abb = parse_date(socio.membership_expiration)
+            if scad_abb:
+                if scad_abb.date() in target_dates:
+                    scaduti_lista.append((socio, scad_abb.date()))
+                    
             if not socio.tier: continue
-            if not socio.membership_expiration: continue
-            try:
-                scad_abb = datetime.strptime(socio.membership_expiration, "%d/%m/%Y") if "/" in socio.membership_expiration else datetime.strptime(socio.membership_expiration, "%Y-%m-%d")
-                if oggi_dt > scad_abb: continue
-            except ValueError: continue
+            if not scad_abb or oggi_dt > scad_abb: continue
             
-            if not socio.enrollment_expiration: continue
-            try:
-                scad_iscr = datetime.strptime(socio.enrollment_expiration, "%d/%m/%Y") if "/" in socio.enrollment_expiration else datetime.strptime(socio.enrollment_expiration, "%Y-%m-%d")
-                if oggi_dt > scad_iscr: continue
-            except ValueError: continue
+            scad_iscr = parse_date(socio.enrollment_expiration)
+            if not scad_iscr or oggi_dt > scad_iscr: continue
             
             soci_attivi_reali += 1
 

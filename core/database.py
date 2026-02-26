@@ -1,8 +1,16 @@
 from sqlalchemy import create_engine, Column, Integer, String, Float, ForeignKey, Boolean, text
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 import os
+import sys
 
-base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# --- PROTEZIONE PYINSTALLER PER IL DATABASE ---
+# Se l'app è un eseguibile compilato (.exe), salva il DB nella cartella dell'eseguibile.
+# Altrimenti (fase di sviluppo), salvalo nella cartella principale del progetto.
+if getattr(sys, 'frozen', False):
+    base_dir = os.path.dirname(sys.executable)
+else:
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 db_path = os.path.join(base_dir, "palestra3000.db")
 
 engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
@@ -15,7 +23,6 @@ class Tier(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)
     cost = Column(Float, default=0.0)
-    # RIMOSSI I SECONDI DAI VALORI DI DEFAULT!
     start_time = Column(String, default="00:00")
     end_time = Column(String, default="23:59")
     min_age = Column(Integer, default=0)
@@ -101,7 +108,6 @@ def seed_data():
     db = SessionLocal()
     if db.query(Tier).count() == 0:
         db.add_all([
-            # ANCHE QUI, INIZIALIZZAZIONE SENZA I SECONDI
             Tier(name="Mensile Open", cost=50.0, start_time="06:00", end_time="23:59", max_entries=0, duration_months=1),
             Tier(name="Trimestrale", cost=130.0, start_time="06:00", end_time="23:59", max_entries=0, duration_months=3),
             Tier(name="10 Ingressi (Valido 2 Mesi)", cost=40.0, start_time="06:00", end_time="23:59", max_entries=10, duration_months=2)

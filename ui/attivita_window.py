@@ -6,7 +6,6 @@ class AttivitaView(ctk.CTkFrame):
     def __init__(self, parent, app):
         super().__init__(parent, fg_color="transparent")
         self.app = app
-        self.db = SessionLocal()
         self.row_frames = {}
         self.selected_activity_id = None
 
@@ -56,53 +55,60 @@ class AttivitaView(ctk.CTkFrame):
 
     def carica_dati(self):
         for w in self.scroll_table.winfo_children(): w.destroy()
-        self.row_frames.clear(); self.selected_activity_id = None
-        for a in self.db.query(Activity).order_by(Activity.name).all(): self.crea_riga_tabella(a)
+        self.row_frames.clear()
+        self.selected_activity_id = None
+        
+        db = SessionLocal()
+        for a in db.query(Activity).order_by(Activity.name).all(): 
+            self.crea_riga_tabella(a)
+        db.close()
 
     def inserisci_attivita(self):
         nome = self.ent_nome.get().strip()
         if not nome: return messagebox.showwarning("Attenzione", "Inserisci nome.")
-        if self.db.query(Activity).filter(Activity.name.ilike(nome)).first(): return messagebox.showerror("Errore", "Esiste già.")
-        self.db.add(Activity(name=nome)); self.db.commit(); self.ent_nome.delete(0, 'end'); self.carica_dati()
+        
+        db = SessionLocal()
+        if db.query(Activity).filter(Activity.name.ilike(nome)).first(): 
+            db.close()
+            return messagebox.showerror("Errore", "Esiste già.")
+        db.add(Activity(name=nome))
+        db.commit()
+        db.close()
+        
+        self.ent_nome.delete(0, 'end')
+        self.carica_dati()
 
     def elimina_attivita(self):
         if not self.selected_activity_id: 
             return messagebox.showwarning("Attenzione", "Seleziona un'attività dalla lista.")
             
-        a = self.db.query(Activity).filter(Activity.id == self.selected_activity_id).first()
-        if not a: return
+        db = SessionLocal()
+        a = db.query(Activity).filter(Activity.id == self.selected_activity_id).first()
+        if not a: 
+            db.close()
+            return
 
-        # Cerco tutte le lezioni associate a questa attività
-        lezioni_collegate = self.db.query(Lesson).filter(Lesson.activity_id == a.id).all()
+        lezioni_collegate = db.query(Lesson).filter(Lesson.activity_id == a.id).all()
         
         if lezioni_collegate:
-            # Messaggio di avviso SEVERO
-            msg = (f"⚠️ ATTENZIONE!\nCi sono {len(lezioni_collegate)} lezioni in calendario per l'attività '{a.name}'.\n\n"
-                   "Eliminando questa attività cancellerai DEFINITIVAMENTE anche:\n"
-                   "- Tutte le lezioni passate, presenti e future collegate\n"
-                   "- TUTTE LE PRENOTAZIONI dei soci per queste lezioni.\n\n"
-                   "Sei ASSOLUTAMENTE sicuro di voler procedere?")
-                   
-            if not messagebox.askyesno("Conferma Eliminazione a Cascata", msg, icon="warning"):
+            msg = (f"⚠️ ATTENZIONE!\nCi sono {len(lezioni_collegate)} lezioni collegate a '{a.name}'.\n"
+                   "Eliminando l'attività cancellerai anche le lezioni e le relative prenotazioni.\nProcedere?")
+            if not messagebox.askyesno("Conferma", msg, icon="warning"):
+                db.close()
                 return
                 
-            # Procedo con l'eliminazione a cascata: Prima elimino le prenotazioni (Booking)
             for lez in lezioni_collegate:
-                self.db.query(Booking).filter(Booking.lesson_id == lez.id).delete()
-            
-            # Poi elimino le lezioni (Lesson)
-            self.db.query(Lesson).filter(Lesson.activity_id == a.id).delete()
+                db.query(Booking).filter(Booking.lesson_id == lez.id).delete()
+            db.query(Lesson).filter(Lesson.activity_id == a.id).delete()
         else:
-            # Nessuna lezione collegata, messaggio standard
             if not messagebox.askyesno("Conferma", f"Vuoi eliminare l'attività '{a.name}'?"):
+                db.close()
                 return
 
-        # Infine elimino l'attività stessa
-        self.db.delete(a)
-        self.db.commit()
+        nome_att = a.name
+        db.delete(a)
+        db.commit()
+        db.close()
+        
         self.carica_dati()
-        messagebox.showinfo("Completato", f"Attività '{a.name}' eliminata con successo.")
-
-    def destroy(self):
-        self.db.close()
-        super().destroy()
+        messagebox.showinfo("Completato", f"Attività '{nome_att}' eliminata.")
