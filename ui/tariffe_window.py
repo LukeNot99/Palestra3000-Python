@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from tkinter import messagebox
 from datetime import datetime
+from typing import Literal
 import json
 import os
 from core.database import SessionLocal, Tier, Member
@@ -11,7 +12,7 @@ def read_setting(key, default):
         try:
             with open("config.json", "r") as f:
                 return json.load(f).get(key, default)
-        except Exception:
+        except (json.JSONDecodeError, OSError):
             pass
     return default
 
@@ -62,7 +63,8 @@ UI_FONTS = {
 
 def _mk_font(key: str) -> ctk.CTkFont:
     f = UI_FONTS[key]
-    return ctk.CTkFont(family=f[0], size=f[1], weight=f[2])
+    weight: Literal["normal", "bold"] = "bold" if f[2] == "bold" else "normal"
+    return ctk.CTkFont(family=f[0], size=f[1], weight=weight)
 
 
 def _mk_label(parent, text: str, font_key: str = "label_bold",
@@ -73,7 +75,7 @@ def _mk_label(parent, text: str, font_key: str = "label_bold",
 
 def _mk_entry(parent, width: int = 180, font_key: str = "entry",
               color_key: str | None = None, **kwargs) -> ctk.CTkEntry:
-    kw = dict(width=width, font=_mk_font(font_key))
+    kw: dict = {"width": width, "font": _mk_font(font_key)}
     if color_key:
         kw["text_color"] = UI_COLORS[color_key]
     kw.update(kwargs)
@@ -81,7 +83,7 @@ def _mk_entry(parent, width: int = 180, font_key: str = "entry",
 
 
 def _mk_button(parent, text: str, fg_key: str, hover_key: str,
-               command, side: str = "left", padx=0, **kwargs) -> ctk.CTkButton:
+               command, side: str = "left", padx: int | tuple = 0, **kwargs) -> ctk.CTkButton:
     btn = ctk.CTkButton(parent, text=text, height=38, font=_mk_font("button"),
                         fg_color=UI_COLORS[fg_key], hover_color=UI_COLORS[hover_key],
                         command=command, **kwargs)
@@ -98,9 +100,38 @@ def _set_entry(entry: ctk.CTkEntry, value: str) -> None:
 # ---------------------------------------------------------------------------
 
 class TiersView(ctk.CTkFrame):
-    def __init__(self, parent, controller=None, **kwargs):
+    def __init__(self, parent, _controller=None, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
-        self._setup_db_and_config()
+        # ── Stato ────────────────────────────────────────────────────────────
+        self.db                = SessionLocal()
+        self.editing_tier_id:  int | None = None
+        self.selected_tier_id: int | None = None
+        self.row_frames:       dict       = {}
+        self.row_font          = _mk_font("table_row")
+        self.show_cost         = read_setting("mostra_costo_fasce", False)
+        self.show_age          = read_setting("mostra_eta_fasce", False)
+        # Widget dichiarati qui — assegnati nei metodi _create_*
+        self.ent_age_min:     ctk.CTkEntry             | None = None
+        self.ent_age_max:     ctk.CTkEntry             | None = None
+        self.ent_entry_time:  ctk.CTkEntry             | None = None
+        self.ent_exit_time:   ctk.CTkEntry             | None = None
+        self.lbl_code:        ctk.CTkLabel             | None = None
+        self.ent_code:        ctk.CTkEntry             | None = None
+        self.lbl_cost:        ctk.CTkLabel             | None = None
+        self.ent_cost:        ctk.CTkEntry             | None = None
+        self.lbl_age:         ctk.CTkLabel             | None = None
+        self.frame_age:       ctk.CTkFrame             | None = None
+        self.lbl_schedule:    ctk.CTkLabel             | None = None
+        self.frame_schedule:  ctk.CTkFrame             | None = None
+        self.lbl_duration:    ctk.CTkLabel             | None = None
+        self.ent_duration:    ctk.CTkEntry             | None = None
+        self.lbl_entries:     ctk.CTkLabel             | None = None
+        self.ent_entries:     ctk.CTkEntry             | None = None
+        self.btn_save:        ctk.CTkButton            | None = None
+        self.table_container: ctk.CTkFrame             | None = None
+        self.scroll_table:    ctk.CTkScrollableFrame   | None = None
+        self.cols:            list[tuple]              = []
+        # ── Build UI ─────────────────────────────────────────────────────────
         self._setup_grid_layout()
         self._create_form_widgets()
         self._create_button_frame()
@@ -110,19 +141,7 @@ class TiersView(ctk.CTkFrame):
     # ── Setup ────────────────────────────────────────────────────────────────
 
     def _setup_db_and_config(self):
-        self.db = SessionLocal()
-        self.editing_tier_id  = None
-        self.selected_tier_id = None
-        self.row_frames       = {}
-        # PRE-CARICAMENTO FONT PER PREVENIRE MEMORY LEAK
-        self.row_font = _mk_font("table_row")
-        self.show_cost = read_setting("mostra_costo_fasce", False)
-        self.show_age  = read_setting("mostra_eta_fasce", False)
-        # Dichiarati qui per evitare "Unresolved attribute" — assegnati via setattr in _create_range_frame
-        self.ent_age_min:    ctk.CTkEntry | None = None
-        self.ent_age_max:    ctk.CTkEntry | None = None
-        self.ent_entry_time: ctk.CTkEntry | None = None
-        self.ent_exit_time:  ctk.CTkEntry | None = None
+        pass  # Logica spostata in __init__ per soddisfare i type checker
 
     def _setup_grid_layout(self):
         self.grid_rowconfigure(2, weight=1)
@@ -141,16 +160,19 @@ class TiersView(ctk.CTkFrame):
                             default_min: str, default_max: str) -> ctk.CTkFrame:
         """Creates a frame with two entries linked by ' - '."""
         frame = ctk.CTkFrame(parent, fg_color="transparent")
-        ent_min = _mk_entry(frame, width=70, justify="center")
-        _set_entry(ent_min, default_min)
-        ent_min.pack(side="left")
+        ent_min = self._make_range_entry(frame, default_min)
         _mk_label(frame, " - ", font_key="separator", color_key="text_primary").pack(side="left", padx=5)
-        ent_max = _mk_entry(frame, width=70, justify="center")
-        _set_entry(ent_max, default_max)
-        ent_max.pack(side="left")
+        ent_max = self._make_range_entry(frame, default_max)
         setattr(self, entry_min_attr, ent_min)
         setattr(self, entry_max_attr, ent_max)
         return frame
+
+    @staticmethod
+    def _make_range_entry(parent, default: str) -> ctk.CTkEntry:
+        entry = _mk_entry(parent, width=70, justify="center")
+        _set_entry(entry, default)
+        entry.pack(side="left")
+        return entry
 
     def _create_form_widgets(self):
         form_frame = self._create_form_frame()
@@ -182,10 +204,10 @@ class TiersView(ctk.CTkFrame):
                                      color_key="text_accent")
         _set_entry(self.ent_entries, FIELD_DEFAULTS["max_entries"])
 
-        self._layout_form_fields(form_frame)
+        self._layout_form_fields()
 
-    def _build_active_fields(self, form_frame) -> list:
-        fields = [(self.lbl_code, self.ent_code)]
+    def _build_active_fields(self) -> list[tuple]:
+        fields: list[tuple] = [(self.lbl_code, self.ent_code)]
         if self.show_cost: fields.append((self.lbl_cost,     self.ent_cost))
         if self.show_age:  fields.append((self.lbl_age,      self.frame_age))
         fields.append((self.lbl_schedule, self.frame_schedule))
@@ -193,8 +215,8 @@ class TiersView(ctk.CTkFrame):
         fields.append((self.lbl_entries,  self.ent_entries))
         return fields
 
-    def _layout_form_fields(self, form_frame):
-        for i, (lbl, wgt) in enumerate(self._build_active_fields(form_frame)):
+    def _layout_form_fields(self):
+        for i, (lbl, wgt) in enumerate(self._build_active_fields()):
             row = i // 2
             col = (i % 2) * 2
             lbl.grid(row=row, column=col,     sticky="e", padx=(20, 10), pady=15)
@@ -286,7 +308,7 @@ class TiersView(ctk.CTkFrame):
         row_frame.pack(fill="x", pady=2)
         row_frame.pack_propagate(False)
 
-        widgets = [row_frame]
+        widgets: list = [row_frame]
         for i, val in enumerate(self._get_row_values(t)):
             row_frame.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
             lbl = ctk.CTkLabel(row_frame, text=val, font=self.row_font,
@@ -327,9 +349,10 @@ class TiersView(ctk.CTkFrame):
                                 hover_color=UI_COLORS["btn_success_hover"])
         self.load_data()
 
-    def load_into_form(self):
+    def load_into_form(self) -> None:
         if not self.selected_tier_id:
-            return messagebox.showwarning("Attenzione", "Seleziona una fascia.")
+            messagebox.showwarning("Attenzione", "Seleziona una fascia.")
+            return
         tier = self.db.query(Tier).filter(Tier.id == self.selected_tier_id).first()
         if not tier:
             return
@@ -370,7 +393,7 @@ class TiersView(ctk.CTkFrame):
             "entries":          int(self.ent_entries.get().strip()  or FIELD_DEFAULTS["max_entries"]),
         }
 
-    def _update_tier(self, data: dict):
+    def _update_tier(self, data: dict) -> None:
         tier = self.db.query(Tier).filter(Tier.id == self.editing_tier_id).first()
         if not tier:
             return
@@ -383,7 +406,7 @@ class TiersView(ctk.CTkFrame):
         tier.duration_months = data["duration_months"]
         tier.max_entries     = data["entries"]
 
-    def _create_tier(self, data: dict):
+    def _create_tier(self, data: dict) -> None:
         self.db.add(Tier(
             name=data["code"],          cost=data["cost"],
             min_age=data["age_min"],    max_age=data["age_max"],
@@ -391,17 +414,19 @@ class TiersView(ctk.CTkFrame):
             duration_months=data["duration_months"], max_entries=data["entries"],
         ))
 
-    def save_tier(self):
+    def save_tier(self) -> None:
         code = self.ent_code.get().strip()
         if not code:
-            return messagebox.showwarning("Errore", "La sigla è obbligatoria.")
+            messagebox.showwarning("Errore", "La sigla è obbligatoria.")
+            return
         try:
             data = self._read_form_fields()
         except ValueError as e:
             msg = ("Verifica che gli orari siano nel formato HH:MM (es. 08:30)."
                    if "time" in str(e)
                    else "Verifica che Costo, Età, Durata e Ingressi siano numeri validi.")
-            return messagebox.showwarning("Errore", msg)
+            messagebox.showwarning("Errore", msg)
+            return
 
         if self.editing_tier_id:
             self._update_tier(data)
@@ -411,14 +436,16 @@ class TiersView(ctk.CTkFrame):
         self.db.commit()
         self.clear_form()
 
-    def delete_tier(self):
+    def delete_tier(self) -> None:
         if not self.selected_tier_id:
-            return messagebox.showwarning("Attenzione", "Seleziona una fascia.")
+            messagebox.showwarning("Attenzione", "Seleziona una fascia.")
+            return
 
         linked_members = self.db.query(Member).filter(Member.tier_id == self.selected_tier_id).count()
         if linked_members > 0:
-            return messagebox.showerror("Errore",
-                                        f"Ci sono {linked_members} soci iscritti con questa fascia!")
+            messagebox.showerror("Errore",
+                                 f"Ci sono {linked_members} soci iscritti con questa fascia!")
+            return
 
         if messagebox.askyesno("Conferma", "Sei sicuro di voler eliminare questa fascia?"):
             tier = self.db.query(Tier).filter(Tier.id == self.selected_tier_id).first()
