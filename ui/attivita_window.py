@@ -1,11 +1,12 @@
 import customtkinter as ctk
 from tkinter import messagebox
-from core.database import SessionLocal, Activity, Lesson, Booking
+from core.database import SessionLocal, Activity, Lesson
 
 class AttivitaView(ctk.CTkFrame):
     def __init__(self, parent, app):
         super().__init__(parent, fg_color="transparent")
         self.app = app
+        self.db = SessionLocal()
         self.row_frames = {}
         self.selected_activity_id = None
 
@@ -39,8 +40,7 @@ class AttivitaView(ctk.CTkFrame):
 
     def seleziona_riga(self, a_id):
         self.selected_activity_id = a_id
-        for r_id, f in self.row_frames.items(): 
-            f.configure(fg_color=("#E5F1FF", "#0A2A4A") if r_id == a_id else ("#FFFFFF", "#2C2C2E"), border_color="#007AFF" if r_id == a_id else ("#E5E5EA", "#3A3A3C"))
+        for r_id, f in self.row_frames.items(): f.configure(fg_color=("#E5F1FF", "#0A2A4A") if r_id == a_id else ("#FFFFFF", "#2C2C2E"), border_color="#007AFF" if r_id == a_id else ("#E5E5EA", "#3A3A3C"))
 
     def crea_riga_tabella(self, attivita):
         f = ctk.CTkFrame(self.scroll_table, fg_color=("#FFFFFF", "#2C2C2E"), height=45, corner_radius=8, border_width=1, border_color=("#E5E5EA", "#3A3A3C"), cursor="hand2")
@@ -55,60 +55,22 @@ class AttivitaView(ctk.CTkFrame):
 
     def carica_dati(self):
         for w in self.scroll_table.winfo_children(): w.destroy()
-        self.row_frames.clear()
-        self.selected_activity_id = None
-        
-        db = SessionLocal()
-        for a in db.query(Activity).order_by(Activity.name).all(): 
-            self.crea_riga_tabella(a)
-        db.close()
+        self.row_frames.clear(); self.selected_activity_id = None
+        for a in self.db.query(Activity).order_by(Activity.name).all(): self.crea_riga_tabella(a)
 
     def inserisci_attivita(self):
         nome = self.ent_nome.get().strip()
         if not nome: return messagebox.showwarning("Attenzione", "Inserisci nome.")
-        
-        db = SessionLocal()
-        if db.query(Activity).filter(Activity.name.ilike(nome)).first(): 
-            db.close()
-            return messagebox.showerror("Errore", "Esiste già.")
-        db.add(Activity(name=nome))
-        db.commit()
-        db.close()
-        
-        self.ent_nome.delete(0, 'end')
-        self.carica_dati()
+        if self.db.query(Activity).filter(Activity.name.ilike(nome)).first(): return messagebox.showerror("Errore", "Esiste già.")
+        self.db.add(Activity(name=nome)); self.db.commit(); self.ent_nome.delete(0, 'end'); self.carica_dati()
 
     def elimina_attivita(self):
-        if not self.selected_activity_id: 
-            return messagebox.showwarning("Attenzione", "Seleziona un'attività dalla lista.")
-            
-        db = SessionLocal()
-        a = db.query(Activity).filter(Activity.id == self.selected_activity_id).first()
-        if not a: 
-            db.close()
-            return
+        if not self.selected_activity_id: return messagebox.showwarning("Attenzione", "Seleziona attività.")
+        if self.db.query(Lesson).filter(Lesson.activity_id == self.selected_activity_id).count() > 0: return messagebox.showerror("Errore", "Ci sono lezioni programmate!")
+        if messagebox.askyesno("Conferma", "Eliminare attività?"):
+            a = self.db.query(Activity).filter(Activity.id == self.selected_activity_id).first()
+            if a: self.db.delete(a); self.db.commit(); self.carica_dati()
 
-        lezioni_collegate = db.query(Lesson).filter(Lesson.activity_id == a.id).all()
-        
-        if lezioni_collegate:
-            msg = (f"⚠️ ATTENZIONE!\nCi sono {len(lezioni_collegate)} lezioni collegate a '{a.name}'.\n"
-                   "Eliminando l'attività cancellerai anche le lezioni e le relative prenotazioni.\nProcedere?")
-            if not messagebox.askyesno("Conferma", msg, icon="warning"):
-                db.close()
-                return
-                
-            for lez in lezioni_collegate:
-                db.query(Booking).filter(Booking.lesson_id == lez.id).delete()
-            db.query(Lesson).filter(Lesson.activity_id == a.id).delete()
-        else:
-            if not messagebox.askyesno("Conferma", f"Vuoi eliminare l'attività '{a.name}'?"):
-                db.close()
-                return
-
-        nome_att = a.name
-        db.delete(a)
-        db.commit()
-        db.close()
-        
-        self.carica_dati()
-        messagebox.showinfo("Completato", f"Attività '{nome_att}' eliminata.")
+    def destroy(self):
+        self.db.close()
+        super().destroy()

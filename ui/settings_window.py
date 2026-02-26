@@ -1,134 +1,231 @@
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
-import json
+import shutil
 import os
+from datetime import datetime
+import json
+import serial.tools.list_ports 
 
+CONFIG_FILE = "config.json"
+
+def salva_impostazione(chiave, valore):
+    config = {}
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "r") as f:
+            try: config = json.load(f)
+            except: pass
+    
+    config[chiave] = valore
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(config, f)
+
+def leggi_impostazione(chiave, default):
+    if os.path.exists(CONFIG_FILE):
+        with open(CONFIG_FILE, "r") as f:
+            try: return json.load(f).get(chiave, default)
+            except: pass
+    return default
+
+
+# ==================== SCHEDA PRINCIPALE: SettingsView ====================
 class SettingsView(ctk.CTkFrame):
-    def __init__(self, parent, app):
-        super().__init__(parent, fg_color="transparent")
-        self.app = app
-        self.config_file = "config.json"
-        self.config = self.carica_config()
-
-        ctk.CTkLabel(self, text="⚙️ Impostazioni di Sistema", font=ctk.CTkFont(family="Montserrat", size=24, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(20, 10))
-
-        self.scroll_frame = ctk.CTkScrollableFrame(self, fg_color="transparent")
-        self.scroll_frame.pack(fill="both", expand=True, padx=10)
-
-        # --- SEZIONE 1: PALESTRA ---
-        frame_palestra = ctk.CTkFrame(self.scroll_frame, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
-        frame_palestra.pack(fill="x", pady=10, padx=10)
-        ctk.CTkLabel(frame_palestra, text="Dati Palestra", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")).pack(anchor="w", padx=20, pady=(15, 10))
-
-        self.ent_nome = self.crea_campo(frame_palestra, "Nome Palestra:", self.config.get("nome_palestra", "Palestra 3000"))
+    def __init__(self, parent, controller=None, **kwargs):
+        super().__init__(parent, fg_color="transparent", **kwargs)
+        self.controller = controller 
         
-        row_logo = ctk.CTkFrame(frame_palestra, fg_color="transparent")
-        row_logo.pack(fill="x", padx=20, pady=(5, 15))
-        ctk.CTkLabel(row_logo, text="Logo Palestra (PNG/JPG):", font=ctk.CTkFont(family="Montserrat", weight="bold"), width=220, anchor="w").pack(side="left")
-        self.ent_logo = ctk.CTkEntry(row_logo, width=300, font=ctk.CTkFont(family="Montserrat"))
-        self.ent_logo.insert(0, self.config.get("percorso_logo", ""))
-        self.ent_logo.pack(side="left", padx=(0, 10))
-        ctk.CTkButton(row_logo, text="Scegli File", width=100, command=self.scegli_logo, fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E")).pack(side="left")
+        self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
+        self.scroll.pack(fill="both", expand=True)
 
-        # --- SEZIONE 2: HARDWARE E TORNELLO ---
-        frame_hw = ctk.CTkFrame(self.scroll_frame, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
-        frame_hw.pack(fill="x", pady=10, padx=10)
-        ctk.CTkLabel(frame_hw, text="Hardware e Lettore Badge", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")).pack(anchor="w", padx=20, pady=(15, 10))
+        lbl_titolo = ctk.CTkLabel(self.scroll, text="Impostazioni di Sistema", font=ctk.CTkFont(family="Montserrat", size=28, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
+        lbl_titolo.pack(pady=(20, 20), padx=30, anchor="w")
 
-        row_hw = ctk.CTkFrame(frame_hw, fg_color="transparent")
-        row_hw.pack(fill="x", padx=20, pady=(0, 15))
-        ctk.CTkLabel(row_hw, text="Porta Seriale (Es. COM3 o /dev/ttyUSB0):", font=ctk.CTkFont(family="Montserrat", weight="bold"), width=320, anchor="w").pack(side="left")
-        self.ent_porta = ctk.CTkEntry(row_hw, width=200, font=ctk.CTkFont(family="Montserrat"))
-        self.ent_porta.insert(0, self.config.get("porta_tornello", "Nessun hardware"))
-        self.ent_porta.pack(side="left")
+        # ==================== HARDWARE E TORNELLO ====================
+        hw_frame = ctk.CTkFrame(self.scroll, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
+        hw_frame.pack(padx=30, pady=(0, 15), fill="x")
+        
+        ctk.CTkLabel(hw_frame, text="🔌 Lettore Schede (Tornello)", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
+        ctk.CTkLabel(hw_frame, text="Seleziona la porta COM del lettore. Il software resterà in ascolto perenne in background.", font=ctk.CTkFont(family="Montserrat", size=12), text_color=("#86868B", "#98989D")).pack(padx=20, anchor="w")
+        
+        box_hw = ctk.CTkFrame(hw_frame, fg_color="transparent")
+        box_hw.pack(pady=(10, 20), padx=20, fill="x")
 
-        # --- SEZIONE 3: REGOLE ACCESSO ---
-        frame_regole = ctk.CTkFrame(self.scroll_frame, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
-        frame_regole.pack(fill="x", pady=10, padx=10)
-        ctk.CTkLabel(frame_regole, text="Regole di Accesso (Cosa blocca il tornello?)", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")).pack(anchor="w", padx=20, pady=(15, 10))
+        porte = [p.device for p in serial.tools.list_ports.comports()]
+        if not porte: porte = ["Nessun hardware rilevato"]
+        
+        self.cmb_porta = ctk.CTkComboBox(box_hw, values=porte, width=200, font=ctk.CTkFont(family="Montserrat", size=14))
+        self.cmb_porta.set(leggi_impostazione("porta_tornello", porte[0]))
+        self.cmb_porta.pack(side="left")
+        
+        ctk.CTkButton(box_hw, text="Connetti / Salva", width=120, height=36, font=ctk.CTkFont(family="Montserrat", size=13, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.salva_porta).pack(side="left", padx=10)
 
-        self.chk_iscr = ctk.CTkCheckBox(frame_regole, text="Blocca se Iscrizione Annuale scaduta", font=ctk.CTkFont(family="Montserrat"))
-        if self.config.get("blocco_iscr", True): self.chk_iscr.select()
-        self.chk_iscr.pack(anchor="w", padx=20, pady=5)
+        # ==================== REGOLE DI BLOCCO TORNELLO ====================
+        block_frame = ctk.CTkFrame(self.scroll, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
+        block_frame.pack(padx=30, pady=(0, 15), fill="x")
+        
+        ctk.CTkLabel(block_frame, text="🛡️ Regole di Blocco Tornello", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
+        ctk.CTkLabel(block_frame, text="Accendi o spegni temporaneamente i controlli di blocco per gestire tolleranze o periodi di rinnovo.", font=ctk.CTkFont(family="Montserrat", size=12), text_color=("#86868B", "#98989D")).pack(padx=20, anchor="w")
 
-        self.chk_abb = ctk.CTkCheckBox(frame_regole, text="Blocca se Abbonamento Mensile scaduto", font=ctk.CTkFont(family="Montserrat"))
-        if self.config.get("blocco_abb", True): self.chk_abb.select()
-        self.chk_abb.pack(anchor="w", padx=20, pady=5)
+        switches_container = ctk.CTkFrame(block_frame, fg_color="transparent")
+        switches_container.pack(pady=(15, 20), padx=20, fill="x")
 
-        self.chk_orari = ctk.CTkCheckBox(frame_regole, text="Blocca se fuori dall'orario della propria fascia", font=ctk.CTkFont(family="Montserrat"))
-        if self.config.get("blocco_orari", True): self.chk_orari.select()
-        self.chk_orari.pack(anchor="w", padx=20, pady=5)
+        self.var_blocco_iscr = ctk.BooleanVar(value=leggi_impostazione("blocco_iscr", True))
+        self.var_blocco_abb = ctk.BooleanVar(value=leggi_impostazione("blocco_abb", True))
+        self.var_blocco_orari = ctk.BooleanVar(value=leggi_impostazione("blocco_orari", True))
+        self.var_blocco_cert = ctk.BooleanVar(value=leggi_impostazione("blocco_cert", False)) 
 
-        self.chk_cert = ctk.CTkCheckBox(frame_regole, text="Blocca se Certificato Medico mancante o scaduto", font=ctk.CTkFont(family="Montserrat"))
-        if self.config.get("blocco_cert", False): self.chk_cert.select()
-        self.chk_cert.pack(anchor="w", padx=20, pady=(5, 15))
+        ctk.CTkSwitch(switches_container, text="Blocca accesso se Iscrizione Annuale Scaduta", variable=self.var_blocco_iscr, command=self.salva_blocchi, font=ctk.CTkFont(family="Montserrat", size=14), progress_color="#FF3B30").pack(pady=8, anchor="w")
+        ctk.CTkSwitch(switches_container, text="Blocca accesso se Abbonamento / Mensilità Scaduto", variable=self.var_blocco_abb, command=self.salva_blocchi, font=ctk.CTkFont(family="Montserrat", size=14), progress_color="#FF9500").pack(pady=8, anchor="w")
+        ctk.CTkSwitch(switches_container, text="Blocca accesso se Fuori dalla Fascia Oraria assegnata", variable=self.var_blocco_orari, command=self.salva_blocchi, font=ctk.CTkFont(family="Montserrat", size=14), progress_color="#34C759").pack(pady=8, anchor="w")
+        ctk.CTkSwitch(switches_container, text="Blocca accesso se Certificato Medico Assente o Scaduto", variable=self.var_blocco_cert, command=self.salva_blocchi, font=ctk.CTkFont(family="Montserrat", size=14), progress_color="#007AFF").pack(pady=8, anchor="w")
 
-        # --- SEZIONE 4: INTERFACCIA ---
-        frame_ui = ctk.CTkFrame(self.scroll_frame, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
-        frame_ui.pack(fill="x", pady=10, padx=10)
-        ctk.CTkLabel(frame_ui, text="Interfaccia e Visualizzazione", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")).pack(anchor="w", padx=20, pady=(15, 10))
+        # ==================== MODULI AGGIUNTIVI ====================
+        moduli_frame = ctk.CTkFrame(self.scroll, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
+        moduli_frame.pack(padx=30, pady=(0, 15), fill="x")
+        
+        ctk.CTkLabel(moduli_frame, text="🧩 Moduli e Campi Aggiuntivi", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
+        ctk.CTkLabel(moduli_frame, text="Attiva o disattiva le colonne e i campi visivi in giro per il gestionale.", font=ctk.CTkFont(family="Montserrat", size=12), text_color=("#86868B", "#98989D")).pack(padx=20, anchor="w")
 
-        row_tema = ctk.CTkFrame(frame_ui, fg_color="transparent")
-        row_tema.pack(fill="x", padx=20, pady=5)
-        ctk.CTkLabel(row_tema, text="Tema Colori:", font=ctk.CTkFont(family="Montserrat", weight="bold"), width=220, anchor="w").pack(side="left")
-        self.cmb_tema = ctk.CTkOptionMenu(row_tema, values=["Light", "Dark", "System"], command=self.cambia_tema)
-        self.cmb_tema.set(self.config.get("tema", "Light"))
-        self.cmb_tema.pack(side="left")
+        mod_container = ctk.CTkFrame(moduli_frame, fg_color="transparent")
+        mod_container.pack(pady=(15, 20), padx=20, fill="x")
 
-        self.chk_mostra_costo = ctk.CTkCheckBox(frame_ui, text="Mostra colonna 'Costo' nella tabella Tariffe", font=ctk.CTkFont(family="Montserrat"))
-        if self.config.get("mostra_costo_fasce", False): self.chk_mostra_costo.select()
-        self.chk_mostra_costo.pack(anchor="w", padx=20, pady=5)
+        self.var_mostra_costo = ctk.BooleanVar(value=leggi_impostazione("mostra_costo_fasce", False))
+        self.var_mostra_eta = ctk.BooleanVar(value=leggi_impostazione("mostra_eta_fasce", False))
 
-        self.chk_mostra_eta = ctk.CTkCheckBox(frame_ui, text="Mostra colonne 'Età' nella tabella Tariffe", font=ctk.CTkFont(family="Montserrat"))
-        if self.config.get("mostra_eta_fasce", False): self.chk_mostra_eta.select()
-        self.chk_mostra_eta.pack(anchor="w", padx=20, pady=(5, 15))
+        ctk.CTkSwitch(mod_container, text="Mostra modulo 'Costo Monetario' nelle Tariffe", variable=self.var_mostra_costo, command=self.salva_moduli, font=ctk.CTkFont(family="Montserrat", size=14), progress_color="#007AFF").pack(pady=8, anchor="w")
+        ctk.CTkSwitch(mod_container, text="Mostra modulo 'Limiti di Età' nelle Tariffe", variable=self.var_mostra_eta, command=self.salva_moduli, font=ctk.CTkFont(family="Montserrat", size=14), progress_color="#007AFF").pack(pady=8, anchor="w")
 
-        btn_frame = ctk.CTkFrame(self, fg_color="transparent")
-        btn_frame.pack(fill="x", padx=20, pady=20)
-        ctk.CTkButton(btn_frame, text="Salva Impostazioni", width=200, height=45, font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.salva_impostazioni).pack(side="right")
 
-    def crea_campo(self, parent, label_text, default_value):
-        row = ctk.CTkFrame(parent, fg_color="transparent")
-        row.pack(fill="x", padx=20, pady=5)
-        ctk.CTkLabel(row, text=label_text, font=ctk.CTkFont(family="Montserrat", weight="bold"), width=220, anchor="w").pack(side="left")
-        ent = ctk.CTkEntry(row, width=300, font=ctk.CTkFont(family="Montserrat"))
-        ent.insert(0, default_value)
-        ent.pack(side="left")
-        return ent
+        # ==================== PERSONALIZZAZIONE E WHITELABEL (LOGO) ====================
+        pers_frame = ctk.CTkFrame(self.scroll, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
+        pers_frame.pack(padx=30, pady=(0, 15), fill="x")
+        
+        ctk.CTkLabel(pers_frame, text="🏷️ Personalizzazione (Whitelabel)", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
+        ctk.CTkLabel(pers_frame, text="Imposta il nome e il logo della tua struttura. Verranno mostrati nella barra laterale.", font=ctk.CTkFont(family="Montserrat", size=12), text_color=("#86868B", "#98989D")).pack(padx=20, anchor="w")
+        
+        input_frame = ctk.CTkFrame(pers_frame, fg_color="transparent")
+        input_frame.pack(pady=(10, 5), padx=20, fill="x")
+        
+        self.ent_nome_palestra = ctk.CTkEntry(input_frame, width=280, font=ctk.CTkFont(family="Montserrat", size=14))
+        self.ent_nome_palestra.insert(0, leggi_impostazione("nome_palestra", "Palestra 3000"))
+        self.ent_nome_palestra.pack(side="left")
+        
+        ctk.CTkButton(input_frame, text="Salva Nome", width=100, height=36, font=ctk.CTkFont(family="Montserrat", size=13, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.salva_nome).pack(side="left", padx=10)
 
-    def scegli_logo(self):
-        file = filedialog.askopenfilename(filetypes=[("Immagini", "*.png *.jpg *.jpeg")])
-        if file:
-            self.ent_logo.delete(0, 'end')
-            self.ent_logo.insert(0, file)
+        # Nuovo Frame per i bottoni del Logo Immagine
+        logo_frame = ctk.CTkFrame(pers_frame, fg_color="transparent")
+        logo_frame.pack(pady=(0, 20), padx=20, fill="x")
 
-    def cambia_tema(self, scelta):
-        ctk.set_appearance_mode(scelta)
+        ctk.CTkButton(logo_frame, text="🖼️ Carica Logo", width=140, height=36, font=ctk.CTkFont(family="Montserrat", size=13, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.carica_logo).pack(side="left")
+        ctk.CTkButton(logo_frame, text="🗑️ Rimuovi Logo", width=140, height=36, font=ctk.CTkFont(family="Montserrat", size=13, weight="bold"), fg_color="#FF3B30", hover_color="#c0392b", command=self.rimuovi_logo).pack(side="left", padx=10)
 
-    def carica_config(self):
-        if os.path.exists(self.config_file):
+
+        # ==================== CARD TEMA VISIVO ====================
+        theme_frame = ctk.CTkFrame(self.scroll, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
+        theme_frame.pack(padx=30, pady=(0, 15), fill="x")
+        
+        ctk.CTkLabel(theme_frame, text="🎨 Aspetto e Tema", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
+        
+        tema_attuale = leggi_impostazione("tema", "Light")
+        self.theme_var = ctk.StringVar(value=tema_attuale)
+        
+        self.seg_theme = ctk.CTkSegmentedButton(theme_frame, values=["Light", "Dark", "System"], variable=self.theme_var, command=self.cambia_tema, selected_color="#007AFF", selected_hover_color="#005ecb")
+        self.seg_theme.pack(pady=(15, 20), padx=20, fill="x")
+
+        # ==================== CARD DATABASE ====================
+        db_frame = ctk.CTkFrame(self.scroll, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
+        db_frame.pack(padx=30, pady=(0, 20), fill="x")
+
+        ctk.CTkLabel(db_frame, text="💾 Gestione Database Locale", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(20, 5), padx=20, anchor="w")
+        
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        self.db_path = os.path.join(base_dir, "palestra3000.db")
+        
+        if os.path.exists(self.db_path):
+            dim_kb = os.path.getsize(self.db_path) / 1024
+            stato_testo = f"Stato: Connesso  |  Dimensione: {dim_kb:.2f} KB"
+            colore_stato = "#34C759" 
+        else:
+            stato_testo = "Stato: Database non trovato!"
+            colore_stato = "#FF3B30" 
+
+        ctk.CTkLabel(db_frame, text=stato_testo, text_color=colore_stato, font=ctk.CTkFont(family="Montserrat", weight="bold")).pack(padx=20, anchor="w")
+
+        btn_db_frame = ctk.CTkFrame(db_frame, fg_color="transparent")
+        btn_db_frame.pack(pady=(15, 20), padx=20, fill="x")
+
+        ctk.CTkButton(btn_db_frame, text="Crea Backup", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.esegui_backup).pack(side="left")
+        ctk.CTkButton(btn_db_frame, text="Ripristina Dati", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#FF9500", hover_color="#d35400", command=self.ripristina_backup).pack(side="right")
+
+    # --- FUNZIONALITA' ---
+    def salva_blocchi(self):
+        salva_impostazione("blocco_iscr", self.var_blocco_iscr.get())
+        salva_impostazione("blocco_abb", self.var_blocco_abb.get())
+        salva_impostazione("blocco_orari", self.var_blocco_orari.get())
+        salva_impostazione("blocco_cert", self.var_blocco_cert.get())
+
+    def salva_moduli(self):
+        salva_impostazione("mostra_costo_fasce", self.var_mostra_costo.get())
+        salva_impostazione("mostra_eta_fasce", self.var_mostra_eta.get())
+
+    def salva_porta(self):
+        porta = self.cmb_porta.get()
+        salva_impostazione("porta_tornello", porta)
+        if self.controller and hasattr(self.controller, "avvia_ascolto_hardware"):
+            self.controller.avvia_ascolto_hardware(porta)
+        messagebox.showinfo("Salvato", f"Lettore impostato sulla porta {porta}.\nIn ascolto in background.")
+
+    def salva_nome(self):
+        nuovo_nome = self.ent_nome_palestra.get().strip()
+        if nuovo_nome:
+            salva_impostazione("nome_palestra", nuovo_nome)
+            # Ricarica l'intera logica visiva della sidebar
+            if self.controller and hasattr(self.controller, "aggiorna_logo"):
+                self.controller.aggiorna_logo()
+            messagebox.showinfo("Salvato", "Nome palestra aggiornato con successo!")
+
+    def carica_logo(self):
+        percorso = filedialog.askopenfilename(title="Seleziona Logo", filetypes=[("Immagini", "*.png *.jpg *.jpeg *.bmp")])
+        if percorso:
+            salva_impostazione("percorso_logo", percorso)
+            if self.controller and hasattr(self.controller, "aggiorna_logo"):
+                self.controller.aggiorna_logo()
+            messagebox.showinfo("Completato", "Logo caricato con successo!")
+
+    def rimuovi_logo(self):
+        salva_impostazione("percorso_logo", "")
+        if self.controller and hasattr(self.controller, "aggiorna_logo"):
+            self.controller.aggiorna_logo()
+        messagebox.showinfo("Completato", "Logo rimosso. Verrà mostrato solo il testo.")
+
+    def cambia_tema(self, nuovo_tema):
+        ctk.set_appearance_mode(nuovo_tema)
+        salva_impostazione("tema", nuovo_tema)
+
+    def esegui_backup(self):
+        if not os.path.exists(self.db_path):
+            return messagebox.showerror("Errore", "Nessun database da salvare!")
+            
+        data_odierna = datetime.now().strftime("%Y%m%d_%H%M")
+        percorso_salvataggio = filedialog.asksaveasfilename(
+            defaultextension=".db", initialfile=f"backup_palestra_{data_odierna}.db",
+            title="Salva il Backup del Database", filetypes=[("Database SQLite", "*.db")]
+        )
+        if percorso_salvataggio:
             try:
-                with open(self.config_file, "r") as f: return json.load(f)
-            except: return {}
-        return {}
+                shutil.copy2(self.db_path, percorso_salvataggio)
+                messagebox.showinfo("Completato", f"Backup salvato in:\n{percorso_salvataggio}")
+            except Exception as e:
+                messagebox.showerror("Errore", f"Impossibile creare il backup:\n{e}")
 
-    def salva_impostazioni(self):
-        config = {
-            "nome_palestra": self.ent_nome.get().strip(),
-            "percorso_logo": self.ent_logo.get().strip(),
-            "porta_tornello": self.ent_porta.get().strip(),
-            "blocco_iscr": self.chk_iscr.get() == 1,
-            "blocco_abb": self.chk_abb.get() == 1,
-            "blocco_orari": self.chk_orari.get() == 1,
-            "blocco_cert": self.chk_cert.get() == 1,
-            "tema": self.cmb_tema.get(),
-            "mostra_costo_fasce": self.chk_mostra_costo.get() == 1,
-            "mostra_eta_fasce": self.chk_mostra_eta.get() == 1
-        }
-        try:
-            with open(self.config_file, "w") as f:
-                json.dump(config, f, indent=4)
-            messagebox.showinfo("Successo", "Impostazioni salvate correttamente!\nAlcune modifiche (come il logo) saranno visibili al riavvio.")
-            self.app.aggiorna_logo()
-        except Exception as e:
-            messagebox.showerror("Errore", f"Impossibile salvare le impostazioni:\n{e}")
+    def ripristina_backup(self):
+        if messagebox.askyesno("Attenzione", "Il ripristino sovrascriverà TUTTI i dati attuali.\nVuoi procedere?"):
+            percorso_file = filedialog.askopenfilename(title="Seleziona il file di Backup", filetypes=[("Database SQLite", "*.db")])
+            if percorso_file:
+                try:
+                    shutil.copy2(percorso_file, self.db_path)
+                    messagebox.showinfo("Completato", "Database ripristinato!\n\nRiavvia il programma per caricare i nuovi dati.")
+                except Exception as e:
+                    messagebox.showerror("Errore", f"Impossibile ripristinare il database:\n{e}")
+
+# Alias
+SettingsWindow = SettingsView
