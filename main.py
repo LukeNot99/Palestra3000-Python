@@ -11,7 +11,7 @@ from PIL import Image
 from core.database import SessionLocal, Member, Lesson, Booking, seed_data
 
 from ui.soci_window import SociView
-from ui.tariffe_window import TariffeView
+from ui.tariffe_window import TiersView
 from ui.attivita_window import AttivitaView
 from ui.lezioni_window import LezioniView
 from ui.prenotazioni_window import PrenotazioniView
@@ -136,7 +136,7 @@ class App(ctk.CTk):
         if view_name not in self.views:
             if view_name == "dashboard": self.views[view_name] = DashboardView(self.main_content, self)
             elif view_name == "soci": self.views[view_name] = SociView(self.main_content, self)
-            elif view_name == "tariffe": self.views[view_name] = TariffeView(self.main_content, self)
+            elif view_name == "tariffe": self.views[view_name] = TiersView(self.main_content, self)
             elif view_name == "attivita": self.views[view_name] = AttivitaView(self.main_content, self)
             elif view_name == "lezioni": self.views[view_name] = LezioniView(self.main_content, self)
             elif view_name == "prenotazioni": self.views[view_name] = PrenotazioniView(self.main_content, self)
@@ -149,7 +149,9 @@ class App(ctk.CTk):
         self.current_frame.pack(fill="both", expand=True)
 
         # AGGIORNA I DATI IN TEMPO REALE QUANDO LA SCHEDA RIAPPARE
-        if hasattr(self.current_frame, "carica_dati"):
+        if hasattr(self.current_frame, "load_data"):
+            self.current_frame.load_data()
+        elif hasattr(self.current_frame, "carica_dati"):
             self.current_frame.carica_dati()
         elif hasattr(self.current_frame, "carica_tabella"):
             self.current_frame.carica_tabella()
