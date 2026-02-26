@@ -6,6 +6,7 @@
 palestra3000.db
 backup_palestra_*.db
 *.sqlite3
+Ricevute/
 
 # Configurazione locale (Impostazioni hardware e tema)
 config.json
