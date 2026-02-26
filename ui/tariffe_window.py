@@ -57,25 +57,15 @@ UI_FONTS = {
 class TariffeView(ctk.CTkFrame):
     def __init__(self, parent, controller=None, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
+        self._setup_db_and_config()
+        self._setup_grid_layout()
+        self._create_form_widgets()
+        self._create_button_frame()
+        self._create_table()
+        self.carica_dati()
 
-        self.db = SessionLocal()
-        self.tier_id_in_modifica = None
-        self.row_frames = {}
-        self.selected_tariffa_id = None
-
-        # PRE-CARICAMENTO FONT PER PREVENIRE MEMORY LEAK!
-        self.font_riga = ctk.CTkFont(family=UI_FONTS["table_row"][0], size=UI_FONTS["table_row"][1], weight=UI_FONTS["table_row"][2])
-
-        self.mostra_costo = leggi_impostazione("mostra_costo_fasce", False)
-        self.mostra_eta = leggi_impostazione("mostra_eta_fasce", False)
-
-        self.grid_rowconfigure(2, weight=1)
-        self.grid_columnconfigure(0, weight=1)
-
-        form_frame = ctk.CTkFrame(self, fg_color=UI_COLORS["bg_primary"], corner_radius=12, border_width=1,
-                                  border_color=UI_COLORS["border_default"])
-        form_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=20)
-        form_frame.grid_columnconfigure((0, 1, 2, 3), weight=1, uniform="colonna")
+    def _create_form_widgets(self):
+        form_frame = self._create_form_frame()
 
         self.lbl_sigla = ctk.CTkLabel(form_frame, text="Sigla Fascia:", text_color=UI_COLORS["text_secondary"],
                                       font=ctk.CTkFont(family="Montserrat", weight="bold"))
@@ -91,7 +81,7 @@ class TariffeView(ctk.CTkFrame):
         self.frame_eta = ctk.CTkFrame(form_frame, fg_color="transparent")
         self.ent_eta_min = ctk.CTkEntry(self.frame_eta, width=70, justify="center",
                                         font=ctk.CTkFont(family="Montserrat"))
-        self.ent_eta_min.insert(0, FIELD_DEFAULTS["min_age"]);
+        self.ent_eta_min.insert(0, FIELD_DEFAULTS["min_age"])
         self.ent_eta_min.pack(side="left")
         ctk.CTkLabel(self.frame_eta, text=" - ", font=ctk.CTkFont(family="Montserrat")).pack(side="left", padx=5)
         self.ent_eta_max = ctk.CTkEntry(self.frame_eta, width=70, justify="center",
@@ -115,13 +105,13 @@ class TariffeView(ctk.CTkFrame):
         self.lbl_durata = ctk.CTkLabel(form_frame, text="Durata Abbonamento (Mesi):", text_color=UI_COLORS["text_primary"],
                                        font=ctk.CTkFont(family="Montserrat", weight="bold"))
         self.ent_durata = ctk.CTkEntry(form_frame, width=180, justify="center", text_color=UI_COLORS["text_accent"],
-                                       font=ctk.CTkFont(family="Montserrat", weight="bold"));
+                                       font=ctk.CTkFont(family="Montserrat", weight="bold"))
         self.ent_durata.insert(0, FIELD_DEFAULTS["duration_months"])
 
         self.lbl_ingressi = ctk.CTkLabel(form_frame, text="Carnet (0 = Illimitati):", text_color=UI_COLORS["text_primary"],
                                          font=ctk.CTkFont(family="Montserrat", weight="bold"))
         self.ent_ingressi = ctk.CTkEntry(form_frame, width=180, justify="center", text_color=UI_COLORS["text_accent"],
-                                         font=ctk.CTkFont(family="Montserrat", weight="bold"));
+                                         font=ctk.CTkFont(family="Montserrat", weight="bold"))
         self.ent_ingressi.insert(0, FIELD_DEFAULTS["max_entries"])
 
         active_fields = [(self.lbl_sigla, self.ent_sigla)]
@@ -137,12 +127,14 @@ class TariffeView(ctk.CTkFrame):
             lbl.grid(row=riga, column=col, sticky="e", padx=(20, 10), pady=15)
             wgt.grid(row=riga, column=col + 1, sticky="w", padx=(0, 20), pady=15)
 
+    def _create_button_frame(self):
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=5)
 
         self.btn_salva = ctk.CTkButton(btn_frame, text="Salva Dati", width=140, height=38,
                                        font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"),
-                                       fg_color=UI_COLORS["btn_success"], hover_color=UI_COLORS["btn_success_hover"], command=self.salva_tariffa)
+                                       fg_color=UI_COLORS["btn_success"], hover_color=UI_COLORS["btn_success_hover"],
+                                       command=self.salva_tariffa)
         self.btn_salva.pack(side="left", padx=(0, 10))
 
         ctk.CTkButton(btn_frame, text="Svuota Form", width=120, height=38,
@@ -153,10 +145,12 @@ class TariffeView(ctk.CTkFrame):
         ctk.CTkButton(btn_frame, text="✏️ Modifica", width=140, height=38,
                       font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color=UI_COLORS["btn_primary"],
                       hover_color=UI_COLORS["btn_primary_hover"], command=self.carica_in_form).pack(side="left", padx=(20, 10))
+
         ctk.CTkButton(btn_frame, text="🗑️ Elimina", width=120, height=38,
                       font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color=UI_COLORS["btn_danger"],
                       hover_color=UI_COLORS["btn_danger_hover"], command=self.elimina_tariffa).pack(side="right")
 
+    def _create_table(self):
         self.table_container = ctk.CTkFrame(self, fg_color="transparent")
         self.table_container.grid(row=2, column=0, sticky="nsew", padx=20, pady=(10, 20))
 
@@ -176,12 +170,36 @@ class TariffeView(ctk.CTkFrame):
             header_frame.grid_columnconfigure(i, weight=col[2], uniform="colonna")
             ctk.CTkLabel(header_frame, text=col[1], font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"),
                          text_color=UI_COLORS["text_secondary"], anchor=col[3]).grid(row=0, column=i, padx=10, pady=5,
-                                                                                sticky="ew")
+                                                                                     sticky="ew")
 
         self.scroll_table = ctk.CTkScrollableFrame(self.table_container, fg_color="transparent")
         self.scroll_table.pack(fill="both", expand=True)
 
-        self.carica_dati()
+
+    def _create_form_frame(self):
+        form_frame = ctk.CTkFrame(self, fg_color=UI_COLORS["bg_primary"], corner_radius=12, border_width=1,
+                     border_color=UI_COLORS["border_default"])
+        form_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=20)
+        form_frame.grid_columnconfigure((0, 1, 2, 3), weight=1, uniform="colonna")
+        return form_frame
+
+    def _setup_grid_layout(self, _row_index=2, _clm_index=0, _weight_value=1):
+        self.grid_rowconfigure(_row_index, weight=_weight_value)
+        self.grid_columnconfigure(_clm_index, weight=_weight_value)
+
+    def _setup_db_and_config(self):
+        self.db = SessionLocal()
+        self.tier_id_in_modifica = None
+        self.row_frames = {}
+        self.selected_tariffa_id = None
+
+        # PRE-CARICAMENTO FONT PER PREVENIRE MEMORY LEAK!
+        self.font_riga = ctk.CTkFont(family=UI_FONTS["table_row"][0], size=UI_FONTS["table_row"][1],
+                                     weight=UI_FONTS["table_row"][2])
+
+        self.mostra_costo = leggi_impostazione("mostra_costo_fasce", False)
+        self.mostra_eta = leggi_impostazione("mostra_eta_fasce", False)
+
 
     def seleziona_riga(self, t_id):
         self.selected_tariffa_id = t_id
