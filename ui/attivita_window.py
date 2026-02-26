@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from tkinter import messagebox
-from core.database import SessionLocal, Activity, Lesson
+from core.database import SessionLocal, Activity, Lesson, Booking
 
 class AttivitaView(ctk.CTkFrame):
     def __init__(self, parent, app):
@@ -40,7 +40,8 @@ class AttivitaView(ctk.CTkFrame):
 
     def seleziona_riga(self, a_id):
         self.selected_activity_id = a_id
-        for r_id, f in self.row_frames.items(): f.configure(fg_color=("#E5F1FF", "#0A2A4A") if r_id == a_id else ("#FFFFFF", "#2C2C2E"), border_color="#007AFF" if r_id == a_id else ("#E5E5EA", "#3A3A3C"))
+        for r_id, f in self.row_frames.items(): 
+            f.configure(fg_color=("#E5F1FF", "#0A2A4A") if r_id == a_id else ("#FFFFFF", "#2C2C2E"), border_color="#007AFF" if r_id == a_id else ("#E5E5EA", "#3A3A3C"))
 
     def crea_riga_tabella(self, attivita):
         f = ctk.CTkFrame(self.scroll_table, fg_color=("#FFFFFF", "#2C2C2E"), height=45, corner_radius=8, border_width=1, border_color=("#E5E5EA", "#3A3A3C"), cursor="hand2")
@@ -65,11 +66,42 @@ class AttivitaView(ctk.CTkFrame):
         self.db.add(Activity(name=nome)); self.db.commit(); self.ent_nome.delete(0, 'end'); self.carica_dati()
 
     def elimina_attivita(self):
-        if not self.selected_activity_id: return messagebox.showwarning("Attenzione", "Seleziona attività.")
-        if self.db.query(Lesson).filter(Lesson.activity_id == self.selected_activity_id).count() > 0: return messagebox.showerror("Errore", "Ci sono lezioni programmate!")
-        if messagebox.askyesno("Conferma", "Eliminare attività?"):
-            a = self.db.query(Activity).filter(Activity.id == self.selected_activity_id).first()
-            if a: self.db.delete(a); self.db.commit(); self.carica_dati()
+        if not self.selected_activity_id: 
+            return messagebox.showwarning("Attenzione", "Seleziona un'attività dalla lista.")
+            
+        a = self.db.query(Activity).filter(Activity.id == self.selected_activity_id).first()
+        if not a: return
+
+        # Cerco tutte le lezioni associate a questa attività
+        lezioni_collegate = self.db.query(Lesson).filter(Lesson.activity_id == a.id).all()
+        
+        if lezioni_collegate:
+            # Messaggio di avviso SEVERO
+            msg = (f"⚠️ ATTENZIONE!\nCi sono {len(lezioni_collegate)} lezioni in calendario per l'attività '{a.name}'.\n\n"
+                   "Eliminando questa attività cancellerai DEFINITIVAMENTE anche:\n"
+                   "- Tutte le lezioni passate, presenti e future collegate\n"
+                   "- TUTTE LE PRENOTAZIONI dei soci per queste lezioni.\n\n"
+                   "Sei ASSOLUTAMENTE sicuro di voler procedere?")
+                   
+            if not messagebox.askyesno("Conferma Eliminazione a Cascata", msg, icon="warning"):
+                return
+                
+            # Procedo con l'eliminazione a cascata: Prima elimino le prenotazioni (Booking)
+            for lez in lezioni_collegate:
+                self.db.query(Booking).filter(Booking.lesson_id == lez.id).delete()
+            
+            # Poi elimino le lezioni (Lesson)
+            self.db.query(Lesson).filter(Lesson.activity_id == a.id).delete()
+        else:
+            # Nessuna lezione collegata, messaggio standard
+            if not messagebox.askyesno("Conferma", f"Vuoi eliminare l'attività '{a.name}'?"):
+                return
+
+        # Infine elimino l'attività stessa
+        self.db.delete(a)
+        self.db.commit()
+        self.carica_dati()
+        messagebox.showinfo("Completato", f"Attività '{a.name}' eliminata con successo.")
 
     def destroy(self):
         self.db.close()

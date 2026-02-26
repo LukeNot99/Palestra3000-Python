@@ -21,7 +21,6 @@ class TariffeView(ctk.CTkFrame):
         self.row_frames = {}
         self.selected_tariffa_id = None
 
-        # PRE-CARICAMENTO FONT PER PREVENIRE MEMORY LEAK!
         self.font_riga = ctk.CTkFont(family="Montserrat", size=13)
 
         self.mostra_costo = leggi_impostazione("mostra_costo_fasce", False)
@@ -153,12 +152,10 @@ class TariffeView(ctk.CTkFrame):
         
         for i, val in enumerate(valori):
             riga_frame.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
-            # UTILIZZO DEL FONT CACHED PER EVITARE CRASH
             lbl = ctk.CTkLabel(riga_frame, text=val, font=self.font_riga, text_color=("#1D1D1F", "#FFFFFF"), anchor=self.cols[i][3])
             lbl.grid(row=0, column=i, padx=10, pady=10, sticky="ew")
             elementi_riga.append(lbl)
 
-        # AGGIUNTA SICUREZZA WINFO_EXISTS AGLI EVENTI MOUSE
         for w in elementi_riga:
             w.bind("<Button-1>", lambda e, id=t.id: self.seleziona_riga(id))
             w.bind("<Enter>", lambda e, f=riga_frame, id=t.id: f.configure(fg_color=("#F8F8F9", "#3A3A3C")) if f.winfo_exists() and self.selected_tariffa_id != id else None)
@@ -204,18 +201,27 @@ class TariffeView(ctk.CTkFrame):
         accesso = self.ent_accesso.get().strip()
         uscita = self.ent_uscita.get().strip()
         
+        # VALIDAZIONE RIGOROSA ORARI
         try:
             datetime.strptime(accesso, "%H:%M")
             datetime.strptime(uscita, "%H:%M")
         except ValueError:
             return messagebox.showwarning("Errore Orario", "Verifica che gli orari di accesso e uscita siano nel formato ore e minuti: HH:MM (es. 08:30).")
 
+        # VALIDAZIONE RIGOROSA DATI NUMERICI E LOGICA
         try:
             costo = float(self.ent_costo.get().strip().replace(',', '.')) if self.mostra_costo else 0.0
             eta_min = int(self.ent_eta_min.get().strip()) if self.mostra_eta else 0
             eta_max = int(self.ent_eta_max.get().strip()) if self.mostra_eta else 999
             durata_mesi = int(self.ent_durata.get().strip() or 1)
             ingressi = int(self.ent_ingressi.get().strip() or 0)
+            
+            if costo < 0 or eta_min < 0 or eta_max < 0 or durata_mesi < 1 or ingressi < 0:
+                return messagebox.showwarning("Errore Logico", "Costi, età, durata e ingressi non possono avere valori negativi o pari a zero (la durata deve essere minimo 1).")
+                
+            if eta_max < eta_min:
+                return messagebox.showwarning("Errore Logico", "L'età massima non può essere inferiore all'età minima.")
+                
         except ValueError:
             return messagebox.showwarning("Errore", "Verifica che Costo, Età, Durata e Ingressi siano numeri validi.")
 

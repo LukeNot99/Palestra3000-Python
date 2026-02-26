@@ -52,7 +52,7 @@ class SocioFormWindow(ctk.CTkToplevel):
         self.ent_cognome = ctk.CTkEntry(frame_sx)
         self.ent_cognome.pack(pady=(0, 15), padx=20, fill="x")
 
-        # --- CONTENITORE DATA E ETÀ (NOVITÀ) ---
+        # --- CONTENITORE DATA E ETÀ ---
         lbl_nascita_container = ctk.CTkFrame(frame_sx, fg_color="transparent")
         lbl_nascita_container.pack(anchor="w", padx=20, fill="x")
         ctk.CTkLabel(lbl_nascita_container, text="Data di Nascita (GG/MM/AAAA):", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left")
@@ -149,7 +149,6 @@ class SocioFormWindow(ctk.CTkToplevel):
         self.grab_release()
         self.destroy()
 
-    # --- CALCOLO ETÀ LIVE (NOVITÀ) ---
     def calcola_eta_live(self, event=None):
         data_str = self.ent_data_nascita.get().strip()
         if not data_str:
@@ -221,7 +220,7 @@ class SocioFormWindow(ctk.CTkToplevel):
             self.ent_cognome.insert(0, socio.last_name)
             if socio.birth_date: 
                 self.ent_data_nascita.insert(0, socio.birth_date)
-                self.calcola_eta_live() # Calcola l'età automaticamente in apertura
+                self.calcola_eta_live()
             if socio.birth_place: self.cmb_luogo_nascita.set(socio.birth_place)
             if socio.city: self.cmb_comune.set(socio.city)
             if socio.address: self.ent_indirizzo.insert(0, socio.address)
@@ -269,7 +268,7 @@ class SocioFormWindow(ctk.CTkToplevel):
                 return True
             except ValueError:
                 try:
-                    datetime.strptime(data_str, "%Y-%m-%d") # Per retrocompatibilità database
+                    datetime.strptime(data_str, "%Y-%m-%d") # Per retrocompatibilità
                     return True
                 except ValueError:
                     return False
@@ -280,7 +279,7 @@ class SocioFormWindow(ctk.CTkToplevel):
         d_scadenza = self.ent_scadenza_mensilita.get().strip()
         d_cert = self.ent_scadenza_cert.get().strip()
         
-        if not data_valida(d_nascita): return messagebox.showwarning("Errore Data", "Data di nascita non valida.\nUsa il formato GG/MM/AAAA (es. 15/08/1985)")
+        if not data_valida(d_nascita): return messagebox.showwarning("Errore Data", "Data di nascita non valida.\nUsa il formato GG/MM/AAAA (es. 15/08/1985). Attenzione ai mesi di 30/31 giorni o bisestili.")
         if not data_valida(d_iscr): return messagebox.showwarning("Errore Data", "Scadenza iscrizione non valida.\nUsa il formato GG/MM/AAAA")
         if not data_valida(d_partenza): return messagebox.showwarning("Errore Data", "Data partenza mensilità non valida.\nUsa il formato GG/MM/AAAA")
         if not data_valida(d_scadenza): return messagebox.showwarning("Errore Data", "Data scadenza mensilità non valida.\nUsa il formato GG/MM/AAAA")
@@ -331,7 +330,7 @@ class SocioFormWindow(ctk.CTkToplevel):
         self.chiudi()
 
 
-# ==================== SCHEDA PRINCIPALE: SociView (COME FRAME!) ====================
+# ==================== SCHEDA PRINCIPALE: SociView ====================
 class SociView(ctk.CTkFrame):
     def __init__(self, parent, controller=None, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
@@ -351,7 +350,6 @@ class SociView(ctk.CTkFrame):
         tiers = self.db.query(Tier).all()
         tier_names = ["Tutte"] + [t.name for t in tiers]
 
-        # --- RIGA 1: Dati Anagrafici ---
         row1 = ctk.CTkFrame(search_frame, fg_color="transparent")
         row1.pack(pady=(15, 5), fill="x", padx=15)
 
@@ -367,7 +365,6 @@ class SociView(ctk.CTkFrame):
         self.src_telefono = ctk.CTkEntry(row1, width=160, font=ctk.CTkFont(family="Montserrat"))
         self.src_telefono.pack(side="left", padx=(0, 20))
 
-        # --- RIGA 2: Dati Iscrizione e Bottoni ---
         row2 = ctk.CTkFrame(search_frame, fg_color="transparent")
         row2.pack(pady=(5, 15), fill="x", padx=15)
 

@@ -12,7 +12,6 @@ class LezioniView(ctk.CTkFrame):
         
         self.selected_lesson_ids = set()
 
-        # PRE-CARICAMENTO FONT PER PREVENIRE MEMORY LEAK!
         self.font_riga = ctk.CTkFont(family="Montserrat", size=13)
 
         self.grid_rowconfigure(0, weight=1)
@@ -58,13 +57,27 @@ class LezioniView(ctk.CTkFrame):
         top_right = ctk.CTkFrame(right_frame, fg_color="transparent")
         top_right.grid(row=0, column=0, sticky="ew", pady=(0, 15))
         
-        ctk.CTkLabel(top_right, text="Seleziona l'attività da programmare:", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=(0, 15))
+        ctk.CTkLabel(top_right, text="Attività:", font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=(0, 5))
         
         self.activities = self.db.query(Activity).order_by(Activity.name).all()
         act_names = [a.name for a in self.activities] if self.activities else ["Nessuna attività registrata"]
         
-        self.cmb_attivita = ctk.CTkOptionMenu(top_right, values=act_names, font=ctk.CTkFont(family="Montserrat", size=15), width=250, fg_color="#007AFF", command=self.carica_tabella)
-        self.cmb_attivita.pack(side="left")
+        self.cmb_attivita = ctk.CTkOptionMenu(top_right, values=act_names, font=ctk.CTkFont(family="Montserrat", size=14), width=180, fg_color="#007AFF", command=self.carica_tabella)
+        self.cmb_attivita.pack(side="left", padx=(0, 20))
+
+        ctk.CTkLabel(top_right, text="Mostra:", font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=(0, 5))
+        
+        mesi_str = [f"{i:02d}" for i in range(1, 13)]
+        anno_oggi = datetime.now().year
+        anni_str = [str(anno_oggi - 1), str(anno_oggi), str(anno_oggi + 1), str(anno_oggi + 2)]
+
+        self.cmb_filtro_mese = ctk.CTkOptionMenu(top_right, values=mesi_str, width=70, font=ctk.CTkFont(family="Montserrat", size=14), command=self.carica_tabella)
+        self.cmb_filtro_mese.set(f"{datetime.now().month:02d}")
+        self.cmb_filtro_mese.pack(side="left", padx=(0, 5))
+
+        self.cmb_filtro_anno = ctk.CTkOptionMenu(top_right, values=anni_str, width=80, font=ctk.CTkFont(family="Montserrat", size=14), command=self.carica_tabella)
+        self.cmb_filtro_anno.set(str(anno_oggi))
+        self.cmb_filtro_anno.pack(side="left")
 
         self.table_container = ctk.CTkFrame(right_frame, fg_color="transparent")
         self.table_container.grid(row=1, column=0, sticky="nsew")
@@ -85,7 +98,7 @@ class LezioniView(ctk.CTkFrame):
         self.scroll_table = ctk.CTkScrollableFrame(self.table_container, fg_color="transparent")
         self.scroll_table.pack(fill="both", expand=True)
 
-        ctk.CTkLabel(right_frame, text="💡 Suggerimento: Tieni premuto 'Ctrl' (Windows) o 'Cmd' (Mac) per selezionare o deselezionare più lezioni.", font=ctk.CTkFont(family="Montserrat", size=12, slant="italic"), text_color=("#86868B", "#98989D")).grid(row=2, column=0, pady=(15, 0), sticky="w")
+        ctk.CTkLabel(right_frame, text="💡 Suggerimento: Tieni premuto 'Ctrl' (Windows) o 'Cmd' (Mac) per selezionare più lezioni.", font=ctk.CTkFont(family="Montserrat", size=12, slant="italic"), text_color=("#86868B", "#98989D")).grid(row=2, column=0, pady=(15, 0), sticky="w")
         ctk.CTkButton(right_frame, text="🗑️ Elimina Selezionate", width=200, height=38, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#FF3B30", hover_color="#c0392b", command=self.elimina_lezione).grid(row=2, column=0, pady=(15, 0), sticky="e")
 
         self.carica_tabella()
@@ -119,12 +132,10 @@ class LezioniView(ctk.CTkFrame):
         elems = [f]
         for i, val in enumerate(valori):
             f.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
-            # UTILIZZO DEL FONT CACHED PER EVITARE CRASH
             lbl = ctk.CTkLabel(f, text=val, font=self.font_riga, anchor=self.cols[i][3])
             lbl.grid(row=0, column=i, padx=10, pady=10, sticky="ew")
             elems.append(lbl)
             
-        # AGGIUNTA SICUREZZA WINFO_EXISTS AGLI EVENTI MOUSE
         for w in elems:
             w.bind("<Button-1>", lambda e, id=l.id: self.seleziona_riga(id, multi=False))
             w.bind("<Control-Button-1>", lambda e, id=l.id: self.seleziona_riga(id, multi=True)) 
@@ -138,13 +149,29 @@ class LezioniView(ctk.CTkFrame):
         for w in self.scroll_table.winfo_children(): w.destroy()
         self.row_frames.clear()
         self.selected_lesson_ids.clear() 
+
+        self.activities = self.db.query(Activity).order_by(Activity.name).all()
+        act_names = [a.name for a in self.activities] if self.activities else ["Nessuna attività registrata"]
+        
+        self.cmb_attivita.configure(values=act_names)
+        if self.cmb_attivita.get() not in act_names:
+            self.cmb_attivita.set(act_names[0])
         
         nome_att = self.cmb_attivita.get()
         if nome_att == "Nessuna attività registrata": return
 
         att_id = next((a.id for a in self.activities if a.name == nome_att), None)
         if att_id:
-            for l in self.db.query(Lesson).filter(Lesson.activity_id == att_id).order_by(Lesson.date, Lesson.start_time).all(): 
+            mese_selezionato = self.cmb_filtro_mese.get()
+            anno_selezionato = self.cmb_filtro_anno.get()
+            filtro_data = f"{anno_selezionato}-{mese_selezionato}-"
+
+            lezioni = self.db.query(Lesson).filter(
+                Lesson.activity_id == att_id,
+                Lesson.date.like(f"{filtro_data}%")
+            ).order_by(Lesson.date, Lesson.start_time).all()
+
+            for l in lezioni: 
                 self.crea_riga_tabella(l)
 
     def genera_lezioni(self):
@@ -159,17 +186,30 @@ class LezioniView(ctk.CTkFrame):
         fin = self.ent_fine.get().strip()
         p = self.ent_posti.get().strip()
         
+        # VALIDAZIONE NUMERICA
         if not ini or not fin or not p.isdigit(): 
-            return messagebox.showwarning("Errore", "Verifica che gli orari e i posti siano validi.")
+            return messagebox.showwarning("Errore", "Verifica che i posti siano un numero valido e che gli orari non siano vuoti.")
+        if int(p) <= 0:
+            return messagebox.showwarning("Errore Logico", "Il numero di posti deve essere maggiore di zero.")
             
+        # VALIDAZIONE RIGOROSA ORARI E LOGICA TEMPORALE
+        try:
+            ora_ini_dt = datetime.strptime(ini, "%H:%M")
+            ora_fin_dt = datetime.strptime(fin, "%H:%M")
+            if ora_ini_dt >= ora_fin_dt:
+                return messagebox.showwarning("Errore Logico", "L'orario di fine lezione deve essere successivo all'orario di inizio.")
+        except ValueError:
+            return messagebox.showwarning("Errore Orario", "Inserisci orari validi nel formato HH:MM (es. 19:00 o 08:30).")
+            
+        # VALIDAZIONE RIGOROSA DATE E LOGICA DI CALENDARIO
         try:
             d_inizio = datetime.strptime(self.ent_data_inizio.get().strip(), "%d/%m/%Y").date()
             d_fine = datetime.strptime(self.ent_data_fine.get().strip(), "%d/%m/%Y").date()
         except ValueError:
-            return messagebox.showwarning("Errore", "Le date inserite non sono valide (Usa formato GG/MM/AAAA).")
+            return messagebox.showwarning("Errore", "Le date inserite non sono valide. Il calendario respinge date come 31/02 o mesi inesistenti (Usa formato GG/MM/AAAA).")
 
         if d_inizio > d_fine:
-            return messagebox.showwarning("Errore", "La data 'Dal' non può essere successiva alla data 'Al'.")
+            return messagebox.showwarning("Errore Logico", "La data 'Dal' non può essere successiva alla data 'Al'.")
 
         g_scelti = [i for i in range(7) if self.giorni_vars[i].get() == 1]
         if not g_scelti: 
@@ -189,6 +229,9 @@ class LezioniView(ctk.CTkFrame):
             
         self.db.commit()
         messagebox.showinfo("Completato", f"Pianificazione conclusa.\nSono state generate {count} nuove lezioni!")
+        
+        self.cmb_filtro_mese.set(f"{d_inizio.month:02d}")
+        self.cmb_filtro_anno.set(str(d_inizio.year))
         self.carica_tabella()
 
     def elimina_lezione(self):
