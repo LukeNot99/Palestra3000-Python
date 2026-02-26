@@ -3,9 +3,6 @@ from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 import os
 import sys
 
-# --- PROTEZIONE PYINSTALLER PER IL DATABASE ---
-# Se l'app è un eseguibile compilato (.exe), salva il DB nella cartella dell'eseguibile.
-# Altrimenti (fase di sviluppo), salvalo nella cartella principale del progetto.
 if getattr(sys, 'frozen', False):
     base_dir = os.path.dirname(sys.executable)
 else:
@@ -36,6 +33,7 @@ class Member(Base):
     badge_number = Column(String, unique=True, index=True, nullable=True)
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
+    codice_fiscale = Column(String, nullable=True) # NUOVO CAMPO
     birth_date = Column(String, nullable=True)
     birth_place = Column(String, nullable=True)
     city = Column(String, nullable=True)
@@ -79,6 +77,7 @@ class Booking(Base):
 
 Base.metadata.create_all(bind=engine)
 
+# --- MIGRAZIONI AUTOMATICHE (AGGIORNA I VECCHI DATABASE) ---
 try:
     with engine.connect() as conn:
         conn.execute(text("ALTER TABLE members ADD COLUMN enrollment_expiration VARCHAR"))
@@ -100,6 +99,13 @@ except Exception: pass
 try:
     with engine.connect() as conn:
         conn.execute(text("ALTER TABLE tiers ADD COLUMN duration_months INTEGER DEFAULT 1"))
+        conn.commit()
+except Exception: pass
+
+# NUOVA MIGRAZIONE PER IL CODICE FISCALE
+try:
+    with engine.connect() as conn:
+        conn.execute(text("ALTER TABLE members ADD COLUMN codice_fiscale VARCHAR"))
         conn.commit()
 except Exception: pass
 

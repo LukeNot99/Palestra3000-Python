@@ -3,16 +3,20 @@ from tkinter import messagebox
 from core.database import SessionLocal, Member, Tier
 from datetime import datetime, timedelta
 import calendar
-from core.utils import parse_date, is_valid_date  # IMPORTIAMO L'UTILITY
+from core.utils import parse_date, is_valid_date, calcola_cf_parziale, genera_fattura_html
 
 class SocioFormWindow(ctk.CTkToplevel):
     def __init__(self, parent, refresh_callback, socio_id=None):
         super().__init__(parent)
         self.title("Scheda Socio")
-        self.geometry("900x650") 
+        self.geometry("950x700") 
         self.configure(fg_color=("#F2F2F7", "#1C1C1E"))
         self.refresh_callback = refresh_callback
         self.socio_id = socio_id
+        
+        # Questa flag ci dice se l'operatore ha modificato a mano il CF. 
+        # In tal caso, smettiamo di calcolarlo in automatico per non cancellare il suo lavoro.
+        self.cf_modificato_manualmente = False 
         
         self.transient(parent.winfo_toplevel())
         self.grab_set()
@@ -38,6 +42,7 @@ class SocioFormWindow(ctk.CTkToplevel):
         tier_names = ["Nessuna fascia"] + [t["name"] for t in self.tiers_data]
         db.close()
 
+        # ---------------- COLONNA SINISTRA: ANAGRAFICA ----------------
         frame_sx = ctk.CTkFrame(grid_container, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         frame_sx.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
 
@@ -45,15 +50,17 @@ class SocioFormWindow(ctk.CTkToplevel):
 
         ctk.CTkLabel(frame_sx, text="Numero Scheda:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.ent_scheda = ctk.CTkEntry(frame_sx, placeholder_text="Es. 000123")
-        self.ent_scheda.pack(pady=(0, 15), padx=20, fill="x")
+        self.ent_scheda.pack(pady=(0, 10), padx=20, fill="x")
 
         ctk.CTkLabel(frame_sx, text="Nome:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.ent_nome = ctk.CTkEntry(frame_sx)
-        self.ent_nome.pack(pady=(0, 15), padx=20, fill="x")
+        self.ent_nome.pack(pady=(0, 10), padx=20, fill="x")
+        self.ent_nome.bind("<KeyRelease>", self.aggiorna_cf_live)
 
         ctk.CTkLabel(frame_sx, text="Cognome:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.ent_cognome = ctk.CTkEntry(frame_sx)
-        self.ent_cognome.pack(pady=(0, 15), padx=20, fill="x")
+        self.ent_cognome.pack(pady=(0, 10), padx=20, fill="x")
+        self.ent_cognome.bind("<KeyRelease>", self.aggiorna_cf_live)
 
         lbl_nascita_container = ctk.CTkFrame(frame_sx, fg_color="transparent")
         lbl_nascita_container.pack(anchor="w", padx=20, fill="x")
@@ -62,34 +69,42 @@ class SocioFormWindow(ctk.CTkToplevel):
         self.lbl_eta.pack(side="right")
 
         self.ent_data_nascita = ctk.CTkEntry(frame_sx, placeholder_text="Es. 15/08/1985")
-        self.ent_data_nascita.pack(pady=(0, 15), padx=20, fill="x")
-        self.ent_data_nascita.bind("<KeyRelease>", self.calcola_eta_live)
-        self.ent_data_nascita.bind("<FocusOut>", self.calcola_eta_live)
+        self.ent_data_nascita.pack(pady=(0, 10), padx=20, fill="x")
+        self.ent_data_nascita.bind("<KeyRelease>", self.aggiorna_eta_e_cf)
+        self.ent_data_nascita.bind("<FocusOut>", self.aggiorna_eta_e_cf)
+
+        # --- CAMPO CODICE FISCALE ---
+        ctk.CTkLabel(frame_sx, text="Codice Fiscale:", font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color=("#007AFF", "#0A84FF")).pack(anchor="w", padx=20)
+        self.ent_cf = ctk.CTkEntry(frame_sx, placeholder_text="Completare le X finali", text_color=("#007AFF", "#0A84FF"), font=ctk.CTkFont(family="Consolas", weight="bold"))
+        self.ent_cf.pack(pady=(0, 10), padx=20, fill="x")
+        self.ent_cf.bind("<KeyRelease>", self.flag_cf_modificato)
+
+        ctk.CTkLabel(frame_sx, text="Sesso:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
+        self.cmb_sesso = ctk.CTkOptionMenu(frame_sx, values=["M", "F"], command=self.aggiorna_cf_live)
+        self.cmb_sesso.pack(pady=(0, 10), padx=20, fill="x")
 
         ctk.CTkLabel(frame_sx, text="Luogo di Nascita:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.cmb_luogo_nascita = ctk.CTkComboBox(frame_sx, values=luoghi_unici)
-        self.cmb_luogo_nascita.pack(pady=(0, 15), padx=20, fill="x")
+        self.cmb_luogo_nascita.pack(pady=(0, 10), padx=20, fill="x")
 
         ctk.CTkLabel(frame_sx, text="Comune di Residenza:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.cmb_comune = ctk.CTkComboBox(frame_sx, values=comuni_unici)
-        self.cmb_comune.pack(pady=(0, 15), padx=20, fill="x")
+        self.cmb_comune.pack(pady=(0, 10), padx=20, fill="x")
 
         ctk.CTkLabel(frame_sx, text="Indirizzo:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.ent_indirizzo = ctk.CTkEntry(frame_sx)
-        self.ent_indirizzo.pack(pady=(0, 15), padx=20, fill="x")
+        self.ent_indirizzo.pack(pady=(0, 10), padx=20, fill="x")
 
         ctk.CTkLabel(frame_sx, text="Telefono:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.ent_telefono = ctk.CTkEntry(frame_sx)
-        self.ent_telefono.pack(pady=(0, 15), padx=20, fill="x")
+        self.ent_telefono.pack(pady=(0, 10), padx=20, fill="x")
 
         ctk.CTkLabel(frame_sx, text="Altro Recapito (Es. Tel fisso o Parenti):", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.ent_altro_recapito = ctk.CTkEntry(frame_sx, placeholder_text="Opzionale")
-        self.ent_altro_recapito.pack(pady=(0, 15), padx=20, fill="x")
+        self.ent_altro_recapito.pack(pady=(0, 20), padx=20, fill="x")
 
-        ctk.CTkLabel(frame_sx, text="Sesso:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
-        self.cmb_sesso = ctk.CTkOptionMenu(frame_sx, values=["M", "F"])
-        self.cmb_sesso.pack(pady=(0, 20), padx=20, fill="x")
 
+        # ---------------- COLONNA DESTRA: ABBONAMENTO ----------------
         frame_dx = ctk.CTkFrame(grid_container, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         frame_dx.grid(row=0, column=1, sticky="nsew", padx=(10, 0))
 
@@ -140,9 +155,46 @@ class SocioFormWindow(ctk.CTkToplevel):
         btn_frame.pack(pady=(15, 20), fill="x", padx=40)
         
         ctk.CTkButton(btn_frame, text="OK / Salva", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.salva_socio).pack(side="left")
-        ctk.CTkButton(btn_frame, text="Annulla", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.destroy).pack(side="right")
+        
+        # --- BOTTONE GENERA RICEVUTA ---
+        if self.socio_id:
+            ctk.CTkButton(btn_frame, text="📄 Genera Ricevuta", width=160, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#8e44ad", hover_color="#9b59b6", command=self.crea_ricevuta).pack(side="left", padx=15)
+        
+        ctk.CTkButton(btn_frame, text="Annulla", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.chiudi).pack(side="right")
 
-    # --- USO UTILS PER DATE ---
+    # --- FUNZIONI CF E RICEVUTA ---
+    def flag_cf_modificato(self, event=None):
+        self.cf_modificato_manualmente = True
+
+    def aggiorna_eta_e_cf(self, event=None):
+        self.calcola_eta_live()
+        self.aggiorna_cf_live()
+
+    def aggiorna_cf_live(self, event=None):
+        if self.cf_modificato_manualmente: return 
+        nome = self.ent_nome.get().strip()
+        cognome = self.ent_cognome.get().strip()
+        d_nascita = self.ent_data_nascita.get().strip()
+        sesso = self.cmb_sesso.get()
+        
+        cf_parziale = calcola_cf_parziale(nome, cognome, d_nascita, sesso)
+        if cf_parziale:
+            self.ent_cf.delete(0, 'end')
+            self.ent_cf.insert(0, cf_parziale)
+
+    def crea_ricevuta(self):
+        # Prima salviamo eventuali modifiche senza chiudere la finestra
+        self.salva_socio(esci_dopo=False)
+        db = SessionLocal()
+        socio = db.query(Member).get(self.socio_id)
+        if socio:
+            genera_fattura_html(socio)
+        db.close()
+
+    def chiudi(self):
+        self.grab_release()
+        self.destroy()
+
     def calcola_eta_live(self, event=None):
         data_str = self.ent_data_nascita.get().strip()
         nascita = parse_date(data_str)
@@ -198,6 +250,12 @@ class SocioFormWindow(ctk.CTkToplevel):
             if socio.badge_number: self.ent_scheda.insert(0, socio.badge_number)
             self.ent_nome.insert(0, socio.first_name)
             self.ent_cognome.insert(0, socio.last_name)
+            
+            # Carica il CF e disabilita il calcolo live per non sovrascrivere i dati esistenti
+            if socio.codice_fiscale:
+                self.ent_cf.insert(0, socio.codice_fiscale)
+                self.cf_modificato_manualmente = True 
+                
             if socio.birth_date: 
                 self.ent_data_nascita.insert(0, socio.birth_date)
                 self.calcola_eta_live()
@@ -227,10 +285,11 @@ class SocioFormWindow(ctk.CTkToplevel):
             if socio.certificate_expiration: self.ent_scadenza_cert.insert(0, socio.certificate_expiration)
         db.close()
 
-    def salva_socio(self):
+    def salva_socio(self, esci_dopo=True):
         nome = self.ent_nome.get().strip()
         cognome = self.ent_cognome.get().strip()
         scheda = self.ent_scheda.get().strip()
+        cf = self.ent_cf.get().strip().upper()
         
         if not nome or not cognome: return messagebox.showwarning("Errore", "Nome e Cognome sono obbligatori!")
         
@@ -247,7 +306,6 @@ class SocioFormWindow(ctk.CTkToplevel):
         d_scadenza = self.ent_scadenza_mensilita.get().strip()
         d_cert = self.ent_scadenza_cert.get().strip()
         
-        # USA IS_VALID_DATE DA UTILS.PY
         if not is_valid_date(d_nascita): 
             db.close()
             return messagebox.showwarning("Errore Data", "Data di nascita non valida.\nUsa il formato GG/MM/AAAA (es. 15/08/1985). Attenzione ai mesi di 30/31 giorni o bisestili.")
@@ -275,6 +333,7 @@ class SocioFormWindow(ctk.CTkToplevel):
         socio.badge_number = scheda if scheda else None
         socio.first_name = nome
         socio.last_name = cognome
+        socio.codice_fiscale = cf 
         socio.birth_date = d_nascita
         socio.birth_place = self.cmb_luogo_nascita.get().strip()
         socio.city = self.cmb_comune.get().strip()
@@ -302,9 +361,16 @@ class SocioFormWindow(ctk.CTkToplevel):
             socio.entries_used = 0
         
         db.commit()
+        
+        if not self.socio_id:
+            self.socio_id = socio.id
+            
         db.close()
         self.refresh_callback()
-        self.destroy()
+        
+        if esci_dopo:
+            self.chiudi()
+
 
 class SociView(ctk.CTkFrame):
     def __init__(self, parent, controller=None, **kwargs):
