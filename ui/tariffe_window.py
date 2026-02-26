@@ -382,15 +382,27 @@ class TiersView(ctk.CTkFrame):
         exit_time  = self.ent_exit_time.get().strip()
         datetime.strptime(entry_time, "%H:%M")
         datetime.strptime(exit_time,  "%H:%M")
+
+        cost           = float(self.ent_cost.get().strip().replace(",", ".")) if self.show_cost else 0.0
+        age_min        = int(self.ent_age_min.get().strip()) if self.show_age else 0
+        age_max        = int(self.ent_age_max.get().strip()) if self.show_age else 999
+        duration_months = int(self.ent_duration.get().strip() or FIELD_DEFAULTS["duration_months"])
+        entries        = int(self.ent_entries.get().strip()  or FIELD_DEFAULTS["max_entries"])
+
+        if cost < 0 or age_min < 0 or age_max < 0 or duration_months < 1 or entries < 0:
+            raise ValueError("Valori negativi o nulli (la durata deve essere minimo 1).")
+        if age_max < age_min:
+            raise ValueError("L'età massima non può essere inferiore all'età minima.")
+
         return {
-            "code":             self.ent_code.get().strip(),
-            "entry_time":       entry_time,
-            "exit_time":        exit_time,
-            "cost":             float(self.ent_cost.get().strip().replace(",", ".")) if self.show_cost else 0.0,
-            "age_min":          int(self.ent_age_min.get().strip()) if self.show_age else 0,
-            "age_max":          int(self.ent_age_max.get().strip()) if self.show_age else 999,
-            "duration_months":  int(self.ent_duration.get().strip() or FIELD_DEFAULTS["duration_months"]),
-            "entries":          int(self.ent_entries.get().strip()  or FIELD_DEFAULTS["max_entries"]),
+            "code":            self.ent_code.get().strip(),
+            "entry_time":      entry_time,
+            "exit_time":       exit_time,
+            "cost":            cost,
+            "age_min":         age_min,
+            "age_max":         age_max,
+            "duration_months": duration_months,
+            "entries":         entries,
         }
 
     def _update_tier(self, data: dict) -> None:
@@ -422,10 +434,14 @@ class TiersView(ctk.CTkFrame):
         try:
             data = self._read_form_fields()
         except ValueError as e:
-            msg = ("Verifica che gli orari siano nel formato HH:MM (es. 08:30)."
-                   if "time" in str(e)
-                   else "Verifica che Costo, Età, Durata e Ingressi siano numeri validi.")
-            messagebox.showwarning("Errore", msg)
+            error_msg = str(e)
+            if "time" in error_msg:
+                title, msg = "Errore Orario", "Verifica che gli orari siano nel formato HH:MM (es. 08:30)."
+            elif "negativi" in error_msg or "massima" in error_msg:
+                title, msg = "Errore Logico", error_msg
+            else:
+                title, msg = "Errore", "Verifica che Costo, Età, Durata e Ingressi siano numeri validi."
+            messagebox.showwarning(title, msg)
             return
 
         if self.editing_tier_id:
