@@ -2,6 +2,7 @@ import customtkinter as ctk
 import os
 import sys
 import json
+import time
 from datetime import datetime
 import threading
 import serial
@@ -10,7 +11,7 @@ import subprocess
 from PIL import Image
 
 from core.database import SessionLocal, Member, Lesson, Booking, seed_data
-from core.utils import parse_date  # IMPORTIAMO L'UTILITY DELLE DATE
+from core.utils import parse_date
 
 from ui.soci_window import SociView, SocioFormWindow
 from ui.tariffe_window import TariffeView
@@ -55,14 +56,17 @@ class App(ctk.CTk):
         
         seed_data()
 
-        self.serial_conn = None
+        # SETUP SDOPPIATO DELLE PORTE SERIALI
+        self.serial_reader_conn = None
         self.stop_serial_thread = threading.Event()
-        self.cronologia_accessi = [] 
         
+        self.porta_rele = carica_impostazione_iniziale("porta_rele", "")
+        self.avvia_ascolto_lettore(carica_impostazione_iniziale("porta_lettore", ""))
+        
+        self.cronologia_accessi = [] 
         self.giorno_tracker = datetime.now().date()
         self.soci_in_sede = set() 
         
-        self.avvia_ascolto_hardware(carica_impostazione_iniziale("porta_tornello", ""))
         self.bind_all("<F12>", self.apertura_manuale_globale)
 
         self.grid_rowconfigure(0, weight=1)
@@ -193,25 +197,59 @@ class App(ctk.CTk):
         except Exception: pass
         return None
 
-    def avvia_ascolto_hardware(self, porta):
-        if self.serial_conn and self.serial_conn.is_open:
+    # ================== GESTIONE HARDWARE (LETTORE E RELE') ==================
+    def avvia_ascolto_lettore(self, porta):
+        if self.serial_reader_conn and self.serial_reader_conn.is_open:
             self.stop_serial_thread.set()
-            self.serial_conn.close()
+            self.serial_reader_conn.close()
+            
         if porta and "Nessun hardware" not in porta:
             try:
-                self.serial_conn = serial.Serial(porta, 9600, timeout=1)
+                self.serial_reader_conn = serial.Serial(porta, 9600, timeout=1)
                 self.stop_serial_thread.clear()
-                threading.Thread(target=self._ciclo_ascolto, daemon=True).start()
-            except Exception: pass
+                threading.Thread(target=self._ciclo_ascolto_lettore, daemon=True).start()
+            except Exception as e: 
+                print(f"Errore connessione lettore: {e}")
 
-    def _ciclo_ascolto(self):
+    def _ciclo_ascolto_lettore(self):
         while not self.stop_serial_thread.is_set():
-            if self.serial_conn and self.serial_conn.in_waiting > 0:
+            if self.serial_reader_conn and self.serial_reader_conn.in_waiting > 0:
                 try:
-                    dato = self.serial_conn.readline().decode('utf-8').strip()
+                    dato = self.serial_reader_conn.readline().decode('utf-8').strip()
                     scheda = ''.join(filter(str.isdigit, dato)) 
                     if scheda: self.after(0, self.gestisci_accesso_globale, scheda)
                 except Exception: pass
+
+    def apri_tornello_fisico(self):
+        """ Invia l'impulso al modulo Relè USB in un thread separato """
+        if self.porta_rele and "Nessun hardware" not in self.porta_rele:
+            threading.Thread(target=self._impulso_rele, daemon=True).start()
+
+    def _impulso_rele(self):
+        try:
+            # Apriamo la porta al volo
+            with serial.Serial(self.porta_rele, 9600, timeout=1) as ser:
+                # Comandi HEX standard per moduli Relè USB LCUS-1 (CH340)
+                comando_on = b'\xA0\x01\x01\xA2'
+                comando_off = b'\xA0\x01\x00\xA1'
+                
+                # 1. Eccitiamo il relè (Tornello APERTO)
+                ser.write(comando_on)
+                
+                # Invia anche i segnali RTS/DTR per compatibilità con relè "passivi"
+                ser.dtr = True
+                ser.rts = True
+                
+                # Teniamo aperto il tornello per mezzo secondo
+                time.sleep(0.5)
+                
+                # 2. Chiudiamo il relè (Tornello CHIUSO e bloccato)
+                ser.write(comando_off)
+                ser.dtr = False
+                ser.rts = False
+        except Exception as e:
+            print(f"Errore comando Relè USB: {e}")
+    # =========================================================================
 
     def riproduci_audio(self, nome_file):
         percorso = resource_path(os.path.join("messaggi", nome_file))
@@ -267,7 +305,6 @@ class App(ctk.CTk):
         blocco_orari = carica_impostazione_iniziale("blocco_orari", True)
         blocco_cert = carica_impostazione_iniziale("blocco_cert", False)
 
-        # --- PULIZIA DATE CON UTILS ---
         if blocco_cert:
             if not socio.has_medical_certificate:
                 self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nCertificato Medico Mancante!", "#007AFF")
@@ -346,17 +383,15 @@ class App(ctk.CTk):
         if self.current_view_name == "tornello" and hasattr(self.current_frame, "aggiorna_contatore_sede"):
             self.current_frame.aggiorna_contatore_sede()
 
-        if self.serial_conn and self.serial_conn.is_open:
-            try: self.serial_conn.write(b'*') 
-            except: pass
+        # INVIO COMANDO HARDWARE AL RELE'
+        self.apri_tornello_fisico()
+        
         self.riproduci_audio("BuonLavoroDonne.wav" if socio.gender == "F" else "BuonLavoro.wav")
         db.close()
 
     def apertura_manuale_globale(self, event=None):
         self.riproduci_audio("handopen.wav")
-        if self.serial_conn and self.serial_conn.is_open:
-            try: self.serial_conn.write(b'*')
-            except: pass
+        self.apri_tornello_fisico() # Apre il relè
         self.mostra_toast_notifica("APERTURA D'UFFICIO", "Ingresso autorizzato dall'operatore.", "#007AFF")
 
 
