@@ -65,7 +65,10 @@ class App(ctk.CTk):
         
         self.cronologia_accessi = [] 
         self.giorno_tracker = datetime.now().date()
-        self.soci_in_sede = set() 
+        self.soci_entrati_oggi = set()
+        self._ultimo_badge = None
+        self._ultimo_badge_ts = 0.0
+        self._badge_debounce_sec = 3.0
         
         self.bind_all("<F12>", self.apertura_manuale_globale)
 
@@ -282,10 +285,16 @@ class App(ctk.CTk):
         oggi = datetime.now().date()
         if oggi != self.giorno_tracker:
             self.giorno_tracker = oggi
-            self.soci_in_sede.clear()
+            self.soci_entrati_oggi.clear()
 
     def gestisci_accesso_globale(self, scheda_str):
         if not scheda_str: return
+        now_ts = time.time()
+        if scheda_str == self._ultimo_badge and (now_ts - self._ultimo_badge_ts) < self._badge_debounce_sec:
+            return
+        self._ultimo_badge = scheda_str
+        self._ultimo_badge_ts = now_ts
+
         self.controlla_reset_giorno()
         db = SessionLocal()
         socio = db.query(Member).filter(Member.badge_number == scheda_str).first()
@@ -313,7 +322,7 @@ class App(ctk.CTk):
                 db.close(); return
             
             scad_cert = parse_date(socio.certificate_expiration)
-            if scad_cert and adesso > scad_cert:
+            if scad_cert and adesso.date() > scad_cert.date():
                 self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nCertificato Medico Scaduto!", "#007AFF")
                 self.riproduci_audio("HeyOp.wav")
                 self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Cert. Medico Scaduto) #-")
@@ -321,7 +330,7 @@ class App(ctk.CTk):
 
         if blocco_iscr:
             scad_iscr = parse_date(socio.enrollment_expiration)
-            if scad_iscr and adesso > scad_iscr:
+            if scad_iscr and adesso.date() > scad_iscr.date():
                 self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nIscrizione Annuale Scaduta!", "#FF3B30")
                 self.riproduci_audio("HeyOp.wav")
                 self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Iscrizione Scaduta) #-")
@@ -329,7 +338,7 @@ class App(ctk.CTk):
 
         if blocco_abb:
             scad_abb = parse_date(socio.membership_expiration)
-            if scad_abb and adesso > scad_abb:
+            if scad_abb and adesso.date() > scad_abb.date():
                 self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nAbbonamento Scaduto!", "#FF9500")
                 self.riproduci_audio("HeyOp.wav")
                 self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Abbonamento Scaduto) #-")
@@ -379,7 +388,7 @@ class App(ctk.CTk):
         self.mostra_toast_notifica("ACCESSO CONSENTITO", f"Benvenuto {nome_completo}{messaggio_extra}", "#34C759")
         self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : OK {log_ingressi}")
         
-        self.soci_in_sede.add(socio.id)
+        self.soci_entrati_oggi.add(socio.id)
         if self.current_view_name == "tornello" and hasattr(self.current_frame, "aggiorna_contatore_sede"):
             self.current_frame.aggiorna_contatore_sede()
 
@@ -519,10 +528,10 @@ class DashboardView(ctk.CTkFrame):
                     scaduti_lista.append((socio, scad_abb.date()))
                     
             if not socio.tier: continue
-            if not scad_abb or oggi_dt > scad_abb: continue
+            if not scad_abb or oggi_dt.date() > scad_abb.date(): continue
             
             scad_iscr = parse_date(socio.enrollment_expiration)
-            if not scad_iscr or oggi_dt > scad_iscr: continue
+            if not scad_iscr or oggi_dt.date() > scad_iscr.date(): continue
             
             soci_attivi_reali += 1
 

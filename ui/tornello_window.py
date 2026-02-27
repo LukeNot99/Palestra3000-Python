@@ -17,7 +17,7 @@ class TornelloView(ctk.CTkFrame):
         self.card_in_sede = ctk.CTkFrame(header_frame, fg_color="#007AFF", corner_radius=12)
         self.card_in_sede.grid(row=0, column=0, sticky="w", padx=(0, 20))
         
-        ctk.CTkLabel(self.card_in_sede, text="INGRESSI UNICI DI OGGI", font=ctk.CTkFont(family="Montserrat", size=11, weight="bold"), text_color="#E5F1FF").pack(pady=(10, 0), padx=20)
+        ctk.CTkLabel(self.card_in_sede, text="SOCI UNICI ENTRATI OGGI", font=ctk.CTkFont(family="Montserrat", size=11, weight="bold"), text_color="#E5F1FF").pack(pady=(10, 0), padx=20)
         self.lbl_contatore = ctk.CTkLabel(self.card_in_sede, text="0", font=ctk.CTkFont(family="Montserrat", size=38, weight="bold"), text_color="white")
         self.lbl_contatore.pack(pady=(0, 10), padx=20)
 
@@ -87,7 +87,10 @@ class TornelloView(ctk.CTkFrame):
             self.controller.cronologia_accessi.clear()
 
     def aggiorna_contatore_sede(self):
-        if self.controller and hasattr(self.controller, "soci_in_sede"):
+        if self.controller and hasattr(self.controller, "soci_entrati_oggi"):
+            num_presenti = len(self.controller.soci_entrati_oggi)
+            self.lbl_contatore.configure(text=str(num_presenti))
+        elif self.controller and hasattr(self.controller, "soci_in_sede"):
             num_presenti = len(self.controller.soci_in_sede)
             self.lbl_contatore.configure(text=str(num_presenti))
 

@@ -2,16 +2,24 @@ import customtkinter as ctk
 from tkinter import filedialog, messagebox
 import json
 import os
+import sys
 import serial
 import serial.tools.list_ports
 import threading
 import time
 
+def get_persistent_path(filename):
+    if getattr(sys, 'frozen', False):
+        base_dir = os.path.dirname(sys.executable)
+    else:
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_dir, filename)
+
 class SettingsView(ctk.CTkFrame):
     def __init__(self, parent, app):
         super().__init__(parent, fg_color="transparent")
         self.app = app
-        self.config_file = "config.json"
+        self.config_file = get_persistent_path("config.json")
         self.config = self.carica_config()
 
         ctk.CTkLabel(self, text="⚙️ Impostazioni di Sistema", font=ctk.CTkFont(family="Montserrat", size=24, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(20, 10))

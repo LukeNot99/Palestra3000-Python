@@ -3,12 +3,21 @@ from tkinter import messagebox
 from datetime import datetime
 import json
 import os
+import sys
 from core.database import SessionLocal, Tier, Member
 
+def get_persistent_path(filename):
+    if getattr(sys, 'frozen', False):
+        base_dir = os.path.dirname(sys.executable)
+    else:
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.join(base_dir, filename)
+
 def leggi_impostazione(chiave, default):
-    if os.path.exists("config.json"):
+    config_path = get_persistent_path("config.json")
+    if os.path.exists(config_path):
         try:
-            with open("config.json", "r") as f: return json.load(f).get(chiave, default)
+            with open(config_path, "r") as f: return json.load(f).get(chiave, default)
         except: pass
     return default
 

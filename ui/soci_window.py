@@ -353,6 +353,12 @@ class SocioFormWindow(ctk.CTkToplevel):
             val_ingressi = self.ent_ingressi.get().strip()
             try:
                 rimanenti = int(val_ingressi)
+                if rimanenti < 0 or rimanenti > tier_dict["max_entries"]:
+                    db.close()
+                    return messagebox.showwarning(
+                        "Errore",
+                        f"Gli ingressi rimanenti devono essere tra 0 e {tier_dict['max_entries']}."
+                    )
                 socio.entries_used = max(0, tier_dict["max_entries"] - rimanenti)
             except ValueError: 
                 db.close()
