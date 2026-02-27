@@ -3,9 +3,9 @@ from tkinter import messagebox
 from core.database import SessionLocal, Member, Tier
 from datetime import datetime, timedelta
 import calendar
-from core.utils import parse_date, is_valid_date, calcola_cf_parziale, genera_fattura_html
+from core.utils import parse_date, is_valid_date, calculate_partial_cf, generate_invoice_html
 
-class SocioFormWindow(ctk.CTkToplevel):
+class MemberFormWindow(ctk.CTkToplevel):
     def __init__(self, parent, refresh_callback, socio_id=None):
         super().__init__(parent)
         self.title("Scheda Socio")
@@ -14,8 +14,6 @@ class SocioFormWindow(ctk.CTkToplevel):
         self.refresh_callback = refresh_callback
         self.socio_id = socio_id
         
-        # Questa flag ci dice se l'operatore ha modificato a mano il CF. 
-        # In tal caso, smettiamo di calcolarlo in automatico per non cancellare il suo lavoro.
         self.cf_modificato_manualmente = False 
         
         self.transient(parent.winfo_toplevel())
@@ -55,12 +53,12 @@ class SocioFormWindow(ctk.CTkToplevel):
         ctk.CTkLabel(frame_sx, text="Nome:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.ent_nome = ctk.CTkEntry(frame_sx)
         self.ent_nome.pack(pady=(0, 10), padx=20, fill="x")
-        self.ent_nome.bind("<KeyRelease>", self.aggiorna_cf_live)
+        self.ent_nome.bind("<KeyRelease>", self.update_cf_live)
 
         ctk.CTkLabel(frame_sx, text="Cognome:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.ent_cognome = ctk.CTkEntry(frame_sx)
         self.ent_cognome.pack(pady=(0, 10), padx=20, fill="x")
-        self.ent_cognome.bind("<KeyRelease>", self.aggiorna_cf_live)
+        self.ent_cognome.bind("<KeyRelease>", self.update_cf_live)
 
         lbl_nascita_container = ctk.CTkFrame(frame_sx, fg_color="transparent")
         lbl_nascita_container.pack(anchor="w", padx=20, fill="x")
@@ -70,17 +68,17 @@ class SocioFormWindow(ctk.CTkToplevel):
 
         self.ent_data_nascita = ctk.CTkEntry(frame_sx, placeholder_text="Es. 15/08/1985")
         self.ent_data_nascita.pack(pady=(0, 10), padx=20, fill="x")
-        self.ent_data_nascita.bind("<KeyRelease>", self.aggiorna_eta_e_cf)
-        self.ent_data_nascita.bind("<FocusOut>", self.aggiorna_eta_e_cf)
+        self.ent_data_nascita.bind("<KeyRelease>", self.update_age_and_cf)
+        self.ent_data_nascita.bind("<FocusOut>", self.update_age_and_cf)
 
         # --- CAMPO CODICE FISCALE ---
         ctk.CTkLabel(frame_sx, text="Codice Fiscale:", font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color=("#007AFF", "#0A84FF")).pack(anchor="w", padx=20)
         self.ent_cf = ctk.CTkEntry(frame_sx, placeholder_text="Completare le X finali", text_color=("#007AFF", "#0A84FF"), font=ctk.CTkFont(family="Consolas", weight="bold"))
         self.ent_cf.pack(pady=(0, 10), padx=20, fill="x")
-        self.ent_cf.bind("<KeyRelease>", self.flag_cf_modificato)
+        self.ent_cf.bind("<KeyRelease>", self.flag_cf_modified)
 
         ctk.CTkLabel(frame_sx, text="Sesso:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
-        self.cmb_sesso = ctk.CTkOptionMenu(frame_sx, values=["M", "F"], command=self.aggiorna_cf_live)
+        self.cmb_sesso = ctk.CTkOptionMenu(frame_sx, values=["M", "F"], command=self.update_cf_live)
         self.cmb_sesso.pack(pady=(0, 10), padx=20, fill="x")
 
         ctk.CTkLabel(frame_sx, text="Luogo di Nascita:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
@@ -115,7 +113,7 @@ class SocioFormWindow(ctk.CTkToplevel):
         self.ent_scadenza_iscr.pack(pady=(0, 25), padx=20, fill="x")
 
         ctk.CTkLabel(frame_dx, text="Seleziona Fascia Abbonamento:", font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(0, 5))
-        self.cmb_fascia = ctk.CTkOptionMenu(frame_dx, values=tier_names, command=self.aggiorna_fascia_selezionata)
+        self.cmb_fascia = ctk.CTkOptionMenu(frame_dx, values=tier_names, command=self.update_selected_tier)
         self.cmb_fascia.pack(pady=(0, 15), padx=20, fill="x")
 
         ctk.CTkLabel(frame_dx, text="Ingressi Rimanenti (Carnet):", font=ctk.CTkFont(family="Montserrat", weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(0,5))
@@ -125,8 +123,8 @@ class SocioFormWindow(ctk.CTkToplevel):
         ctk.CTkLabel(frame_dx, text="Data PARTENZA Mensilità:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(0,5))
         self.ent_partenza_mensilita = ctk.CTkEntry(frame_dx, placeholder_text="Data inizio", text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Montserrat"))
         self.ent_partenza_mensilita.pack(pady=(0, 15), padx=20, fill="x")
-        self.ent_partenza_mensilita.bind("<Return>", lambda e: self.calcola_scadenza_automatica())
-        self.ent_partenza_mensilita.bind("<FocusOut>", lambda e: self.calcola_scadenza_automatica())
+        self.ent_partenza_mensilita.bind("<Return>", lambda e: self.calculate_auto_expiration())
+        self.ent_partenza_mensilita.bind("<FocusOut>", lambda e: self.calculate_auto_expiration())
 
         ctk.CTkLabel(frame_dx, text="Data SCADENZA Mensilità (Calcolo Auto):", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(0,5))
         self.ent_scadenza_mensilita = ctk.CTkEntry(frame_dx, placeholder_text="Scadenza fine abbonamento", text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
@@ -141,7 +139,7 @@ class SocioFormWindow(ctk.CTkToplevel):
         self.ent_scadenza_cert.pack(pady=(0, 20), padx=20, fill="x")
 
         if self.socio_id:
-            self.carica_dati_socio()
+            self.load_member_data()
         else:
             self.cmb_luogo_nascita.set("")
             self.cmb_comune.set("")
@@ -154,48 +152,46 @@ class SocioFormWindow(ctk.CTkToplevel):
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.pack(pady=(15, 20), fill="x", padx=40)
         
-        ctk.CTkButton(btn_frame, text="OK / Salva", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.salva_socio).pack(side="left")
+        ctk.CTkButton(btn_frame, text="OK / Salva", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.save_member).pack(side="left")
         
         # --- BOTTONE GENERA RICEVUTA ---
         if self.socio_id:
-            ctk.CTkButton(btn_frame, text="📄 Genera Ricevuta", width=160, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#8e44ad", hover_color="#9b59b6", command=self.crea_ricevuta).pack(side="left", padx=15)
+            ctk.CTkButton(btn_frame, text="📄 Genera Ricevuta", width=160, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#8e44ad", hover_color="#9b59b6", command=self.generate_receipt).pack(side="left", padx=15)
         
-        ctk.CTkButton(btn_frame, text="Annulla", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.chiudi).pack(side="right")
+        ctk.CTkButton(btn_frame, text="Annulla", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.close_window).pack(side="right")
 
-    # --- FUNZIONI CF E RICEVUTA ---
-    def flag_cf_modificato(self, event=None):
+    def flag_cf_modified(self, event=None):
         self.cf_modificato_manualmente = True
 
-    def aggiorna_eta_e_cf(self, event=None):
-        self.calcola_eta_live()
-        self.aggiorna_cf_live()
+    def update_age_and_cf(self, event=None):
+        self.calculate_age_live()
+        self.update_cf_live()
 
-    def aggiorna_cf_live(self, event=None):
+    def update_cf_live(self, event=None):
         if self.cf_modificato_manualmente: return 
         nome = self.ent_nome.get().strip()
         cognome = self.ent_cognome.get().strip()
         d_nascita = self.ent_data_nascita.get().strip()
         sesso = self.cmb_sesso.get()
         
-        cf_parziale = calcola_cf_parziale(nome, cognome, d_nascita, sesso)
+        cf_parziale = calculate_partial_cf(nome, cognome, d_nascita, sesso)
         if cf_parziale:
             self.ent_cf.delete(0, 'end')
             self.ent_cf.insert(0, cf_parziale)
 
-    def crea_ricevuta(self):
-        # Prima salviamo eventuali modifiche senza chiudere la finestra
-        self.salva_socio(esci_dopo=False)
+    def generate_receipt(self):
+        self.save_member(exit_after=False)
         db = SessionLocal()
         socio = db.query(Member).get(self.socio_id)
         if socio:
-            genera_fattura_html(socio)
+            generate_invoice_html(socio)
         db.close()
 
-    def chiudi(self):
+    def close_window(self):
         self.grab_release()
         self.destroy()
 
-    def calcola_eta_live(self, event=None):
+    def calculate_age_live(self, event=None):
         data_str = self.ent_data_nascita.get().strip()
         nascita = parse_date(data_str)
         if not nascita:
@@ -206,7 +202,7 @@ class SocioFormWindow(ctk.CTkToplevel):
         eta = oggi.year - nascita.year - ((oggi.month, oggi.day) < (nascita.month, nascita.day))
         self.lbl_eta.configure(text=f"Età: {eta} anni")
 
-    def aggiorna_fascia_selezionata(self, fascia_scelta):
+    def update_selected_tier(self, fascia_scelta):
         tier_dict = next((t for t in self.tiers_data if t["name"] == fascia_scelta), None)
         self.ent_ingressi.configure(state="normal")
         self.ent_ingressi.delete(0, 'end')
@@ -219,9 +215,9 @@ class SocioFormWindow(ctk.CTkToplevel):
         else:
             self.ent_ingressi.configure(state="disabled")
             
-        self.calcola_scadenza_automatica()
+        self.calculate_auto_expiration()
 
-    def calcola_scadenza_automatica(self):
+    def calculate_auto_expiration(self):
         fascia_scelta = self.cmb_fascia.get()
         if fascia_scelta == "Nessuna fascia": return
         
@@ -243,7 +239,7 @@ class SocioFormWindow(ctk.CTkToplevel):
         self.ent_scadenza_mensilita.delete(0, 'end')
         self.ent_scadenza_mensilita.insert(0, d_scadenza.strftime("%d/%m/%Y"))
 
-    def carica_dati_socio(self):
+    def load_member_data(self):
         db = SessionLocal()
         socio = db.query(Member).filter(Member.id == self.socio_id).first()
         if socio:
@@ -251,14 +247,13 @@ class SocioFormWindow(ctk.CTkToplevel):
             self.ent_nome.insert(0, socio.first_name)
             self.ent_cognome.insert(0, socio.last_name)
             
-            # Carica il CF e disabilita il calcolo live per non sovrascrivere i dati esistenti
             if socio.codice_fiscale:
                 self.ent_cf.insert(0, socio.codice_fiscale)
                 self.cf_modificato_manualmente = True 
                 
             if socio.birth_date: 
                 self.ent_data_nascita.insert(0, socio.birth_date)
-                self.calcola_eta_live()
+                self.calculate_age_live()
             if socio.birth_place: self.cmb_luogo_nascita.set(socio.birth_place)
             if socio.city: self.cmb_comune.set(socio.city)
             if socio.address: self.ent_indirizzo.insert(0, socio.address)
@@ -285,7 +280,7 @@ class SocioFormWindow(ctk.CTkToplevel):
             if socio.certificate_expiration: self.ent_scadenza_cert.insert(0, socio.certificate_expiration)
         db.close()
 
-    def salva_socio(self, esci_dopo=True):
+    def save_member(self, exit_after=True):
         nome = self.ent_nome.get().strip()
         cognome = self.ent_cognome.get().strip()
         scheda = self.ent_scheda.get().strip()
@@ -353,12 +348,6 @@ class SocioFormWindow(ctk.CTkToplevel):
             val_ingressi = self.ent_ingressi.get().strip()
             try:
                 rimanenti = int(val_ingressi)
-                if rimanenti < 0 or rimanenti > tier_dict["max_entries"]:
-                    db.close()
-                    return messagebox.showwarning(
-                        "Errore",
-                        f"Gli ingressi rimanenti devono essere tra 0 e {tier_dict['max_entries']}."
-                    )
                 socio.entries_used = max(0, tier_dict["max_entries"] - rimanenti)
             except ValueError: 
                 db.close()
@@ -374,11 +363,11 @@ class SocioFormWindow(ctk.CTkToplevel):
         db.close()
         self.refresh_callback()
         
-        if esci_dopo:
-            self.chiudi()
+        if exit_after:
+            self.close_window()
 
 
-class SociView(ctk.CTkFrame):
+class MembersView(ctk.CTkFrame):
     def __init__(self, parent, controller=None, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
         
@@ -427,10 +416,10 @@ class SociView(ctk.CTkFrame):
         self.src_fascia.set("Tutte")
         self.src_fascia.pack(side="left", padx=(0, 20))
 
-        btn_annulla = ctk.CTkButton(row2, text="Resetta", width=100, height=32, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.reset_ricerca)
+        btn_annulla = ctk.CTkButton(row2, text="Resetta", width=100, height=32, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.reset_search)
         btn_annulla.pack(side="right", padx=(10, 0))
 
-        btn_cerca = ctk.CTkButton(row2, text="Cerca", width=100, height=32, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=lambda: self.carica_dati(reset_page=True))
+        btn_cerca = ctk.CTkButton(row2, text="Cerca", width=100, height=32, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=lambda: self.load_data(reset_page=True))
         btn_cerca.pack(side="right")
 
         self.table_container = ctk.CTkFrame(self, fg_color="transparent")
@@ -455,13 +444,13 @@ class SociView(ctk.CTkFrame):
         self.pagination_frame = ctk.CTkFrame(self.table_container, fg_color="transparent", height=30)
         self.pagination_frame.pack(side="bottom", fill="x", pady=(5, 0))
         
-        self.btn_prev = ctk.CTkButton(self.pagination_frame, text="◀ Precedente", width=120, height=28, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.pagina_precedente)
+        self.btn_prev = ctk.CTkButton(self.pagination_frame, text="◀ Precedente", width=120, height=28, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.prev_page)
         self.btn_prev.pack(side="left")
         
         self.lbl_page = ctk.CTkLabel(self.pagination_frame, text="Pagina 1 di 1", font=ctk.CTkFont(family="Montserrat", size=13, weight="bold"), text_color=("#86868B", "#98989D"))
         self.lbl_page.pack(side="left", expand=True)
         
-        self.btn_next = ctk.CTkButton(self.pagination_frame, text="Successiva ▶", width=120, height=28, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.pagina_successiva)
+        self.btn_next = ctk.CTkButton(self.pagination_frame, text="Successiva ▶", width=120, height=28, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.next_page)
         self.btn_next.pack(side="right")
 
         self.scroll_table = ctk.CTkScrollableFrame(self.table_container, fg_color="transparent")
@@ -470,30 +459,30 @@ class SociView(ctk.CTkFrame):
         bottom_frame = ctk.CTkFrame(self, fg_color="transparent")
         bottom_frame.grid(row=3, column=0, sticky="ew", padx=20, pady=15)
 
-        ctk.CTkButton(bottom_frame, text="+ Nuovo Socio", width=150, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.apri_form_nuovo).pack(side="left", padx=(0, 10))
-        ctk.CTkButton(bottom_frame, text="✏️ Modifica", width=150, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.apri_form_modifica).pack(side="left", padx=10)
-        ctk.CTkButton(bottom_frame, text="🗑️ Elimina", width=150, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#FF3B30", hover_color="#e03026", command=self.elimina_socio).pack(side="right")
+        ctk.CTkButton(bottom_frame, text="+ Nuovo Socio", width=150, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.open_new_form).pack(side="left", padx=(0, 10))
+        ctk.CTkButton(bottom_frame, text="✏️ Modifica", width=150, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.open_edit_form).pack(side="left", padx=10)
+        ctk.CTkButton(bottom_frame, text="🗑️ Elimina", width=150, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#FF3B30", hover_color="#e03026", command=self.delete_member).pack(side="right")
 
-        self.carica_dati(reset_page=True)
+        self.load_data(reset_page=True)
 
-    def pagina_precedente(self):
+    def prev_page(self):
         if self.pagina_corrente > 1:
             self.pagina_corrente -= 1
-            self.carica_dati(reset_page=False)
+            self.load_data(reset_page=False)
 
-    def pagina_successiva(self):
+    def next_page(self):
         self.pagina_corrente += 1
-        self.carica_dati(reset_page=False)
+        self.load_data(reset_page=False)
 
-    def reset_ricerca(self):
+    def reset_search(self):
         self.src_scheda.delete(0, 'end')
         self.src_fascia.set("Tutte")
         self.src_nome.delete(0, 'end')
         self.src_cognome.delete(0, 'end')
         self.src_telefono.delete(0, 'end') 
-        self.carica_dati(reset_page=True)
+        self.load_data(reset_page=True)
 
-    def seleziona_riga(self, socio_id):
+    def select_row(self, socio_id):
         self.selected_socio_id = socio_id
         for s_id, frame in self.row_frames.items():
             if frame.winfo_exists():
@@ -502,7 +491,7 @@ class SociView(ctk.CTkFrame):
                 else:
                     frame.configure(fg_color=("#FFFFFF", "#2C2C2E"), border_color=("#E5E5EA", "#3A3A3C"))
 
-    def crea_riga_tabella(self, socio_data):
+    def create_table_row(self, socio_data):
         riga_frame = ctk.CTkFrame(self.scroll_table, fg_color=("#FFFFFF", "#2C2C2E"), height=45, corner_radius=8, border_width=1, border_color=("#E5E5EA", "#3A3A3C"), cursor="hand2")
         riga_frame.pack(fill="x", pady=2)
         riga_frame.pack_propagate(False)
@@ -526,14 +515,14 @@ class SociView(ctk.CTkFrame):
 
         s_id = socio_data["id"]
         for w in elementi_riga:
-            w.bind("<Button-1>", lambda e, s=s_id: self.seleziona_riga(s))
-            w.bind("<Double-Button-1>", lambda e, s=s_id: self.apri_form_modifica(force_id=s))
+            w.bind("<Button-1>", lambda e, s=s_id: self.select_row(s))
+            w.bind("<Double-Button-1>", lambda e, s=s_id: self.open_edit_form(force_id=s))
             w.bind("<Enter>", lambda e, f=riga_frame, s=s_id: f.configure(fg_color=("#F8F8F9", "#3A3A3C")) if f.winfo_exists() and self.selected_socio_id != s else None)
             w.bind("<Leave>", lambda e, f=riga_frame, s=s_id: f.configure(fg_color=("#FFFFFF", "#2C2C2E")) if f.winfo_exists() and self.selected_socio_id != s else None)
 
         self.row_frames[s_id] = riga_frame
 
-    def carica_dati(self, reset_page=False):
+    def load_data(self, reset_page=False):
         if reset_page:
             self.pagina_corrente = 1
             
@@ -583,22 +572,22 @@ class SociView(ctk.CTkFrame):
         db.close()
 
         for s_data in soci_data:
-            self.crea_riga_tabella(s_data)
+            self.create_table_row(s_data)
             
         self.lbl_page.configure(text=f"Pagina {self.pagina_corrente} di {totale_pagine} (Totale: {totale_soci} soci)")
         self.btn_prev.configure(state="normal" if self.pagina_corrente > 1 else "disabled")
         self.btn_next.configure(state="normal" if self.pagina_corrente < totale_pagine else "disabled")
 
-    def apri_form_nuovo(self):
-        SocioFormWindow(self, refresh_callback=lambda: self.carica_dati(reset_page=False))
+    def open_new_form(self):
+        MemberFormWindow(self, refresh_callback=lambda: self.load_data(reset_page=False))
 
-    def apri_form_modifica(self, force_id=None):
+    def open_edit_form(self, force_id=None):
         target_id = force_id or self.selected_socio_id
         if not target_id: 
             return messagebox.showwarning("Attenzione", "Seleziona prima un socio dalla lista.")
-        SocioFormWindow(self, refresh_callback=lambda: self.carica_dati(reset_page=False), socio_id=target_id)
+        MemberFormWindow(self, refresh_callback=lambda: self.load_data(reset_page=False), socio_id=target_id)
 
-    def elimina_socio(self):
+    def delete_member(self):
         if not self.selected_socio_id: return messagebox.showwarning("Attenzione", "Seleziona prima un socio dalla lista.")
         
         db = SessionLocal()
@@ -609,4 +598,4 @@ class SociView(ctk.CTkFrame):
             db.commit()
             
         db.close()
-        self.carica_dati(reset_page=False)
+        self.load_data(reset_page=False)

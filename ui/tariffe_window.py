@@ -3,33 +3,24 @@ from tkinter import messagebox
 from datetime import datetime
 import json
 import os
-import sys
 from core.database import SessionLocal, Tier, Member
 
-def get_persistent_path(filename):
-    if getattr(sys, 'frozen', False):
-        base_dir = os.path.dirname(sys.executable)
-    else:
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(base_dir, filename)
-
-def leggi_impostazione(chiave, default):
-    config_path = get_persistent_path("config.json")
-    if os.path.exists(config_path):
+def read_setting(chiave, default):
+    if os.path.exists("config.json"):
         try:
-            with open(config_path, "r") as f: return json.load(f).get(chiave, default)
+            with open("config.json", "r") as f: return json.load(f).get(chiave, default)
         except: pass
     return default
 
-class TariffeView(ctk.CTkFrame):
+class TiersView(ctk.CTkFrame):
     def __init__(self, parent, controller=None, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
         self.tier_id_in_modifica = None
         self.row_frames = {}
         self.selected_tariffa_id = None
         self.font_riga = ctk.CTkFont(family="Montserrat", size=13)
-        self.mostra_costo = leggi_impostazione("mostra_costo_fasce", False)
-        self.mostra_eta = leggi_impostazione("mostra_eta_fasce", False)
+        self.mostra_costo = read_setting("mostra_costo_fasce", False)
+        self.mostra_eta = read_setting("mostra_eta_fasce", False)
 
         self.grid_rowconfigure(2, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -78,13 +69,13 @@ class TariffeView(ctk.CTkFrame):
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=5)
 
-        self.btn_salva = ctk.CTkButton(btn_frame, text="Salva Dati", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.salva_tariffa)
+        self.btn_salva = ctk.CTkButton(btn_frame, text="Salva Dati", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.save_tier)
         self.btn_salva.pack(side="left", padx=(0, 10))
 
-        ctk.CTkButton(btn_frame, text="Svuota Form", width=120, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.svuota_form).pack(side="left")
+        ctk.CTkButton(btn_frame, text="Svuota Form", width=120, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.clear_form).pack(side="left")
         
-        ctk.CTkButton(btn_frame, text="✏️ Modifica", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.carica_in_form).pack(side="left", padx=(20, 10))
-        ctk.CTkButton(btn_frame, text="🗑️ Elimina", width=120, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#FF3B30", hover_color="#e03026", command=self.elimina_tariffa).pack(side="right")
+        ctk.CTkButton(btn_frame, text="✏️ Modifica", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#007AFF", hover_color="#005ecb", command=self.load_into_form).pack(side="left", padx=(20, 10))
+        ctk.CTkButton(btn_frame, text="🗑️ Elimina", width=120, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#FF3B30", hover_color="#e03026", command=self.delete_tier).pack(side="right")
 
         self.table_container = ctk.CTkFrame(self, fg_color="transparent")
         self.table_container.grid(row=2, column=0, sticky="nsew", padx=20, pady=(10, 20))
@@ -108,9 +99,9 @@ class TariffeView(ctk.CTkFrame):
         self.scroll_table = ctk.CTkScrollableFrame(self.table_container, fg_color="transparent")
         self.scroll_table.pack(fill="both", expand=True)
 
-        self.carica_dati()
+        self.load_data()
 
-    def seleziona_riga(self, t_id):
+    def select_row(self, t_id):
         self.selected_tariffa_id = t_id
         for r_id, frame in self.row_frames.items():
             if frame.winfo_exists():
@@ -119,7 +110,7 @@ class TariffeView(ctk.CTkFrame):
                 else:
                     frame.configure(fg_color=("#FFFFFF", "#2C2C2E"), border_color=("#E5E5EA", "#3A3A3C"))
 
-    def svuota_form(self):
+    def clear_form(self):
         self.ent_sigla.delete(0, 'end')
         if self.mostra_eta:
             self.ent_eta_min.delete(0, 'end'); self.ent_eta_min.insert(0, "0")
@@ -133,9 +124,9 @@ class TariffeView(ctk.CTkFrame):
         self.tier_id_in_modifica = None
         self.btn_salva.configure(text="Salva Dati", fg_color="#34C759", hover_color="#2eb350")
         self.selected_tariffa_id = None
-        self.carica_dati()
+        self.load_data()
 
-    def crea_riga_tabella(self, t):
+    def create_table_row(self, t):
         riga_frame = ctk.CTkFrame(self.scroll_table, fg_color=("#FFFFFF", "#2C2C2E"), height=45, corner_radius=8, border_width=1, border_color=("#E5E5EA", "#3A3A3C"), cursor="hand2")
         riga_frame.pack(fill="x", pady=2)
         riga_frame.pack_propagate(False)
@@ -157,27 +148,27 @@ class TariffeView(ctk.CTkFrame):
             elementi_riga.append(lbl)
 
         for w in elementi_riga:
-            w.bind("<Button-1>", lambda e, id=t.id: self.seleziona_riga(id))
+            w.bind("<Button-1>", lambda e, id=t.id: self.select_row(id))
             w.bind("<Enter>", lambda e, f=riga_frame, id=t.id: f.configure(fg_color=("#F8F8F9", "#3A3A3C")) if f.winfo_exists() and self.selected_tariffa_id != id else None)
             w.bind("<Leave>", lambda e, f=riga_frame, id=t.id: f.configure(fg_color=("#FFFFFF", "#2C2C2E")) if f.winfo_exists() and self.selected_tariffa_id != id else None)
 
         self.row_frames[t.id] = riga_frame
 
-    def carica_dati(self):
+    def load_data(self):
         for widget in self.scroll_table.winfo_children(): widget.destroy()
         self.row_frames.clear()
         db = SessionLocal()
         tariffe = db.query(Tier).all()
         for t in tariffe:
-            self.crea_riga_tabella(t)
+            self.create_table_row(t)
         db.close()
 
-    def carica_in_form(self):
+    def load_into_form(self):
         if not self.selected_tariffa_id: return messagebox.showwarning("Attenzione", "Seleziona una fascia.")
         db = SessionLocal()
         tariffa = db.query(Tier).filter(Tier.id == self.selected_tariffa_id).first()
         if tariffa:
-            self.svuota_form()
+            self.clear_form()
             self.ent_sigla.delete(0, 'end'); self.ent_sigla.insert(0, tariffa.name)
             if self.mostra_eta:
                 self.ent_eta_min.delete(0, 'end'); self.ent_eta_min.insert(0, str(tariffa.min_age))
@@ -192,7 +183,7 @@ class TariffeView(ctk.CTkFrame):
             self.btn_salva.configure(text="Aggiorna Dati", fg_color="#007AFF", hover_color="#005ecb")
         db.close()
 
-    def salva_tariffa(self):
+    def save_tier(self):
         sigla = self.ent_sigla.get().strip()
         if not sigla: return messagebox.showwarning("Errore", "La sigla è obbligatoria.")
         accesso = self.ent_accesso.get().strip()
@@ -231,10 +222,10 @@ class TariffeView(ctk.CTkFrame):
 
         db.commit()
         db.close()
-        self.svuota_form()
-        self.carica_dati()
+        self.clear_form()
+        self.load_data()
 
-    def elimina_tariffa(self):
+    def delete_tier(self):
         if not self.selected_tariffa_id: return messagebox.showwarning("Attenzione", "Seleziona una fascia.")
         db = SessionLocal()
         soci_collegati = db.query(Member).filter(Member.tier_id == self.selected_tariffa_id).count()
@@ -247,5 +238,5 @@ class TariffeView(ctk.CTkFrame):
             if tariffa:
                 db.delete(tariffa)
                 db.commit()
-            self.svuota_form()
+            self.clear_form()
         db.close()

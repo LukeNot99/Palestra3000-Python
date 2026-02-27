@@ -2,9 +2,9 @@ import customtkinter as ctk
 from tkinter import messagebox
 from datetime import datetime, date, timedelta
 from core.database import SessionLocal, Lesson, Activity
-from core.utils import parse_date  # IMPORTIAMO L'UTILITY
+from core.utils import parse_date
 
-class LezioniView(ctk.CTkFrame):
+class LessonsView(ctk.CTkFrame):
     def __init__(self, parent, app):
         super().__init__(parent, fg_color="transparent")
         self.app = app
@@ -44,7 +44,7 @@ class LezioniView(ctk.CTkFrame):
         ctk.CTkLabel(left_frame, text="Posti:", font=ctk.CTkFont(family="Montserrat", weight="bold")).pack(pady=(5, 0))
         self.ent_posti = ctk.CTkEntry(left_frame, justify="center"); self.ent_posti.insert(0, "60"); self.ent_posti.pack(pady=5, padx=20, fill="x")
 
-        ctk.CTkButton(left_frame, text="⚡ Genera Periodo", width=160, height=38, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.genera_lezioni).pack(pady=20)
+        ctk.CTkButton(left_frame, text="⚡ Genera Periodo", width=160, height=38, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.generate_lessons).pack(pady=20)
 
         right_frame = ctk.CTkFrame(self, fg_color="transparent")
         right_frame.grid(row=0, column=1, sticky="nsew")
@@ -61,7 +61,7 @@ class LezioniView(ctk.CTkFrame):
         act_names = [a.name for a in activities] if activities else ["Nessuna attività registrata"]
         db.close()
         
-        self.cmb_attivita = ctk.CTkOptionMenu(top_right, values=act_names, font=ctk.CTkFont(family="Montserrat", size=14), width=180, fg_color="#007AFF", command=self.carica_tabella)
+        self.cmb_attivita = ctk.CTkOptionMenu(top_right, values=act_names, font=ctk.CTkFont(family="Montserrat", size=14), width=180, fg_color="#007AFF", command=self.load_table)
         self.cmb_attivita.pack(side="left", padx=(0, 20))
 
         ctk.CTkLabel(top_right, text="Mostra:", font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=(0, 5))
@@ -70,11 +70,11 @@ class LezioniView(ctk.CTkFrame):
         anno_oggi = datetime.now().year
         anni_str = [str(anno_oggi - 1), str(anno_oggi), str(anno_oggi + 1), str(anno_oggi + 2)]
 
-        self.cmb_filtro_mese = ctk.CTkOptionMenu(top_right, values=mesi_str, width=70, font=ctk.CTkFont(family="Montserrat", size=14), command=self.carica_tabella)
+        self.cmb_filtro_mese = ctk.CTkOptionMenu(top_right, values=mesi_str, width=70, font=ctk.CTkFont(family="Montserrat", size=14), command=self.load_table)
         self.cmb_filtro_mese.set(f"{datetime.now().month:02d}")
         self.cmb_filtro_mese.pack(side="left", padx=(0, 5))
 
-        self.cmb_filtro_anno = ctk.CTkOptionMenu(top_right, values=anni_str, width=80, font=ctk.CTkFont(family="Montserrat", size=14), command=self.carica_tabella)
+        self.cmb_filtro_anno = ctk.CTkOptionMenu(top_right, values=anni_str, width=80, font=ctk.CTkFont(family="Montserrat", size=14), command=self.load_table)
         self.cmb_filtro_anno.set(str(anno_oggi))
         self.cmb_filtro_anno.pack(side="left")
 
@@ -98,11 +98,11 @@ class LezioniView(ctk.CTkFrame):
         self.scroll_table.pack(fill="both", expand=True)
 
         ctk.CTkLabel(right_frame, text="💡 Suggerimento: Tieni premuto 'Ctrl' (Windows) o 'Cmd' (Mac) per selezionare più lezioni.", font=ctk.CTkFont(family="Montserrat", size=12, slant="italic"), text_color=("#86868B", "#98989D")).grid(row=2, column=0, pady=(15, 0), sticky="w")
-        ctk.CTkButton(right_frame, text="🗑️ Elimina Selezionate", width=200, height=38, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#FF3B30", hover_color="#c0392b", command=self.elimina_lezione).grid(row=2, column=0, pady=(15, 0), sticky="e")
+        ctk.CTkButton(right_frame, text="🗑️ Elimina Selezionate", width=200, height=38, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#FF3B30", hover_color="#c0392b", command=self.delete_lesson).grid(row=2, column=0, pady=(15, 0), sticky="e")
 
-        self.carica_tabella()
+        self.load_table()
 
-    def seleziona_riga(self, l_id, multi=False):
+    def select_row(self, l_id, multi=False):
         if multi:
             if l_id in self.selected_lesson_ids: self.selected_lesson_ids.remove(l_id)
             else: self.selected_lesson_ids.add(l_id)
@@ -116,7 +116,7 @@ class LezioniView(ctk.CTkFrame):
                 else:
                     f.configure(fg_color=("#FFFFFF", "#2C2C2E"), border_color=("#E5E5EA", "#3A3A3C"))
 
-    def crea_riga_tabella(self, l_data):
+    def create_table_row(self, l_data):
         f = ctk.CTkFrame(self.scroll_table, fg_color=("#FFFFFF", "#2C2C2E"), height=45, corner_radius=8, border_width=1, border_color=("#E5E5EA", "#3A3A3C"), cursor="hand2")
         f.pack(fill="x", pady=2); f.pack_propagate(False)
         
@@ -135,15 +135,15 @@ class LezioniView(ctk.CTkFrame):
             
         l_id = l_data["id"]
         for w in elems:
-            w.bind("<Button-1>", lambda e, lid=l_id: self.seleziona_riga(lid, multi=False))
-            w.bind("<Control-Button-1>", lambda e, lid=l_id: self.seleziona_riga(lid, multi=True)) 
-            w.bind("<Command-Button-1>", lambda e, lid=l_id: self.seleziona_riga(lid, multi=True)) 
+            w.bind("<Button-1>", lambda e, lid=l_id: self.select_row(lid, multi=False))
+            w.bind("<Control-Button-1>", lambda e, lid=l_id: self.select_row(lid, multi=True)) 
+            w.bind("<Command-Button-1>", lambda e, lid=l_id: self.select_row(lid, multi=True)) 
             w.bind("<Enter>", lambda e, fr=f, lid=l_id: fr.configure(fg_color=("#F8F8F9", "#3A3A3C")) if fr.winfo_exists() and lid not in self.selected_lesson_ids else None)
             w.bind("<Leave>", lambda e, fr=f, lid=l_id: fr.configure(fg_color=("#FFFFFF", "#2C2C2E")) if fr.winfo_exists() and lid not in self.selected_lesson_ids else None)
         
         self.row_frames[l_id] = f
 
-    def carica_tabella(self, *args):
+    def load_table(self, *args):
         for w in self.scroll_table.winfo_children(): w.destroy()
         self.row_frames.clear()
         self.selected_lesson_ids.clear() 
@@ -186,9 +186,9 @@ class LezioniView(ctk.CTkFrame):
         db.close()
 
         for l_d in lez_data:
-            self.crea_riga_tabella(l_d)
+            self.create_table_row(l_d)
 
-    def genera_lezioni(self):
+    def generate_lessons(self):
         nome_att = self.cmb_attivita.get()
         if nome_att == "Nessuna attività registrata":
             return messagebox.showwarning("Attenzione", "Devi prima creare almeno un'attività nella sezione 'Gestione Attività'!")
@@ -208,7 +208,6 @@ class LezioniView(ctk.CTkFrame):
             if ora_ini_dt >= ora_fin_dt: return messagebox.showwarning("Errore Logico", "L'orario di fine lezione deve essere successivo all'orario di inizio.")
         except ValueError: return messagebox.showwarning("Errore Orario", "Inserisci orari validi nel formato HH:MM (es. 19:00 o 08:30).")
             
-        # --- UTILIZZO UTILS.PY PER VALIDAZIONE DATA SICURA ---
         d_inizio = parse_date(self.ent_data_inizio.get())
         d_fine = parse_date(self.ent_data_fine.get())
 
@@ -220,7 +219,6 @@ class LezioniView(ctk.CTkFrame):
         
         if d_inizio > d_fine: 
             return messagebox.showwarning("Errore Logico", "La data 'Dal' non può essere successiva alla data 'Al'.")
-        # -----------------------------------------------------
 
         g_scelti = [i for i in range(7) if self.giorni_vars[i].get() == 1]
         if not g_scelti: return messagebox.showwarning("Errore", "Spunta almeno un giorno della settimana.")
@@ -250,9 +248,9 @@ class LezioniView(ctk.CTkFrame):
         messagebox.showinfo("Completato", f"Pianificazione conclusa.\nSono state generate {count} nuove lezioni!")
         self.cmb_filtro_mese.set(f"{d_inizio.month:02d}")
         self.cmb_filtro_anno.set(str(d_inizio.year))
-        self.carica_tabella()
+        self.load_table()
 
-    def elimina_lezione(self):
+    def delete_lesson(self):
         if not self.selected_lesson_ids: 
             return messagebox.showwarning("Attenzione", "Seleziona almeno una lezione prima di eliminare.")
             
@@ -267,4 +265,4 @@ class LezioniView(ctk.CTkFrame):
             db.close()
             
             self.selected_lesson_ids.clear()
-            self.carica_tabella()
+            self.load_table()

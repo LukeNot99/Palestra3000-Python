@@ -13,12 +13,12 @@ from PIL import Image
 from core.database import SessionLocal, Member, Lesson, Booking, seed_data
 from core.utils import parse_date
 
-from ui.soci_window import SociView, SocioFormWindow
-from ui.tariffe_window import TariffeView
-from ui.attivita_window import AttivitaView
-from ui.lezioni_window import LezioniView
-from ui.calendario_window import CalendarioView
-from ui.tornello_window import TornelloView
+from ui.soci_window import MembersView, MemberFormWindow
+from ui.tariffe_window import TiersView
+from ui.attivita_window import ActivitiesView
+from ui.lezioni_window import LessonsView
+from ui.calendario_window import CalendarView
+from ui.tornello_window import TurnstileView
 from ui.settings_window import SettingsView
 
 def resource_path(relative_path):
@@ -35,7 +35,7 @@ def get_persistent_path(filename):
         base_dir = os.path.dirname(os.path.abspath(__file__))
     return os.path.join(base_dir, filename)
 
-def carica_impostazione_iniziale(chiave, default):
+def load_initial_setting(chiave, default):
     config_path = get_persistent_path("config.json")
     if os.path.exists(config_path):
         try:
@@ -43,7 +43,7 @@ def carica_impostazione_iniziale(chiave, default):
         except: pass
     return default
 
-ctk.set_appearance_mode(carica_impostazione_iniziale("tema", "Light"))  
+ctk.set_appearance_mode(load_initial_setting("tema", "Light"))  
 
 class App(ctk.CTk):
     def __init__(self):
@@ -56,21 +56,17 @@ class App(ctk.CTk):
         
         seed_data()
 
-        # SETUP SDOPPIATO DELLE PORTE SERIALI
         self.serial_reader_conn = None
         self.stop_serial_thread = threading.Event()
         
-        self.porta_rele = carica_impostazione_iniziale("porta_rele", "")
-        self.avvia_ascolto_lettore(carica_impostazione_iniziale("porta_lettore", ""))
+        self.porta_rele = load_initial_setting("porta_rele", "")
+        self.start_reader_listener(load_initial_setting("porta_lettore", ""))
         
-        self.cronologia_accessi = [] 
+        self.access_history = [] 
         self.giorno_tracker = datetime.now().date()
-        self.soci_entrati_oggi = set()
-        self._ultimo_badge = None
-        self._ultimo_badge_ts = 0.0
-        self._badge_debounce_sec = 3.0
+        self.members_in_facility = set() 
         
-        self.bind_all("<F12>", self.apertura_manuale_globale)
+        self.bind_all("<F12>", self.global_manual_open)
 
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
@@ -82,7 +78,7 @@ class App(ctk.CTk):
         self.sidebar.grid_rowconfigure(10, weight=1) 
 
         self.logo_container = None
-        self.aggiorna_logo() 
+        self.update_logo() 
 
         ctk.CTkLabel(self.sidebar, text="QUOTIDIANO", font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"), text_color=("#86868B", "#98989D")).grid(row=1, column=0, padx=24, pady=(0, 10), sticky="w")
 
@@ -91,30 +87,30 @@ class App(ctk.CTk):
         self.current_view_name = None
         self.current_frame = None
 
-        self.crea_bottone_menu("dashboard", "Dashboard", "dashboard", row=2)
-        self.crea_bottone_menu("tornello", "Controllo Accessi", "tornello", row=3)
-        self.crea_bottone_menu("soci", "Anagrafica Soci", "soci", row=4)
-        self.crea_bottone_menu("calendario", "Calendario Corsi", "calendario", row=5)
+        self.create_menu_button("dashboard", "Dashboard", "dashboard", row=2)
+        self.create_menu_button("tornello", "Controllo Accessi", "tornello", row=3)
+        self.create_menu_button("soci", "Anagrafica Soci", "soci", row=4)
+        self.create_menu_button("calendario", "Calendario Corsi", "calendario", row=5)
 
         ctk.CTkLabel(self.sidebar, text="AMMINISTRAZIONE", font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"), text_color=("#86868B", "#98989D")).grid(row=6, column=0, padx=24, pady=(30, 10), sticky="w")
 
-        self.crea_bottone_menu("lezioni", "Piani Settimanali", "lezioni", row=7)
-        self.crea_bottone_menu("tariffe", "Tariffario e Costi", "tariffe", row=8)
-        self.crea_bottone_menu("attivita", "Gestione Attività", "attivita", row=9)
-        self.crea_bottone_menu("impostazioni", "Impostazioni", "impostazioni", row=10, extra_pady=(2, 20))
+        self.create_menu_button("lezioni", "Piani Settimanali", "lezioni", row=7)
+        self.create_menu_button("tariffe", "Tariffario e Costi", "tariffe", row=8)
+        self.create_menu_button("attivita", "Gestione Attività", "attivita", row=9)
+        self.create_menu_button("impostazioni", "Impostazioni", "impostazioni", row=10, extra_pady=(2, 20))
 
         self.main_content = ctk.CTkFrame(self, fg_color="transparent", corner_radius=0)
         self.main_content.grid(row=0, column=1, sticky="nsew", padx=30, pady=30)
         
         self.show_view("dashboard")
 
-    def aggiorna_logo(self):
+    def update_logo(self):
         if self.logo_container: self.logo_container.destroy()
         self.logo_container = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         self.logo_container.grid(row=0, column=0, padx=20, pady=(30, 30), sticky="ew")
         
-        percorso_logo = carica_impostazione_iniziale("percorso_logo", "")
-        nome_palestra = carica_impostazione_iniziale("nome_palestra", "Palestra 3000")
+        percorso_logo = load_initial_setting("percorso_logo", "")
+        nome_palestra = load_initial_setting("nome_palestra", "Palestra 3000")
 
         if percorso_logo and os.path.exists(percorso_logo):
             try:
@@ -147,31 +143,31 @@ class App(ctk.CTk):
             
         if view_name not in self.views:
             if view_name == "dashboard": self.views[view_name] = DashboardView(self.main_content, self)
-            elif view_name == "soci": self.views[view_name] = SociView(self.main_content, self)
-            elif view_name == "tariffe": self.views[view_name] = TariffeView(self.main_content, self)
-            elif view_name == "attivita": self.views[view_name] = AttivitaView(self.main_content, self)
-            elif view_name == "lezioni": self.views[view_name] = LezioniView(self.main_content, self)
-            elif view_name == "calendario": self.views[view_name] = CalendarioView(self.main_content, self)
-            elif view_name == "tornello": self.views[view_name] = TornelloView(self.main_content, self)
+            elif view_name == "soci": self.views[view_name] = MembersView(self.main_content, self)
+            elif view_name == "tariffe": self.views[view_name] = TiersView(self.main_content, self)
+            elif view_name == "attivita": self.views[view_name] = ActivitiesView(self.main_content, self)
+            elif view_name == "lezioni": self.views[view_name] = LessonsView(self.main_content, self)
+            elif view_name == "calendario": self.views[view_name] = CalendarView(self.main_content, self)
+            elif view_name == "tornello": self.views[view_name] = TurnstileView(self.main_content, self)
             elif view_name == "impostazioni": self.views[view_name] = SettingsView(self.main_content, self)
 
         self.current_frame = self.views[view_name]
         self.current_frame.pack(fill="both", expand=True)
 
-        if hasattr(self.current_frame, "carica_dati"): self.current_frame.carica_dati()
-        elif hasattr(self.current_frame, "carica_tabella"): self.current_frame.carica_tabella()
+        if hasattr(self.current_frame, "load_data"): self.current_frame.load_data()
+        elif hasattr(self.current_frame, "load_table"): self.current_frame.load_table()
         elif hasattr(self.current_frame, "load_stats"): self.current_frame.load_stats()
-        elif hasattr(self.current_frame, "disegna_calendario"): self.current_frame.disegna_calendario()
+        elif hasattr(self.current_frame, "draw_calendar"): self.current_frame.draw_calendar()
 
-        if view_name == "tornello" and hasattr(self.current_frame, "aggiorna_contatore_sede"):
-            self.current_frame.aggiorna_contatore_sede()
+        if view_name == "tornello" and hasattr(self.current_frame, "update_in_facility_counter"):
+            self.current_frame.update_in_facility_counter()
 
-    def crea_bottone_menu(self, nome_icona, testo, view_name, row, extra_pady=(2,2)):
+    def create_menu_button(self, nome_icona, testo, view_name, row, extra_pady=(2,2)):
         btn_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent", corner_radius=8, height=42, cursor="hand2")
         btn_frame.grid(row=row, column=0, padx=15, pady=extra_pady, sticky="ew")
         btn_frame.pack_propagate(False)
         
-        icona_img = self.carica_icona(nome_icona, 20)
+        icona_img = self.load_icon(nome_icona, 20)
         if icona_img: lbl_icon = ctk.CTkLabel(btn_frame, text="", image=icona_img, width=35, anchor="center")
         else: lbl_icon = ctk.CTkLabel(btn_frame, text="▪", font=ctk.CTkFont(family="Montserrat", size=18), text_color=("#1D1D1F", "#FFFFFF"), width=35, anchor="center")
         lbl_icon.pack(side="left", padx=(10, 0))
@@ -190,7 +186,7 @@ class App(ctk.CTk):
             
         self.bottoni_menu[view_name] = (btn_frame, lbl_icon, lbl_text)
 
-    def carica_icona(self, nome_base, size):
+    def load_icon(self, nome_base, size):
         percorso_light = os.path.join(self.icons_dir, f"{nome_base}_black.png")
         percorso_dark = os.path.join(self.icons_dir, f"{nome_base}_white.png")
         percorso_singolo = os.path.join(self.icons_dir, f"{nome_base}.png")
@@ -200,8 +196,7 @@ class App(ctk.CTk):
         except Exception: pass
         return None
 
-    # ================== GESTIONE HARDWARE (LETTORE E RELE') ==================
-    def avvia_ascolto_lettore(self, porta):
+    def start_reader_listener(self, porta):
         if self.serial_reader_conn and self.serial_reader_conn.is_open:
             self.stop_serial_thread.set()
             self.serial_reader_conn.close()
@@ -210,51 +205,40 @@ class App(ctk.CTk):
             try:
                 self.serial_reader_conn = serial.Serial(porta, 9600, timeout=1)
                 self.stop_serial_thread.clear()
-                threading.Thread(target=self._ciclo_ascolto_lettore, daemon=True).start()
+                threading.Thread(target=self._reader_listen_loop, daemon=True).start()
             except Exception as e: 
                 print(f"Errore connessione lettore: {e}")
 
-    def _ciclo_ascolto_lettore(self):
+    def _reader_listen_loop(self):
         while not self.stop_serial_thread.is_set():
             if self.serial_reader_conn and self.serial_reader_conn.in_waiting > 0:
                 try:
                     dato = self.serial_reader_conn.readline().decode('utf-8').strip()
                     scheda = ''.join(filter(str.isdigit, dato)) 
-                    if scheda: self.after(0, self.gestisci_accesso_globale, scheda)
+                    if scheda: self.after(0, self.handle_global_access, scheda)
                 except Exception: pass
 
-    def apri_tornello_fisico(self):
-        """ Invia l'impulso al modulo Relè USB in un thread separato """
+    def open_physical_turnstile(self):
         if self.porta_rele and "Nessun hardware" not in self.porta_rele:
-            threading.Thread(target=self._impulso_rele, daemon=True).start()
+            threading.Thread(target=self._relay_pulse, daemon=True).start()
 
-    def _impulso_rele(self):
+    def _relay_pulse(self):
         try:
-            # Apriamo la porta al volo
             with serial.Serial(self.porta_rele, 9600, timeout=1) as ser:
-                # Comandi HEX standard per moduli Relè USB LCUS-1 (CH340)
                 comando_on = b'\xA0\x01\x01\xA2'
                 comando_off = b'\xA0\x01\x00\xA1'
                 
-                # 1. Eccitiamo il relè (Tornello APERTO)
                 ser.write(comando_on)
+                ser.dtr = True; ser.rts = True
                 
-                # Invia anche i segnali RTS/DTR per compatibilità con relè "passivi"
-                ser.dtr = True
-                ser.rts = True
+                time.sleep(0.5) 
                 
-                # Teniamo aperto il tornello per mezzo secondo
-                time.sleep(0.5)
-                
-                # 2. Chiudiamo il relè (Tornello CHIUSO e bloccato)
                 ser.write(comando_off)
-                ser.dtr = False
-                ser.rts = False
+                ser.dtr = False; ser.rts = False
         except Exception as e:
             print(f"Errore comando Relè USB: {e}")
-    # =========================================================================
 
-    def riproduci_audio(self, nome_file):
+    def play_audio(self, nome_file):
         percorso = resource_path(os.path.join("messaggi", nome_file))
         if os.path.exists(percorso):
             sistema_operativo = platform.system()
@@ -264,12 +248,12 @@ class App(ctk.CTk):
             elif sistema_operativo == "Darwin":
                 subprocess.Popen(["afplay", percorso])
 
-    def registra_log(self, messaggio):
-        self.cronologia_accessi.append(messaggio)
-        if self.current_view_name == "tornello" and hasattr(self.current_frame, "aggiungi_log"):
-            self.current_frame.aggiungi_log(messaggio)
+    def register_log(self, messaggio):
+        self.access_history.append(messaggio)
+        if self.current_view_name == "tornello" and hasattr(self.current_frame, "add_log"):
+            self.current_frame.add_log(messaggio)
 
-    def mostra_toast_notifica(self, titolo, messaggio, colore_sfondo):
+    def show_toast_notification(self, titolo, messaggio, colore_sfondo):
         toast = ctk.CTkToplevel(self)
         toast.overrideredirect(True) 
         toast.attributes('-topmost', True) 
@@ -281,73 +265,67 @@ class App(ctk.CTk):
         ctk.CTkLabel(toast, text=messaggio, font=ctk.CTkFont(family="Montserrat", size=14), text_color="white").pack()
         self.after(3500, toast.destroy)
 
-    def controlla_reset_giorno(self):
+    def check_day_reset(self):
         oggi = datetime.now().date()
         if oggi != self.giorno_tracker:
             self.giorno_tracker = oggi
-            self.soci_entrati_oggi.clear()
+            self.members_in_facility.clear()
 
-    def gestisci_accesso_globale(self, scheda_str):
+    def handle_global_access(self, scheda_str):
         if not scheda_str: return
-        now_ts = time.time()
-        if scheda_str == self._ultimo_badge and (now_ts - self._ultimo_badge_ts) < self._badge_debounce_sec:
-            return
-        self._ultimo_badge = scheda_str
-        self._ultimo_badge_ts = now_ts
-
-        self.controlla_reset_giorno()
+        self.check_day_reset()
         db = SessionLocal()
         socio = db.query(Member).filter(Member.badge_number == scheda_str).first()
         ora_str = datetime.now().strftime("%H:%M:%S")
 
         if not socio:
-            self.mostra_toast_notifica("ACCESSO NEGATO", "Scheda Non Registrata!", "#FF3B30")
-            self.riproduci_audio("NonValida.wav")
-            self.registra_log(f"{ora_str} > SCONOSCIUTO ( {scheda_str} ) : NEGATO (Invalida) #-")
+            self.show_toast_notification("ACCESSO NEGATO", "Scheda Non Registrata!", "#FF3B30")
+            self.play_audio("NonValida.wav")
+            self.register_log(f"{ora_str} > SCONOSCIUTO ( {scheda_str} ) : NEGATO (Invalida) #-")
             db.close(); return
 
         nome_completo = f"{socio.first_name} {socio.last_name}"
         adesso = datetime.now()
 
-        blocco_iscr = carica_impostazione_iniziale("blocco_iscr", True)
-        blocco_abb = carica_impostazione_iniziale("blocco_abb", True)
-        blocco_orari = carica_impostazione_iniziale("blocco_orari", True)
-        blocco_cert = carica_impostazione_iniziale("blocco_cert", False)
+        blocco_iscr = load_initial_setting("blocco_iscr", True)
+        blocco_abb = load_initial_setting("blocco_abb", True)
+        blocco_orari = load_initial_setting("blocco_orari", True)
+        blocco_cert = load_initial_setting("blocco_cert", False)
 
         if blocco_cert:
             if not socio.has_medical_certificate:
-                self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nCertificato Medico Mancante!", "#007AFF")
-                self.riproduci_audio("HeyOp.wav")
-                self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Cert. Medico Assente) #-")
+                self.show_toast_notification("ACCESSO NEGATO", f"{nome_completo}\nCertificato Medico Mancante!", "#007AFF")
+                self.play_audio("HeyOp.wav")
+                self.register_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Cert. Medico Assente) #-")
                 db.close(); return
             
             scad_cert = parse_date(socio.certificate_expiration)
-            if scad_cert and adesso.date() > scad_cert.date():
-                self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nCertificato Medico Scaduto!", "#007AFF")
-                self.riproduci_audio("HeyOp.wav")
-                self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Cert. Medico Scaduto) #-")
+            if scad_cert and adesso > scad_cert:
+                self.show_toast_notification("ACCESSO NEGATO", f"{nome_completo}\nCertificato Medico Scaduto!", "#007AFF")
+                self.play_audio("HeyOp.wav")
+                self.register_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Cert. Medico Scaduto) #-")
                 db.close(); return
 
         if blocco_iscr:
             scad_iscr = parse_date(socio.enrollment_expiration)
-            if scad_iscr and adesso.date() > scad_iscr.date():
-                self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nIscrizione Annuale Scaduta!", "#FF3B30")
-                self.riproduci_audio("HeyOp.wav")
-                self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Iscrizione Scaduta) #-")
+            if scad_iscr and adesso > scad_iscr:
+                self.show_toast_notification("ACCESSO NEGATO", f"{nome_completo}\nIscrizione Annuale Scaduta!", "#FF3B30")
+                self.play_audio("HeyOp.wav")
+                self.register_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Iscrizione Scaduta) #-")
                 db.close(); return
 
         if blocco_abb:
             scad_abb = parse_date(socio.membership_expiration)
-            if scad_abb and adesso.date() > scad_abb.date():
-                self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nAbbonamento Scaduto!", "#FF9500")
-                self.riproduci_audio("HeyOp.wav")
-                self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Abbonamento Scaduto) #-")
+            if scad_abb and adesso > scad_abb:
+                self.show_toast_notification("ACCESSO NEGATO", f"{nome_completo}\nAbbonamento Scaduto!", "#FF9500")
+                self.play_audio("HeyOp.wav")
+                self.register_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Abbonamento Scaduto) #-")
                 db.close(); return
 
         if not socio.tier:
-            self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nNessuna fascia assegnata.", "#FF9500")
-            self.riproduci_audio("HeyOp.wav")
-            self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Senza Fascia) #-")
+            self.show_toast_notification("ACCESSO NEGATO", f"{nome_completo}\nNessuna fascia assegnata.", "#FF9500")
+            self.play_audio("HeyOp.wav")
+            self.register_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Senza Fascia) #-")
             db.close(); return
 
         tier = socio.tier
@@ -362,9 +340,9 @@ class App(ctk.CTk):
                 else: in_orario = ora_attuale >= ora_inizio or ora_attuale <= ora_fine
                     
                 if not in_orario:
-                    self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nFuori orario consentito!", "#FF3B30")
-                    self.riproduci_audio("FuoriOrario.wav")
-                    self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Fuori Orario) #-")
+                    self.show_toast_notification("ACCESSO NEGATO", f"{nome_completo}\nFuori orario consentito!", "#FF3B30")
+                    self.play_audio("FuoriOrario.wav")
+                    self.register_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Fuori Orario) #-")
                     db.close()
                     return
             except ValueError: pass
@@ -374,9 +352,9 @@ class App(ctk.CTk):
         if tier.max_entries > 0:
             ingressi_usati = socio.entries_used if socio.entries_used else 0
             if ingressi_usati >= tier.max_entries:
-                self.mostra_toast_notifica("ACCESSO NEGATO", f"{nome_completo}\nCarnet Esaurito!", "#FF3B30")
-                self.riproduci_audio("FuoriOrario.wav")
-                self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Carnet Esaurito) #0")
+                self.show_toast_notification("ACCESSO NEGATO", f"{nome_completo}\nCarnet Esaurito!", "#FF3B30")
+                self.play_audio("FuoriOrario.wav")
+                self.register_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : NEGATO (Carnet Esaurito) #0")
                 db.close(); return
             else:
                 socio.entries_used = ingressi_usati + 1
@@ -385,23 +363,22 @@ class App(ctk.CTk):
                 messaggio_extra = f"\nIngressi residui: {ingressi_rimanenti}"
                 log_ingressi = f"#{ingressi_rimanenti}"
 
-        self.mostra_toast_notifica("ACCESSO CONSENTITO", f"Benvenuto {nome_completo}{messaggio_extra}", "#34C759")
-        self.registra_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : OK {log_ingressi}")
+        self.show_toast_notification("ACCESSO CONSENTITO", f"Benvenuto {nome_completo}{messaggio_extra}", "#34C759")
+        self.register_log(f"{ora_str} > {nome_completo} ( {scheda_str} ) : OK {log_ingressi}")
         
-        self.soci_entrati_oggi.add(socio.id)
-        if self.current_view_name == "tornello" and hasattr(self.current_frame, "aggiorna_contatore_sede"):
-            self.current_frame.aggiorna_contatore_sede()
+        self.members_in_facility.add(socio.id)
+        if self.current_view_name == "tornello" and hasattr(self.current_frame, "update_in_facility_counter"):
+            self.current_frame.update_in_facility_counter()
 
-        # INVIO COMANDO HARDWARE AL RELE'
-        self.apri_tornello_fisico()
+        self.open_physical_turnstile()
         
-        self.riproduci_audio("BuonLavoroDonne.wav" if socio.gender == "F" else "BuonLavoro.wav")
+        self.play_audio("BuonLavoroDonne.wav" if socio.gender == "F" else "BuonLavoro.wav")
         db.close()
 
-    def apertura_manuale_globale(self, event=None):
-        self.riproduci_audio("handopen.wav")
-        self.apri_tornello_fisico() # Apre il relè
-        self.mostra_toast_notifica("APERTURA D'UFFICIO", "Ingresso autorizzato dall'operatore.", "#007AFF")
+    def global_manual_open(self, event=None):
+        self.play_audio("handopen.wav")
+        self.open_physical_turnstile() 
+        self.show_toast_notification("APERTURA D'UFFICIO", "Ingresso autorizzato dall'operatore.", "#007AFF")
 
 
 class DashboardView(ctk.CTkFrame):
@@ -453,9 +430,9 @@ class DashboardView(ctk.CTkFrame):
         
         ctk.CTkLabel(actions_card, text="⚡ Azioni Rapide", font=ctk.CTkFont(family="Montserrat", size=18, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(20, 15))
 
-        self.crea_bottone_azione(actions_card, "👤 Anagrafica Soci", "#007AFF", lambda: self.app.show_view("soci"))
-        self.crea_bottone_azione(actions_card, "🎫 Controllo Accessi", "#FF3B30", lambda: self.app.show_view("tornello"))
-        self.crea_bottone_azione(actions_card, "📅 Calendario Corsi", "#FF9500", lambda: self.app.show_view("calendario"), is_last=True)
+        self.create_action_button(actions_card, "👤 Anagrafica Soci", "#007AFF", lambda: self.app.show_view("soci"))
+        self.create_action_button(actions_card, "🎫 Controllo Accessi", "#FF3B30", lambda: self.app.show_view("tornello"))
+        self.create_action_button(actions_card, "📅 Calendario Corsi", "#FF9500", lambda: self.app.show_view("calendario"), is_last=True)
 
         corsi_card = ctk.CTkFrame(left_col, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=16, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         corsi_card.pack(fill="both", expand=True) 
@@ -481,10 +458,10 @@ class DashboardView(ctk.CTkFrame):
 
         self.load_stats()
 
-    def apri_scheda_socio(self, socio_id):
-        SocioFormWindow(self.app, refresh_callback=self.load_stats, socio_id=socio_id)
+    def open_member_card(self, socio_id):
+        MemberFormWindow(self.app, refresh_callback=self.load_stats, socio_id=socio_id)
 
-    def crea_bottone_azione(self, parent, testo, colore, comando, is_last=False):
+    def create_action_button(self, parent, testo, colore, comando, is_last=False):
         btn = ctk.CTkButton(parent, text=testo, command=comando, font=ctk.CTkFont(family="Montserrat", size=15, weight="bold"), fg_color=("#F8F8F9", "#3A3A3C"), text_color=colore, hover_color=("#E5E5EA", "#48484A"), border_width=0, corner_radius=10, height=48, anchor="w")
         pady_val = (0, 10) if not is_last else (0, 20)
         btn.pack(fill="x", padx=20, pady=pady_val)
@@ -499,9 +476,11 @@ class DashboardView(ctk.CTkFrame):
         icon_box = ctk.CTkFrame(header, width=32, height=32, corner_radius=8, fg_color=accent_color)
         icon_box.pack(side="left")
         icon_box.pack_propagate(False)
-        icona_img = self.app.carica_icona(f"{nome_icona}_white", 20) or self.app.carica_icona(nome_icona, 20)
+        
+        icona_img = self.app.load_icon(f"{nome_icona}_white", 20) or self.app.load_icon(nome_icona, 20)
         if icona_img: ctk.CTkLabel(icon_box, text="", image=icona_img).place(relx=0.5, rely=0.5, anchor="center")
         else: ctk.CTkLabel(icon_box, text="▪", text_color="white", font=ctk.CTkFont(family="Montserrat", size=16)).place(relx=0.5, rely=0.5, anchor="center")
+        
         ctk.CTkLabel(header, text=title, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=12)
         lbl_val = ctk.CTkLabel(card, textvariable=text_variable, font=ctk.CTkFont(family="Montserrat", size=38, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
         lbl_val.pack(anchor="w", padx=20)
@@ -528,10 +507,10 @@ class DashboardView(ctk.CTkFrame):
                     scaduti_lista.append((socio, scad_abb.date()))
                     
             if not socio.tier: continue
-            if not scad_abb or oggi_dt.date() > scad_abb.date(): continue
+            if not scad_abb or oggi_dt > scad_abb: continue
             
             scad_iscr = parse_date(socio.enrollment_expiration)
-            if not scad_iscr or oggi_dt.date() > scad_iscr.date(): continue
+            if not scad_iscr or oggi_dt > scad_iscr: continue
             
             soci_attivi_reali += 1
 
@@ -595,7 +574,7 @@ class DashboardView(ctk.CTkFrame):
                 lbl_n.pack(side="left", padx=20)
 
                 for w in [riga_s, lbl_n, badge_scadenza] + badge_scadenza.winfo_children():
-                    w.bind("<Double-Button-1>", lambda e, sid=socio.id: self.apri_scheda_socio(sid))
+                    w.bind("<Double-Button-1>", lambda e, sid=socio.id: self.open_member_card(sid))
                     w.bind("<Enter>", lambda e, fr=riga_s: fr.configure(fg_color=("#E5E5EA", "#48484A")))
                     w.bind("<Leave>", lambda e, fr=riga_s: fr.configure(fg_color=("#F8F8F9", "#3A3A3C")))
 
