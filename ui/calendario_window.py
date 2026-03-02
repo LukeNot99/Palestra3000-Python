@@ -34,14 +34,14 @@ class QuickBookingWindow(ctk.CTkToplevel):
         search_frame = ctk.CTkFrame(self, fg_color="transparent")
         search_frame.pack(fill="x", padx=30, pady=5)
         
-        self.ent_ricerca = ctk.CTkEntry(search_frame, font=ctk.CTkFont(family="Montserrat", size=14))
-        self.ent_ricerca.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        self.ent_ricerca.bind("<KeyRelease>", self.on_search_change)
+        self.ent_search = ctk.CTkEntry(search_frame, font=ctk.CTkFont(family="Montserrat", size=14))
+        self.ent_search.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        self.ent_search.bind("<KeyRelease>", self.on_search_change)
         
         ctk.CTkButton(search_frame, text="Cerca", width=80, font=ctk.CTkFont(family="Montserrat", weight="bold"), command=self.search_members).pack(side="right")
 
-        self.scroll_risultati = ctk.CTkScrollableFrame(self, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
-        self.scroll_risultati.pack(fill="both", expand=True, padx=30, pady=20)
+        self.scroll_results = ctk.CTkScrollableFrame(self, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
+        self.scroll_results.pack(fill="both", expand=True, padx=30, pady=20)
 
         self.search_members() 
 
@@ -50,9 +50,9 @@ class QuickBookingWindow(ctk.CTkToplevel):
         self._search_timer = self.after(300, self.search_members) 
 
     def search_members(self):
-        for w in self.scroll_risultati.winfo_children(): w.destroy()
+        for w in self.scroll_results.winfo_children(): w.destroy()
         
-        termine = self.ent_ricerca.get().strip()
+        termine = self.ent_search.get().strip()
         
         db = SessionLocal()
         lezione = db.query(Lesson).get(self.lesson_id)
@@ -97,14 +97,14 @@ class QuickBookingWindow(ctk.CTkToplevel):
         db.close()
 
         if not soci_data:
-            ctk.CTkLabel(self.scroll_risultati, text="Nessun socio trovato.", font=ctk.CTkFont(family="Montserrat", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=20)
+            ctk.CTkLabel(self.scroll_results, text="Nessun socio trovato.", font=ctk.CTkFont(family="Montserrat", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=20)
             return
 
         if mostra_suggeriti and any(s["is_abituale"] for s in soci_data):
-            ctk.CTkLabel(self.scroll_risultati, text="💡 In cima: Soci iscritti abitualmente a questo corso", font=ctk.CTkFont(family="Montserrat", size=12, slant="italic"), text_color="#007AFF").pack(pady=(5, 5), padx=10, anchor="w")
+            ctk.CTkLabel(self.scroll_results, text="💡 In cima: Soci iscritti abitualmente a questo corso", font=ctk.CTkFont(family="Montserrat", size=12, slant="italic"), text_color="#007AFF").pack(pady=(5, 5), padx=10, anchor="w")
 
         for s in soci_data:
-            riga = ctk.CTkFrame(self.scroll_risultati, fg_color="transparent")
+            riga = ctk.CTkFrame(self.scroll_results, fg_color="transparent")
             riga.pack(fill="x", pady=5)
             
             icona_stella = "⭐ " if s["is_abituale"] else ""
@@ -113,13 +113,13 @@ class QuickBookingWindow(ctk.CTkToplevel):
             
             ctk.CTkLabel(riga, text=nome_comp, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), anchor="w").pack(side="left", padx=10)
             ctk.CTkButton(riga, text="Prenota", width=80, height=28, fg_color="#34C759", hover_color="#2eb350", font=ctk.CTkFont(family="Montserrat", weight="bold"), command=lambda s_id=s['id']: self.make_booking(s_id)).pack(side="right", padx=10)
-            ctk.CTkFrame(self.scroll_risultati, height=1, fg_color=("#E5E5EA", "#3A3A3C")).pack(fill="x", padx=10)
+            ctk.CTkFrame(self.scroll_results, height=1, fg_color=("#E5E5EA", "#3A3A3C")).pack(fill="x", padx=10)
 
-    def make_booking(self, socio_id):
+    def make_booking(self, member_id):
         db = SessionLocal()
         lezione = db.query(Lesson).get(self.lesson_id)
         
-        esistente = db.query(Booking).filter_by(member_id=socio_id, lesson_id=self.lesson_id).first()
+        esistente = db.query(Booking).filter_by(member_id=member_id, lesson_id=self.lesson_id).first()
         if esistente:
             db.close()
             return messagebox.showwarning("Attenzione", "Il socio è già prenotato per questo corso!")
@@ -130,7 +130,7 @@ class QuickBookingWindow(ctk.CTkToplevel):
                 db.close()
                 return
                 
-        nuova = Booking(member_id=socio_id, lesson_id=self.lesson_id)
+        nuova = Booking(member_id=member_id, lesson_id=self.lesson_id)
         db.add(nuova)
         db.commit()
         db.close()
@@ -163,8 +163,8 @@ class CalendarView(ctk.CTkFrame):
         nav_frame.pack(fill="x", pady=20, padx=20)
         
         ctk.CTkButton(nav_frame, text="◀", width=30, fg_color="transparent", text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Montserrat", size=18, weight="bold"), hover_color=("#F2F2F7", "#3A3A3C"), command=self.prev_month).pack(side="left")
-        self.lbl_mese_anno = ctk.CTkLabel(nav_frame, text="", font=ctk.CTkFont(family="Montserrat", size=18, weight="bold"))
-        self.lbl_mese_anno.pack(side="left", expand=True)
+        self.lbl_month_year = ctk.CTkLabel(nav_frame, text="", font=ctk.CTkFont(family="Montserrat", size=18, weight="bold"))
+        self.lbl_month_year.pack(side="left", expand=True)
         ctk.CTkButton(nav_frame, text="▶", width=30, fg_color="transparent", text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Montserrat", size=18, weight="bold"), hover_color=("#F2F2F7", "#3A3A3C"), command=self.next_month).pack(side="right")
 
         giorni_frame = ctk.CTkFrame(self.cal_frame, fg_color="transparent")
@@ -173,35 +173,35 @@ class CalendarView(ctk.CTkFrame):
             giorni_frame.grid_columnconfigure(i, weight=1)
             ctk.CTkLabel(giorni_frame, text=g, font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"), text_color=("#86868B", "#98989D")).grid(row=0, column=i, pady=5)
 
-        self.grid_giorni = ctk.CTkFrame(self.cal_frame, fg_color="transparent")
-        self.grid_giorni.pack(fill="both", expand=True, padx=10, pady=(0, 20))
-        for i in range(7): self.grid_giorni.grid_columnconfigure(i, weight=1)
-        for i in range(6): self.grid_giorni.grid_rowconfigure(i, weight=1)
+        self.grid_days = ctk.CTkFrame(self.cal_frame, fg_color="transparent")
+        self.grid_days.pack(fill="both", expand=True, padx=10, pady=(0, 20))
+        for i in range(7): self.grid_days.grid_columnconfigure(i, weight=1)
+        for i in range(6): self.grid_days.grid_rowconfigure(i, weight=1)
 
         self.les_frame = ctk.CTkFrame(self, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         self.les_frame.grid(row=0, column=1, sticky="nsew", padx=(0, 10))
         
-        self.lbl_data_corsi = ctk.CTkLabel(self.les_frame, text="Corsi del Giorno", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"))
-        self.lbl_data_corsi.pack(pady=(20, 10), padx=20, anchor="w")
+        self.lbl_date_lessons = ctk.CTkLabel(self.les_frame, text="Corsi del Giorno", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"))
+        self.lbl_date_lessons.pack(pady=(20, 10), padx=20, anchor="w")
         
-        self.scroll_corsi = ctk.CTkScrollableFrame(self.les_frame, fg_color="transparent")
-        self.scroll_corsi.pack(fill="both", expand=True, padx=10, pady=(0, 10))
+        self.scroll_lessons = ctk.CTkScrollableFrame(self.les_frame, fg_color="transparent")
+        self.scroll_lessons.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
         self.det_frame = ctk.CTkFrame(self, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         self.det_frame.grid(row=0, column=2, sticky="nsew")
         
-        self.lbl_dettaglio_corso = ctk.CTkLabel(self.det_frame, text="Nessun corso selezionato", font=ctk.CTkFont(family="Montserrat", size=18, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
-        self.lbl_dettaglio_corso.pack(pady=(20, 5), padx=20, anchor="w")
+        self.lbl_lesson_details = ctk.CTkLabel(self.det_frame, text="Nessun corso selezionato", font=ctk.CTkFont(family="Montserrat", size=18, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
+        self.lbl_lesson_details.pack(pady=(20, 5), padx=20, anchor="w")
         
-        self.lbl_info_corso = ctk.CTkLabel(self.det_frame, text="Seleziona un corso dalla colonna centrale", font=ctk.CTkFont(family="Montserrat", size=13), text_color=("#86868B", "#98989D"))
-        self.lbl_info_corso.pack(padx=20, anchor="w", pady=(0, 10))
+        self.lbl_lesson_info = ctk.CTkLabel(self.det_frame, text="Seleziona un corso dalla colonna centrale", font=ctk.CTkFont(family="Montserrat", size=13), text_color=("#86868B", "#98989D"))
+        self.lbl_lesson_info.pack(padx=20, anchor="w", pady=(0, 10))
 
-        self.scroll_prenotati = ctk.CTkScrollableFrame(self.det_frame, fg_color="transparent")
-        self.scroll_prenotati.pack(fill="both", expand=True, padx=10)
+        self.scroll_bookings = ctk.CTkScrollableFrame(self.det_frame, fg_color="transparent")
+        self.scroll_bookings.pack(fill="both", expand=True, padx=10)
 
-        self.btn_aggiungi_pren = ctk.CTkButton(self.det_frame, text="+ Aggiungi Prenotazione", height=45, font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.open_booking_popup)
-        self.btn_aggiungi_pren.pack(fill="x", padx=20, pady=20)
-        self.btn_aggiungi_pren.pack_forget() 
+        self.btn_add_booking = ctk.CTkButton(self.det_frame, text="+ Aggiungi Prenotazione", height=45, font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.open_booking_popup)
+        self.btn_add_booking.pack(fill="x", padx=20, pady=20)
+        self.btn_add_booking.pack_forget() 
 
         self.draw_calendar()
 
@@ -216,8 +216,8 @@ class CalendarView(ctk.CTkFrame):
         self.draw_calendar()
 
     def draw_calendar(self):
-        self.lbl_mese_anno.configure(text=f"{self.mesi_ita[self.current_month]} {self.current_year}")
-        for w in self.grid_giorni.winfo_children(): w.destroy()
+        self.lbl_month_year.configure(text=f"{self.mesi_ita[self.current_month]} {self.current_year}")
+        for w in self.grid_days.winfo_children(): w.destroy()
 
         cal = calendar.monthcalendar(self.current_year, self.current_month)
         oggi = datetime.now().date()
@@ -231,22 +231,22 @@ class CalendarView(ctk.CTkFrame):
                     elif data_corrente == oggi: bg_color = ("#E5E5EA", "#3A3A3C"); txt_color = ("#1D1D1F", "#FFFFFF")
                     else: bg_color = "transparent"; txt_color = ("#1D1D1F", "#FFFFFF")
 
-                    btn = ctk.CTkButton(self.grid_giorni, text=str(giorno), width=35, height=35, corner_radius=17, fg_color=bg_color, text_color=txt_color, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), hover_color=("#F2F2F7", "#3A3A3C") if bg_color == "transparent" else bg_color, command=lambda d=data_corrente: self.select_day(d))
+                    btn = ctk.CTkButton(self.grid_days, text=str(giorno), width=35, height=35, corner_radius=17, fg_color=bg_color, text_color=txt_color, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), hover_color=("#F2F2F7", "#3A3A3C") if bg_color == "transparent" else bg_color, command=lambda d=data_corrente: self.select_day(d))
                     btn.grid(row=riga, column=col, padx=2, pady=2)
 
         self.load_daily_lessons()
 
-    def select_day(self, data_selezionata):
-        self.selected_date = data_selezionata
+    def select_day(self, selected_date):
+        self.selected_date = selected_date
         self.selected_lesson_id = None
         self.draw_calendar()
         self.clear_details()
 
     def load_daily_lessons(self):
-        for w in self.scroll_corsi.winfo_children(): w.destroy()
+        for w in self.scroll_lessons.winfo_children(): w.destroy()
         
         data_str = self.selected_date.strftime("%Y-%m-%d")
-        self.lbl_data_corsi.configure(text=f"Corsi del {self.selected_date.strftime('%d/%m/%Y')}")
+        self.lbl_date_lessons.configure(text=f"Corsi del {self.selected_date.strftime('%d/%m/%Y')}")
 
         db = SessionLocal()
         lezioni = db.query(Lesson).filter(Lesson.date == data_str).order_by(Lesson.start_time).all()
@@ -265,11 +265,11 @@ class CalendarView(ctk.CTkFrame):
         db.close()
 
         if not lez_data:
-            ctk.CTkLabel(self.scroll_corsi, text="Nessun corso programmato.", font=ctk.CTkFont(family="Montserrat", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=40)
+            ctk.CTkLabel(self.scroll_lessons, text="Nessun corso programmato.", font=ctk.CTkFont(family="Montserrat", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=40)
             return
 
         for l in lez_data:
-            f = ctk.CTkFrame(self.scroll_corsi, fg_color=("#E5F1FF", "#0A2A4A") if self.selected_lesson_id == l["id"] else "transparent", corner_radius=8, cursor="hand2")
+            f = ctk.CTkFrame(self.scroll_lessons, fg_color=("#E5F1FF", "#0A2A4A") if self.selected_lesson_id == l["id"] else "transparent", corner_radius=8, cursor="hand2")
             f.pack(fill="x", pady=2)
             
             ctk.CTkLabel(f, text=l["start_time"], font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), text_color=("#007AFF", "#0A84FF")).pack(side="left", padx=(15, 10), pady=12)
@@ -288,10 +288,10 @@ class CalendarView(ctk.CTkFrame):
                 widget.bind("<Button-1>", lambda e, l_id=l["id"]: self.show_lesson_details(l_id))
 
     def clear_details(self):
-        self.lbl_dettaglio_corso.configure(text="Nessun corso selezionato")
-        self.lbl_info_corso.configure(text="Seleziona un corso dalla colonna centrale")
-        for w in self.scroll_prenotati.winfo_children(): w.destroy()
-        self.btn_aggiungi_pren.pack_forget()
+        self.lbl_lesson_details.configure(text="Nessun corso selezionato")
+        self.lbl_lesson_info.configure(text="Seleziona un corso dalla colonna centrale")
+        for w in self.scroll_bookings.winfo_children(): w.destroy()
+        self.btn_add_booking.pack_forget()
 
     def show_lesson_details(self, lesson_id):
         self.selected_lesson_id = lesson_id
@@ -300,15 +300,15 @@ class CalendarView(ctk.CTkFrame):
         db = SessionLocal()
         lezione = db.query(Lesson).get(lesson_id)
         if lezione:
-            self.lbl_dettaglio_corso.configure(text=lezione.activity.name)
-            self.lbl_info_corso.configure(text=f"Orario: {lezione.start_time[:5]} - {lezione.end_time[:5]}")
-            self.btn_aggiungi_pren.pack(fill="x", padx=20, pady=20)
+            self.lbl_lesson_details.configure(text=lezione.activity.name)
+            self.lbl_lesson_info.configure(text=f"Orario: {lezione.start_time[:5]} - {lezione.end_time[:5]}")
+            self.btn_add_booking.pack(fill="x", padx=20, pady=20)
         db.close()
 
         self.load_booked_list()
 
     def load_booked_list(self):
-        for w in self.scroll_prenotati.winfo_children(): w.destroy()
+        for w in self.scroll_bookings.winfo_children(): w.destroy()
         if not self.selected_lesson_id: return
         
         db = SessionLocal()
@@ -317,16 +317,16 @@ class CalendarView(ctk.CTkFrame):
         db.close()
         
         if not pren_data:
-            ctk.CTkLabel(self.scroll_prenotati, text="Nessun socio prenotato.", font=ctk.CTkFont(family="Montserrat", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=40)
+            ctk.CTkLabel(self.scroll_bookings, text="Nessun socio prenotato.", font=ctk.CTkFont(family="Montserrat", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=40)
             return
 
         for p in pren_data:
-            f = ctk.CTkFrame(self.scroll_prenotati, fg_color="transparent")
+            f = ctk.CTkFrame(self.scroll_bookings, fg_color="transparent")
             f.pack(fill="x", pady=2)
             
             ctk.CTkLabel(f, text=p["nome_comp"], font=ctk.CTkFont(family="Montserrat", size=14, weight="bold")).pack(side="left", padx=10, pady=8)
             ctk.CTkButton(f, text="X", width=28, height=28, fg_color="#FF3B30", hover_color="#c0392b", font=ctk.CTkFont(family="Montserrat", weight="bold"), command=lambda b_id=p["id"]: self.remove_booking(b_id)).pack(side="right", padx=10)
-            ctk.CTkFrame(self.scroll_prenotati, height=1, fg_color=("#E5E5EA", "#3A3A3C")).pack(fill="x", padx=10)
+            ctk.CTkFrame(self.scroll_bookings, height=1, fg_color=("#E5E5EA", "#3A3A3C")).pack(fill="x", padx=10)
 
     def remove_booking(self, booking_id):
         if messagebox.askyesno("Conferma", "Vuoi annullare questa prenotazione?"):

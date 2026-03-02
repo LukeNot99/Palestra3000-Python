@@ -16,8 +16,8 @@ class ActivitiesView(ctk.CTkFrame):
         
         row = ctk.CTkFrame(input_frame, fg_color="transparent")
         row.pack(fill="x", padx=20, pady=(15, 20))
-        self.ent_nome = ctk.CTkEntry(row, placeholder_text="Es. Pilates, Yoga...", width=250, font=ctk.CTkFont(family="Montserrat"))
-        self.ent_nome.pack(side="left", padx=(0, 10))
+        self.ent_name = ctk.CTkEntry(row, placeholder_text="Es. Pilates, Yoga...", width=250, font=ctk.CTkFont(family="Montserrat"))
+        self.ent_name.pack(side="left", padx=(0, 10))
         ctk.CTkButton(row, text="Inserisci", width=140, height=38, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#34C759", command=self.insert_activity).pack(side="left")
 
         self.table_container = ctk.CTkFrame(self, fg_color="transparent")
@@ -42,16 +42,16 @@ class ActivitiesView(ctk.CTkFrame):
         for r_id, f in self.row_frames.items(): 
             f.configure(fg_color=("#E5F1FF", "#0A2A4A") if r_id == a_id else ("#FFFFFF", "#2C2C2E"), border_color="#007AFF" if r_id == a_id else ("#E5E5EA", "#3A3A3C"))
 
-    def create_table_row(self, attivita):
+    def create_table_row(self, activity):
         f = ctk.CTkFrame(self.scroll_table, fg_color=("#FFFFFF", "#2C2C2E"), height=45, corner_radius=8, border_width=1, border_color=("#E5E5EA", "#3A3A3C"), cursor="hand2")
         f.pack(fill="x", pady=2); f.pack_propagate(False); f.grid_columnconfigure(0, weight=1)
-        lbl = ctk.CTkLabel(f, text=attivita.name, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), anchor="w")
+        lbl = ctk.CTkLabel(f, text=activity.name, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), anchor="w")
         lbl.grid(row=0, column=0, padx=20, pady=10, sticky="w")
         for w in [f, lbl]:
-            w.bind("<Button-1>", lambda e, id=attivita.id: self.select_row(id))
-            w.bind("<Enter>", lambda e, fr=f, id=attivita.id: fr.configure(fg_color=("#F8F8F9", "#3A3A3C")) if self.selected_activity_id != id else None)
-            w.bind("<Leave>", lambda e, fr=f, id=attivita.id: fr.configure(fg_color=("#FFFFFF", "#2C2C2E")) if self.selected_activity_id != id else None)
-        self.row_frames[attivita.id] = f
+            w.bind("<Button-1>", lambda e, id=activity.id: self.select_row(id))
+            w.bind("<Enter>", lambda e, fr=f, id=activity.id: fr.configure(fg_color=("#F8F8F9", "#3A3A3C")) if self.selected_activity_id != id else None)
+            w.bind("<Leave>", lambda e, fr=f, id=activity.id: fr.configure(fg_color=("#FFFFFF", "#2C2C2E")) if self.selected_activity_id != id else None)
+        self.row_frames[activity.id] = f
 
     def load_data(self):
         for w in self.scroll_table.winfo_children(): w.destroy()
@@ -64,22 +64,23 @@ class ActivitiesView(ctk.CTkFrame):
         db.close()
 
     def insert_activity(self):
-        nome = self.ent_nome.get().strip()
-        if not nome: return messagebox.showwarning("Attenzione", "Inserisci nome.")
+        act_name = self.ent_name.get().strip()
+        if not act_name: return messagebox.showwarning("Attenzione", "Inserisci nome.")
         
         db = SessionLocal()
-        if db.query(Activity).filter(Activity.name.ilike(nome)).first(): 
+        if db.query(Activity).filter(Activity.name.ilike(act_name)).first(): 
             db.close()
             return messagebox.showerror("Errore", "Esiste già.")
-        db.add(Activity(name=nome))
+        db.add(Activity(name=act_name))
         db.commit()
         db.close()
         
-        self.ent_nome.delete(0, 'end')
+        self.ent_name.delete(0, 'end')
         self.load_data()
 
     def delete_activity(self):
-        if not self.selected_activity_id: return messagebox.showwarning("Attenzione", "Seleziona un'attività dalla lista.")
+        if not self.selected_activity_id: 
+            return messagebox.showwarning("Attenzione", "Seleziona un'attività dalla lista.")
             
         db = SessionLocal()
         a = db.query(Activity).filter(Activity.id == self.selected_activity_id).first()
@@ -87,14 +88,16 @@ class ActivitiesView(ctk.CTkFrame):
             db.close()
             return
 
-        lezioni_collegate = db.query(Lesson).filter(Lesson.activity_id == a.id).all()
-        if lezioni_collegate:
-            msg = (f"⚠️ ATTENZIONE!\nCi sono {len(lezioni_collegate)} lezioni collegate a '{a.name}'.\n"
+        linked_lessons = db.query(Lesson).filter(Lesson.activity_id == a.id).all()
+        
+        if linked_lessons:
+            msg = (f"⚠️ ATTENZIONE!\nCi sono {len(linked_lessons)} lezioni collegate a '{a.name}'.\n"
                    "Eliminando l'attività cancellerai anche le lezioni e le relative prenotazioni.\nProcedere?")
             if not messagebox.askyesno("Conferma", msg, icon="warning"):
                 db.close()
                 return
-            for lez in lezioni_collegate:
+                
+            for lez in linked_lessons:
                 db.query(Booking).filter(Booking.lesson_id == lez.id).delete()
             db.query(Lesson).filter(Lesson.activity_id == a.id).delete()
         else:
@@ -102,10 +105,10 @@ class ActivitiesView(ctk.CTkFrame):
                 db.close()
                 return
 
-        nome_att = a.name
+        act_name = a.name
         db.delete(a)
         db.commit()
         db.close()
         
         self.load_data()
-        messagebox.showinfo("Completato", f"Attività '{nome_att}' eliminata.")
+        messagebox.showinfo("Completato", f"Attività '{act_name}' eliminata.")

@@ -11,7 +11,7 @@ class LessonsView(ctk.CTkFrame):
         self.row_frames = {}
         self.selected_lesson_ids = set()
 
-        self.font_riga = ctk.CTkFont(family="Montserrat", size=13)
+        self.font_row = ctk.CTkFont(family="Montserrat", size=13)
 
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
@@ -21,28 +21,28 @@ class LessonsView(ctk.CTkFrame):
         
         ctk.CTkLabel(left_frame, text="📅 Periodo Generazione", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")).pack(pady=(20, 5))
         
-        self.ent_data_inizio = ctk.CTkEntry(left_frame, placeholder_text="Dal: GG/MM/AAAA", justify="center")
-        self.ent_data_inizio.pack(pady=5, padx=20, fill="x")
-        self.ent_data_inizio.insert(0, datetime.now().strftime("%d/%m/%Y")) 
+        self.ent_start_date = ctk.CTkEntry(left_frame, placeholder_text="Dal: GG/MM/AAAA", justify="center")
+        self.ent_start_date.pack(pady=5, padx=20, fill="x")
+        self.ent_start_date.insert(0, datetime.now().strftime("%d/%m/%Y")) 
         
-        self.ent_data_fine = ctk.CTkEntry(left_frame, placeholder_text="Al: GG/MM/AAAA", justify="center")
-        self.ent_data_fine.pack(pady=5, padx=20, fill="x")
+        self.ent_end_date = ctk.CTkEntry(left_frame, placeholder_text="Al: GG/MM/AAAA", justify="center")
+        self.ent_end_date.pack(pady=5, padx=20, fill="x")
         futuro = datetime.now() + timedelta(days=30)
-        self.ent_data_fine.insert(0, futuro.strftime("%d/%m/%Y"))
+        self.ent_end_date.insert(0, futuro.strftime("%d/%m/%Y"))
 
         ctk.CTkLabel(left_frame, text="Giorni della Settimana:", font=ctk.CTkFont(family="Montserrat", weight="bold")).pack(pady=(15, 5))
-        self.giorni_vars = {i: ctk.IntVar() for i in range(7)}
+        self.days_vars = {i: ctk.IntVar() for i in range(7)}
         for i, nome in enumerate(["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]):
-            ctk.CTkCheckBox(left_frame, text=nome, variable=self.giorni_vars[i], font=ctk.CTkFont(family="Montserrat")).pack(anchor="w", padx=30, pady=3)
+            ctk.CTkCheckBox(left_frame, text=nome, variable=self.days_vars[i], font=ctk.CTkFont(family="Montserrat")).pack(anchor="w", padx=30, pady=3)
 
         ctk.CTkLabel(left_frame, text="Inizio (19:00):", font=ctk.CTkFont(family="Montserrat", weight="bold")).pack(pady=(15, 0))
-        self.ent_inizio = ctk.CTkEntry(left_frame, justify="center"); self.ent_inizio.pack(pady=5, padx=20, fill="x")
+        self.ent_start_time = ctk.CTkEntry(left_frame, justify="center"); self.ent_start_time.pack(pady=5, padx=20, fill="x")
         
         ctk.CTkLabel(left_frame, text="Fine (20:00):", font=ctk.CTkFont(family="Montserrat", weight="bold")).pack(pady=(5, 0))
-        self.ent_fine = ctk.CTkEntry(left_frame, justify="center"); self.ent_fine.pack(pady=5, padx=20, fill="x")
+        self.ent_end_time = ctk.CTkEntry(left_frame, justify="center"); self.ent_end_time.pack(pady=5, padx=20, fill="x")
         
         ctk.CTkLabel(left_frame, text="Posti:", font=ctk.CTkFont(family="Montserrat", weight="bold")).pack(pady=(5, 0))
-        self.ent_posti = ctk.CTkEntry(left_frame, justify="center"); self.ent_posti.insert(0, "60"); self.ent_posti.pack(pady=5, padx=20, fill="x")
+        self.ent_seats = ctk.CTkEntry(left_frame, justify="center"); self.ent_seats.insert(0, "60"); self.ent_seats.pack(pady=5, padx=20, fill="x")
 
         ctk.CTkButton(left_frame, text="⚡ Genera Periodo", width=160, height=38, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.generate_lessons).pack(pady=20)
 
@@ -61,8 +61,8 @@ class LessonsView(ctk.CTkFrame):
         act_names = [a.name for a in activities] if activities else ["Nessuna attività registrata"]
         db.close()
         
-        self.cmb_attivita = ctk.CTkOptionMenu(top_right, values=act_names, font=ctk.CTkFont(family="Montserrat", size=14), width=180, fg_color="#007AFF", command=self.load_table)
-        self.cmb_attivita.pack(side="left", padx=(0, 20))
+        self.cmb_activity = ctk.CTkOptionMenu(top_right, values=act_names, font=ctk.CTkFont(family="Montserrat", size=14), width=180, fg_color="#007AFF", command=self.load_table)
+        self.cmb_activity.pack(side="left", padx=(0, 20))
 
         ctk.CTkLabel(top_right, text="Mostra:", font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=(0, 5))
         
@@ -70,13 +70,13 @@ class LessonsView(ctk.CTkFrame):
         anno_oggi = datetime.now().year
         anni_str = [str(anno_oggi - 1), str(anno_oggi), str(anno_oggi + 1), str(anno_oggi + 2)]
 
-        self.cmb_filtro_mese = ctk.CTkOptionMenu(top_right, values=mesi_str, width=70, font=ctk.CTkFont(family="Montserrat", size=14), command=self.load_table)
-        self.cmb_filtro_mese.set(f"{datetime.now().month:02d}")
-        self.cmb_filtro_mese.pack(side="left", padx=(0, 5))
+        self.cmb_filter_month = ctk.CTkOptionMenu(top_right, values=mesi_str, width=70, font=ctk.CTkFont(family="Montserrat", size=14), command=self.load_table)
+        self.cmb_filter_month.set(f"{datetime.now().month:02d}")
+        self.cmb_filter_month.pack(side="left", padx=(0, 5))
 
-        self.cmb_filtro_anno = ctk.CTkOptionMenu(top_right, values=anni_str, width=80, font=ctk.CTkFont(family="Montserrat", size=14), command=self.load_table)
-        self.cmb_filtro_anno.set(str(anno_oggi))
-        self.cmb_filtro_anno.pack(side="left")
+        self.cmb_filter_year = ctk.CTkOptionMenu(top_right, values=anni_str, width=80, font=ctk.CTkFont(family="Montserrat", size=14), command=self.load_table)
+        self.cmb_filter_year.set(str(anno_oggi))
+        self.cmb_filter_year.pack(side="left")
 
         self.table_container = ctk.CTkFrame(right_frame, fg_color="transparent")
         self.table_container.grid(row=1, column=0, sticky="nsew")
@@ -129,7 +129,7 @@ class LessonsView(ctk.CTkFrame):
         elems = [f]
         for i, val in enumerate(valori):
             f.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
-            lbl = ctk.CTkLabel(f, text=val, font=self.font_riga, anchor=self.cols[i][3])
+            lbl = ctk.CTkLabel(f, text=val, font=self.font_row, anchor=self.cols[i][3])
             lbl.grid(row=0, column=i, padx=10, pady=10, sticky="ew")
             elems.append(lbl)
             
@@ -152,19 +152,19 @@ class LessonsView(ctk.CTkFrame):
         activities = db.query(Activity).order_by(Activity.name).all()
         act_names = [a.name for a in activities] if activities else ["Nessuna attività registrata"]
         
-        self.cmb_attivita.configure(values=act_names)
-        if self.cmb_attivita.get() not in act_names:
-            self.cmb_attivita.set(act_names[0])
+        self.cmb_activity.configure(values=act_names)
+        if self.cmb_activity.get() not in act_names:
+            self.cmb_activity.set(act_names[0])
         
-        nome_att = self.cmb_attivita.get()
+        nome_att = self.cmb_activity.get()
         if nome_att == "Nessuna attività registrata": 
             db.close()
             return
 
         att_id = next((a.id for a in activities if a.name == nome_att), None)
         if att_id:
-            mese_selezionato = self.cmb_filtro_mese.get()
-            anno_selezionato = self.cmb_filtro_anno.get()
+            mese_selezionato = self.cmb_filter_month.get()
+            anno_selezionato = self.cmb_filter_year.get()
             filtro_data = f"{anno_selezionato}-{mese_selezionato}-"
 
             lezioni = db.query(Lesson).filter(
@@ -189,13 +189,13 @@ class LessonsView(ctk.CTkFrame):
             self.create_table_row(l_d)
 
     def generate_lessons(self):
-        nome_att = self.cmb_attivita.get()
+        nome_att = self.cmb_activity.get()
         if nome_att == "Nessuna attività registrata":
             return messagebox.showwarning("Attenzione", "Devi prima creare almeno un'attività nella sezione 'Gestione Attività'!")
 
-        ini = self.ent_inizio.get().strip()
-        fin = self.ent_fine.get().strip()
-        p = self.ent_posti.get().strip()
+        ini = self.ent_start_time.get().strip()
+        fin = self.ent_end_time.get().strip()
+        p = self.ent_seats.get().strip()
         
         if not ini or not fin or not p.isdigit(): 
             return messagebox.showwarning("Errore", "Verifica che i posti siano un numero valido e che gli orari non siano vuoti.")
@@ -220,7 +220,7 @@ class LessonsView(ctk.CTkFrame):
         if d_inizio > d_fine: 
             return messagebox.showwarning("Errore Logico", "La data 'Dal' non può essere successiva alla data 'Al'.")
 
-        g_scelti = [i for i in range(7) if self.giorni_vars[i].get() == 1]
+        g_scelti = [i for i in range(7) if self.days_vars[i].get() == 1]
         if not g_scelti: return messagebox.showwarning("Errore", "Spunta almeno un giorno della settimana.")
 
         g_nomi = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
@@ -246,8 +246,8 @@ class LessonsView(ctk.CTkFrame):
         db.close()
         
         messagebox.showinfo("Completato", f"Pianificazione conclusa.\nSono state generate {count} nuove lezioni!")
-        self.cmb_filtro_mese.set(f"{d_inizio.month:02d}")
-        self.cmb_filtro_anno.set(str(d_inizio.year))
+        self.cmb_filter_month.set(f"{d_inizio.month:02d}")
+        self.cmb_filter_year.set(str(d_inizio.year))
         self.load_table()
 
     def delete_lesson(self):

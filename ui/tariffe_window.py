@@ -5,10 +5,10 @@ import json
 import os
 from core.database import SessionLocal, Tier, Member
 
-def read_setting(chiave, default):
+def read_setting(key, default):
     if os.path.exists("config.json"):
         try:
-            with open("config.json", "r") as f: return json.load(f).get(chiave, default)
+            with open("config.json", "r") as f: return json.load(f).get(key, default)
         except: pass
     return default
 
@@ -17,10 +17,10 @@ class TiersView(ctk.CTkFrame):
         super().__init__(parent, fg_color="transparent", **kwargs)
         self.tier_id_in_modifica = None
         self.row_frames = {}
-        self.selected_tariffa_id = None
-        self.font_riga = ctk.CTkFont(family="Montserrat", size=13)
-        self.mostra_costo = read_setting("mostra_costo_fasce", False)
-        self.mostra_eta = read_setting("mostra_eta_fasce", False)
+        self.selected_tier_id = None
+        self.font_row = ctk.CTkFont(family="Montserrat", size=13)
+        self.show_cost = read_setting("mostra_costo_fasce", False)
+        self.show_age = read_setting("mostra_eta_fasce", False)
 
         self.grid_rowconfigure(2, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -29,36 +29,36 @@ class TiersView(ctk.CTkFrame):
         form_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=20)
         form_frame.grid_columnconfigure((0, 1, 2, 3), weight=1, uniform="colonna")
 
-        self.lbl_sigla = ctk.CTkLabel(form_frame, text="Sigla Fascia:", text_color=("#86868B", "#98989D"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
-        self.ent_sigla = ctk.CTkEntry(form_frame, width=180, font=ctk.CTkFont(family="Montserrat"))
+        self.lbl_tier_name = ctk.CTkLabel(form_frame, text="Sigla Fascia:", text_color=("#86868B", "#98989D"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
+        self.ent_tier_name = ctk.CTkEntry(form_frame, width=180, font=ctk.CTkFont(family="Montserrat"))
 
-        self.lbl_costo = ctk.CTkLabel(form_frame, text="Costo (€):", text_color=("#86868B", "#98989D"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
-        self.ent_costo = ctk.CTkEntry(form_frame, width=180, justify="center", placeholder_text="0.00", font=ctk.CTkFont(family="Montserrat"))
+        self.lbl_cost = ctk.CTkLabel(form_frame, text="Costo (€):", text_color=("#86868B", "#98989D"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
+        self.ent_cost = ctk.CTkEntry(form_frame, width=180, justify="center", placeholder_text="0.00", font=ctk.CTkFont(family="Montserrat"))
 
-        self.lbl_eta = ctk.CTkLabel(form_frame, text="Età (Min - Max):", text_color=("#86868B", "#98989D"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
-        self.frame_eta = ctk.CTkFrame(form_frame, fg_color="transparent")
-        self.ent_eta_min = ctk.CTkEntry(self.frame_eta, width=70, justify="center", font=ctk.CTkFont(family="Montserrat")); self.ent_eta_min.insert(0, "0"); self.ent_eta_min.pack(side="left")
-        ctk.CTkLabel(self.frame_eta, text=" - ", font=ctk.CTkFont(family="Montserrat")).pack(side="left", padx=5)
-        self.ent_eta_max = ctk.CTkEntry(self.frame_eta, width=70, justify="center", font=ctk.CTkFont(family="Montserrat")); self.ent_eta_max.insert(0, "200"); self.ent_eta_max.pack(side="left")
+        self.lbl_age = ctk.CTkLabel(form_frame, text="Età (Min - Max):", text_color=("#86868B", "#98989D"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
+        self.frame_age = ctk.CTkFrame(form_frame, fg_color="transparent")
+        self.ent_min_age = ctk.CTkEntry(self.frame_age, width=70, justify="center", font=ctk.CTkFont(family="Montserrat")); self.ent_min_age.insert(0, "0"); self.ent_min_age.pack(side="left")
+        ctk.CTkLabel(self.frame_age, text=" - ", font=ctk.CTkFont(family="Montserrat")).pack(side="left", padx=5)
+        self.ent_max_age = ctk.CTkEntry(self.frame_age, width=70, justify="center", font=ctk.CTkFont(family="Montserrat")); self.ent_max_age.insert(0, "200"); self.ent_max_age.pack(side="left")
 
-        self.lbl_orari = ctk.CTkLabel(form_frame, text="Orari Accesso (HH:MM):", text_color=("#86868B", "#98989D"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
-        self.frame_orari = ctk.CTkFrame(form_frame, fg_color="transparent")
-        self.ent_accesso = ctk.CTkEntry(self.frame_orari, width=70, justify="center", font=ctk.CTkFont(family="Montserrat")); self.ent_accesso.insert(0, "00:00"); self.ent_accesso.pack(side="left")
-        ctk.CTkLabel(self.frame_orari, text=" - ", font=ctk.CTkFont(family="Montserrat")).pack(side="left", padx=5)
-        self.ent_uscita = ctk.CTkEntry(self.frame_orari, width=70, justify="center", font=ctk.CTkFont(family="Montserrat")); self.ent_uscita.insert(0, "23:59"); self.ent_uscita.pack(side="left")
+        self.lbl_hours = ctk.CTkLabel(form_frame, text="Orari Accesso (HH:MM):", text_color=("#86868B", "#98989D"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
+        self.frame_hours = ctk.CTkFrame(form_frame, fg_color="transparent")
+        self.ent_start_time = ctk.CTkEntry(self.frame_hours, width=70, justify="center", font=ctk.CTkFont(family="Montserrat")); self.ent_start_time.insert(0, "00:00"); self.ent_start_time.pack(side="left")
+        ctk.CTkLabel(self.frame_hours, text=" - ", font=ctk.CTkFont(family="Montserrat")).pack(side="left", padx=5)
+        self.ent_end_time = ctk.CTkEntry(self.frame_hours, width=70, justify="center", font=ctk.CTkFont(family="Montserrat")); self.ent_end_time.insert(0, "23:59"); self.ent_end_time.pack(side="left")
 
-        self.lbl_durata = ctk.CTkLabel(form_frame, text="Durata Abbonamento (Mesi):", text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
-        self.ent_durata = ctk.CTkEntry(form_frame, width=180, justify="center", text_color=("#007AFF", "#0A84FF"), font=ctk.CTkFont(family="Montserrat", weight="bold")); self.ent_durata.insert(0, "1")
+        self.lbl_duration = ctk.CTkLabel(form_frame, text="Durata Abbonamento (Mesi):", text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
+        self.ent_duration = ctk.CTkEntry(form_frame, width=180, justify="center", text_color=("#007AFF", "#0A84FF"), font=ctk.CTkFont(family="Montserrat", weight="bold")); self.ent_duration.insert(0, "1")
 
-        self.lbl_ingressi = ctk.CTkLabel(form_frame, text="Carnet (0 = Illimitati):", text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
-        self.ent_ingressi = ctk.CTkEntry(form_frame, width=180, justify="center", text_color=("#007AFF", "#0A84FF"), font=ctk.CTkFont(family="Montserrat", weight="bold")); self.ent_ingressi.insert(0, "0")
+        self.lbl_entries = ctk.CTkLabel(form_frame, text="Carnet (0 = Illimitati):", text_color=("#1D1D1F", "#FFFFFF"), font=ctk.CTkFont(family="Montserrat", weight="bold"))
+        self.ent_entries = ctk.CTkEntry(form_frame, width=180, justify="center", text_color=("#007AFF", "#0A84FF"), font=ctk.CTkFont(family="Montserrat", weight="bold")); self.ent_entries.insert(0, "0")
 
-        active_fields = [(self.lbl_sigla, self.ent_sigla)]
-        if self.mostra_costo: active_fields.append((self.lbl_costo, self.ent_costo))
-        if self.mostra_eta: active_fields.append((self.lbl_eta, self.frame_eta))
-        active_fields.append((self.lbl_orari, self.frame_orari))
-        active_fields.append((self.lbl_durata, self.ent_durata))
-        active_fields.append((self.lbl_ingressi, self.ent_ingressi))
+        active_fields = [(self.lbl_tier_name, self.ent_tier_name)]
+        if self.show_cost: active_fields.append((self.lbl_cost, self.ent_cost))
+        if self.show_age: active_fields.append((self.lbl_age, self.frame_age))
+        active_fields.append((self.lbl_hours, self.frame_hours))
+        active_fields.append((self.lbl_duration, self.ent_duration))
+        active_fields.append((self.lbl_entries, self.ent_entries))
 
         for i, (lbl, wgt) in enumerate(active_fields):
             riga = i // 2
@@ -69,8 +69,8 @@ class TiersView(ctk.CTkFrame):
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.grid(row=1, column=0, sticky="ew", padx=20, pady=5)
 
-        self.btn_salva = ctk.CTkButton(btn_frame, text="Salva Dati", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.save_tier)
-        self.btn_salva.pack(side="left", padx=(0, 10))
+        self.btn_save = ctk.CTkButton(btn_frame, text="Salva Dati", width=140, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.save_tier)
+        self.btn_save.pack(side="left", padx=(0, 10))
 
         ctk.CTkButton(btn_frame, text="Svuota Form", width=120, height=38, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.clear_form).pack(side="left")
         
@@ -81,8 +81,8 @@ class TiersView(ctk.CTkFrame):
         self.table_container.grid(row=2, column=0, sticky="nsew", padx=20, pady=(10, 20))
         
         self.cols = [("sigla", "Sigla Fascia", 2, "w")]
-        if self.mostra_costo: self.cols.append(("costo", "Costo", 1, "center"))
-        if self.mostra_eta: self.cols.append(("eta", "Età (Min-Max)", 1, "center"))
+        if self.show_cost: self.cols.append(("costo", "Costo", 1, "center"))
+        if self.show_age: self.cols.append(("eta", "Età (Min-Max)", 1, "center"))
         self.cols.extend([
             ("orari", "Accesso/Uscita", 2, "center"), 
             ("durata", "Durata", 1, "center"), 
@@ -102,7 +102,7 @@ class TiersView(ctk.CTkFrame):
         self.load_data()
 
     def select_row(self, t_id):
-        self.selected_tariffa_id = t_id
+        self.selected_tier_id = t_id
         for r_id, frame in self.row_frames.items():
             if frame.winfo_exists():
                 if r_id == t_id:
@@ -111,48 +111,48 @@ class TiersView(ctk.CTkFrame):
                     frame.configure(fg_color=("#FFFFFF", "#2C2C2E"), border_color=("#E5E5EA", "#3A3A3C"))
 
     def clear_form(self):
-        self.ent_sigla.delete(0, 'end')
-        if self.mostra_eta:
-            self.ent_eta_min.delete(0, 'end'); self.ent_eta_min.insert(0, "0")
-            self.ent_eta_max.delete(0, 'end'); self.ent_eta_max.insert(0, "200")
-        if self.mostra_costo: self.ent_costo.delete(0, 'end')
-        self.ent_accesso.delete(0, 'end'); self.ent_accesso.insert(0, "00:00")
-        self.ent_uscita.delete(0, 'end'); self.ent_uscita.insert(0, "23:59")
-        self.ent_durata.delete(0, 'end'); self.ent_durata.insert(0, "1")
-        self.ent_ingressi.delete(0, 'end'); self.ent_ingressi.insert(0, "0")
+        self.ent_tier_name.delete(0, 'end')
+        if self.show_age:
+            self.ent_min_age.delete(0, 'end'); self.ent_min_age.insert(0, "0")
+            self.ent_max_age.delete(0, 'end'); self.ent_max_age.insert(0, "200")
+        if self.show_cost: self.ent_cost.delete(0, 'end')
+        self.ent_start_time.delete(0, 'end'); self.ent_start_time.insert(0, "00:00")
+        self.ent_end_time.delete(0, 'end'); self.ent_end_time.insert(0, "23:59")
+        self.ent_duration.delete(0, 'end'); self.ent_duration.insert(0, "1")
+        self.ent_entries.delete(0, 'end'); self.ent_entries.insert(0, "0")
         
         self.tier_id_in_modifica = None
-        self.btn_salva.configure(text="Salva Dati", fg_color="#34C759", hover_color="#2eb350")
-        self.selected_tariffa_id = None
+        self.btn_save.configure(text="Salva Dati", fg_color="#34C759", hover_color="#2eb350")
+        self.selected_tier_id = None
         self.load_data()
 
     def create_table_row(self, t):
-        riga_frame = ctk.CTkFrame(self.scroll_table, fg_color=("#FFFFFF", "#2C2C2E"), height=45, corner_radius=8, border_width=1, border_color=("#E5E5EA", "#3A3A3C"), cursor="hand2")
-        riga_frame.pack(fill="x", pady=2)
-        riga_frame.pack_propagate(False)
+        row_frame = ctk.CTkFrame(self.scroll_table, fg_color=("#FFFFFF", "#2C2C2E"), height=45, corner_radius=8, border_width=1, border_color=("#E5E5EA", "#3A3A3C"), cursor="hand2")
+        row_frame.pack(fill="x", pady=2)
+        row_frame.pack_propagate(False)
 
         valori = [t.name]
-        if self.mostra_costo: valori.append(f"€ {t.cost:.2f}")
-        if self.mostra_eta: valori.append(f"{t.min_age} - {t.max_age} anni")
+        if self.show_cost: valori.append(f"€ {t.cost:.2f}")
+        if self.show_age: valori.append(f"{t.min_age} - {t.max_age} anni")
         valori.extend([
             f"{t.start_time[:5]} - {t.end_time[:5]}",
             f"{t.duration_months} Mesi",
             "Illimitati" if t.max_entries == 0 else f"{t.max_entries} Ingressi"
         ])
 
-        elementi_riga = [riga_frame]
+        row_elements = [row_frame]
         for i, val in enumerate(valori):
-            riga_frame.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
-            lbl = ctk.CTkLabel(riga_frame, text=val, font=self.font_riga, text_color=("#1D1D1F", "#FFFFFF"), anchor=self.cols[i][3])
+            row_frame.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
+            lbl = ctk.CTkLabel(row_frame, text=val, font=self.font_row, text_color=("#1D1D1F", "#FFFFFF"), anchor=self.cols[i][3])
             lbl.grid(row=0, column=i, padx=10, pady=10, sticky="ew")
-            elementi_riga.append(lbl)
+            row_elements.append(lbl)
 
-        for w in elementi_riga:
+        for w in row_elements:
             w.bind("<Button-1>", lambda e, id=t.id: self.select_row(id))
-            w.bind("<Enter>", lambda e, f=riga_frame, id=t.id: f.configure(fg_color=("#F8F8F9", "#3A3A3C")) if f.winfo_exists() and self.selected_tariffa_id != id else None)
-            w.bind("<Leave>", lambda e, f=riga_frame, id=t.id: f.configure(fg_color=("#FFFFFF", "#2C2C2E")) if f.winfo_exists() and self.selected_tariffa_id != id else None)
+            w.bind("<Enter>", lambda e, f=row_frame, id=t.id: f.configure(fg_color=("#F8F8F9", "#3A3A3C")) if f.winfo_exists() and self.selected_tier_id != id else None)
+            w.bind("<Leave>", lambda e, f=row_frame, id=t.id: f.configure(fg_color=("#FFFFFF", "#2C2C2E")) if f.winfo_exists() and self.selected_tier_id != id else None)
 
-        self.row_frames[t.id] = riga_frame
+        self.row_frames[t.id] = row_frame
 
     def load_data(self):
         for widget in self.scroll_table.winfo_children(): widget.destroy()
@@ -164,30 +164,30 @@ class TiersView(ctk.CTkFrame):
         db.close()
 
     def load_into_form(self):
-        if not self.selected_tariffa_id: return messagebox.showwarning("Attenzione", "Seleziona una fascia.")
+        if not self.selected_tier_id: return messagebox.showwarning("Attenzione", "Seleziona una fascia.")
         db = SessionLocal()
-        tariffa = db.query(Tier).filter(Tier.id == self.selected_tariffa_id).first()
+        tariffa = db.query(Tier).filter(Tier.id == self.selected_tier_id).first()
         if tariffa:
             self.clear_form()
-            self.ent_sigla.delete(0, 'end'); self.ent_sigla.insert(0, tariffa.name)
-            if self.mostra_eta:
-                self.ent_eta_min.delete(0, 'end'); self.ent_eta_min.insert(0, str(tariffa.min_age))
-                self.ent_eta_max.delete(0, 'end'); self.ent_eta_max.insert(0, str(tariffa.max_age))
-            if self.mostra_costo:
-                self.ent_costo.delete(0, 'end'); self.ent_costo.insert(0, str(tariffa.cost))
-            self.ent_accesso.delete(0, 'end'); self.ent_accesso.insert(0, tariffa.start_time[:5])
-            self.ent_uscita.delete(0, 'end'); self.ent_uscita.insert(0, tariffa.end_time[:5])
-            self.ent_durata.delete(0, 'end'); self.ent_durata.insert(0, str(tariffa.duration_months))
-            self.ent_ingressi.delete(0, 'end'); self.ent_ingressi.insert(0, str(tariffa.max_entries))
+            self.ent_tier_name.delete(0, 'end'); self.ent_tier_name.insert(0, tariffa.name)
+            if self.show_age:
+                self.ent_min_age.delete(0, 'end'); self.ent_min_age.insert(0, str(tariffa.min_age))
+                self.ent_max_age.delete(0, 'end'); self.ent_max_age.insert(0, str(tariffa.max_age))
+            if self.show_cost:
+                self.ent_cost.delete(0, 'end'); self.ent_cost.insert(0, str(tariffa.cost))
+            self.ent_start_time.delete(0, 'end'); self.ent_start_time.insert(0, tariffa.start_time[:5])
+            self.ent_end_time.delete(0, 'end'); self.ent_end_time.insert(0, tariffa.end_time[:5])
+            self.ent_duration.delete(0, 'end'); self.ent_duration.insert(0, str(tariffa.duration_months))
+            self.ent_entries.delete(0, 'end'); self.ent_entries.insert(0, str(tariffa.max_entries))
             self.tier_id_in_modifica = tariffa.id
-            self.btn_salva.configure(text="Aggiorna Dati", fg_color="#007AFF", hover_color="#005ecb")
+            self.btn_save.configure(text="Aggiorna Dati", fg_color="#007AFF", hover_color="#005ecb")
         db.close()
 
     def save_tier(self):
-        sigla = self.ent_sigla.get().strip()
+        sigla = self.ent_tier_name.get().strip()
         if not sigla: return messagebox.showwarning("Errore", "La sigla è obbligatoria.")
-        accesso = self.ent_accesso.get().strip()
-        uscita = self.ent_uscita.get().strip()
+        accesso = self.ent_start_time.get().strip()
+        uscita = self.ent_end_time.get().strip()
         
         try:
             datetime.strptime(accesso, "%H:%M")
@@ -196,11 +196,11 @@ class TiersView(ctk.CTkFrame):
             return messagebox.showwarning("Errore Orario", "Verifica gli orari di accesso e uscita nel formato HH:MM.")
 
         try:
-            costo = float(self.ent_costo.get().strip().replace(',', '.')) if self.mostra_costo else 0.0
-            eta_min = int(self.ent_eta_min.get().strip()) if self.mostra_eta else 0
-            eta_max = int(self.ent_eta_max.get().strip()) if self.mostra_eta else 999
-            durata_mesi = int(self.ent_durata.get().strip() or 1)
-            ingressi = int(self.ent_ingressi.get().strip() or 0)
+            costo = float(self.ent_cost.get().strip().replace(',', '.')) if self.show_cost else 0.0
+            eta_min = int(self.ent_min_age.get().strip()) if self.show_age else 0
+            eta_max = int(self.ent_max_age.get().strip()) if self.show_age else 999
+            durata_mesi = int(self.ent_duration.get().strip() or 1)
+            ingressi = int(self.ent_entries.get().strip() or 0)
             
             if costo < 0 or eta_min < 0 or eta_max < 0 or durata_mesi < 1 or ingressi < 0:
                 return messagebox.showwarning("Errore Logico", "Valori negativi o nulli (la durata deve essere minimo 1).")
@@ -226,15 +226,15 @@ class TiersView(ctk.CTkFrame):
         self.load_data()
 
     def delete_tier(self):
-        if not self.selected_tariffa_id: return messagebox.showwarning("Attenzione", "Seleziona una fascia.")
+        if not self.selected_tier_id: return messagebox.showwarning("Attenzione", "Seleziona una fascia.")
         db = SessionLocal()
-        soci_collegati = db.query(Member).filter(Member.tier_id == self.selected_tariffa_id).count()
+        soci_collegati = db.query(Member).filter(Member.tier_id == self.selected_tier_id).count()
         if soci_collegati > 0: 
             db.close()
             return messagebox.showerror("Errore", f"Ci sono {soci_collegati} soci iscritti con questa fascia!")
 
         if messagebox.askyesno("Conferma", "Sei sicuro di voler eliminare questa fascia?"):
-            tariffa = db.query(Tier).filter(Tier.id == self.selected_tariffa_id).first()
+            tariffa = db.query(Tier).filter(Tier.id == self.selected_tier_id).first()
             if tariffa:
                 db.delete(tariffa)
                 db.commit()

@@ -20,13 +20,13 @@ class SettingsView(ctk.CTkFrame):
         self.scroll_frame.pack(fill="both", expand=True, padx=10)
 
         # --- SEZIONE 1: PALESTRA ---
-        frame_palestra = ctk.CTkFrame(self.scroll_frame, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
-        frame_palestra.pack(fill="x", pady=10, padx=10)
-        ctk.CTkLabel(frame_palestra, text="Dati Palestra", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")).pack(anchor="w", padx=20, pady=(15, 10))
+        frame_gym = ctk.CTkFrame(self.scroll_frame, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
+        frame_gym.pack(fill="x", pady=10, padx=10)
+        ctk.CTkLabel(frame_gym, text="Dati Palestra", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")).pack(anchor="w", padx=20, pady=(15, 10))
 
-        self.ent_nome = self.create_field(frame_palestra, "Nome Palestra:", self.config.get("nome_palestra", "Palestra 3000"))
+        self.ent_name = self.create_field(frame_gym, "Nome Palestra:", self.config.get("nome_palestra", "Palestra 3000"))
         
-        row_logo = ctk.CTkFrame(frame_palestra, fg_color="transparent")
+        row_logo = ctk.CTkFrame(frame_gym, fg_color="transparent")
         row_logo.pack(fill="x", padx=20, pady=(5, 15))
         ctk.CTkLabel(row_logo, text="Logo Palestra (PNG/JPG):", font=ctk.CTkFont(family="Montserrat", weight="bold"), width=220, anchor="w").pack(side="left")
         self.ent_logo = ctk.CTkEntry(row_logo, width=300, font=ctk.CTkFont(family="Montserrat"))
@@ -43,42 +43,42 @@ class SettingsView(ctk.CTkFrame):
         ctk.CTkLabel(header_hw, text="Hardware (Lettore e Tornello)", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")).pack(side="left")
         ctk.CTkButton(header_hw, text="🔄 Aggiorna Porte", width=120, height=28, font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"), fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E"), command=self.update_ports_menu).pack(side="right")
 
-        self.porte_disponibili = self.get_available_ports()
+        self.available_ports = self.get_available_ports()
 
-        row_lettore = ctk.CTkFrame(frame_hw, fg_color="transparent")
-        row_lettore.pack(fill="x", padx=20, pady=(0, 5))
-        ctk.CTkLabel(row_lettore, text="Porta Lettore Badge:", font=ctk.CTkFont(family="Montserrat", weight="bold"), width=220, anchor="w").pack(side="left")
-        self.cmb_porta_lettore = ctk.CTkOptionMenu(row_lettore, values=self.porte_disponibili, width=250, font=ctk.CTkFont(family="Montserrat"))
-        self.cmb_porta_lettore.set(self.config.get("porta_lettore", "Nessun hardware"))
-        self.cmb_porta_lettore.pack(side="left", padx=(0, 10))
-        ctk.CTkButton(row_lettore, text="Test Lettore", width=100, fg_color="#007AFF", hover_color="#005ecb", font=ctk.CTkFont(family="Montserrat", weight="bold"), command=self.run_reader_test).pack(side="left")
+        row_reader = ctk.CTkFrame(frame_hw, fg_color="transparent")
+        row_reader.pack(fill="x", padx=20, pady=(0, 5))
+        ctk.CTkLabel(row_reader, text="Porta Lettore Badge:", font=ctk.CTkFont(family="Montserrat", weight="bold"), width=220, anchor="w").pack(side="left")
+        self.cmb_reader_port = ctk.CTkOptionMenu(row_reader, values=self.available_ports, width=250, font=ctk.CTkFont(family="Montserrat"))
+        self.cmb_reader_port.set(self.config.get("porta_lettore", "Nessun hardware"))
+        self.cmb_reader_port.pack(side="left", padx=(0, 10))
+        ctk.CTkButton(row_reader, text="Test Lettore", width=100, fg_color="#007AFF", hover_color="#005ecb", font=ctk.CTkFont(family="Montserrat", weight="bold"), command=self.run_reader_test).pack(side="left")
 
-        row_rele = ctk.CTkFrame(frame_hw, fg_color="transparent")
-        row_rele.pack(fill="x", padx=20, pady=(5, 15))
-        ctk.CTkLabel(row_rele, text="Porta Relè Tornello:", font=ctk.CTkFont(family="Montserrat", weight="bold"), width=220, anchor="w").pack(side="left")
-        self.cmb_porta_rele = ctk.CTkOptionMenu(row_rele, values=self.porte_disponibili, width=250, font=ctk.CTkFont(family="Montserrat"))
-        self.cmb_porta_rele.set(self.config.get("porta_rele", "Nessun hardware"))
-        self.cmb_porta_rele.pack(side="left", padx=(0, 10))
-        ctk.CTkButton(row_rele, text="Test Tornello", width=100, fg_color="#FF9500", hover_color="#d67e00", font=ctk.CTkFont(family="Montserrat", weight="bold"), command=self.run_relay_test).pack(side="left")
+        row_relay = ctk.CTkFrame(frame_hw, fg_color="transparent")
+        row_relay.pack(fill="x", padx=20, pady=(5, 15))
+        ctk.CTkLabel(row_relay, text="Porta Relè Tornello:", font=ctk.CTkFont(family="Montserrat", weight="bold"), width=220, anchor="w").pack(side="left")
+        self.cmb_relay_port = ctk.CTkOptionMenu(row_relay, values=self.available_ports, width=250, font=ctk.CTkFont(family="Montserrat"))
+        self.cmb_relay_port.set(self.config.get("porta_rele", "Nessun hardware"))
+        self.cmb_relay_port.pack(side="left", padx=(0, 10))
+        ctk.CTkButton(row_relay, text="Test Tornello", width=100, fg_color="#FF9500", hover_color="#d67e00", font=ctk.CTkFont(family="Montserrat", weight="bold"), command=self.run_relay_test).pack(side="left")
 
         # --- SEZIONE 3: REGOLE ACCESSO ---
-        frame_regole = ctk.CTkFrame(self.scroll_frame, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
-        frame_regole.pack(fill="x", pady=10, padx=10)
-        ctk.CTkLabel(frame_regole, text="Regole di Accesso (Cosa blocca il tornello?)", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")).pack(anchor="w", padx=20, pady=(15, 10))
+        frame_rules = ctk.CTkFrame(self.scroll_frame, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
+        frame_rules.pack(fill="x", pady=10, padx=10)
+        ctk.CTkLabel(frame_rules, text="Regole di Accesso (Cosa blocca il tornello?)", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")).pack(anchor="w", padx=20, pady=(15, 10))
 
-        self.chk_iscr = ctk.CTkCheckBox(frame_regole, text="Blocca se Iscrizione Annuale scaduta", font=ctk.CTkFont(family="Montserrat"))
-        if self.config.get("blocco_iscr", True): self.chk_iscr.select()
-        self.chk_iscr.pack(anchor="w", padx=20, pady=5)
+        self.chk_enr = ctk.CTkCheckBox(frame_rules, text="Blocca se Iscrizione Annuale scaduta", font=ctk.CTkFont(family="Montserrat"))
+        if self.config.get("blocco_iscr", True): self.chk_enr.select()
+        self.chk_enr.pack(anchor="w", padx=20, pady=5)
 
-        self.chk_abb = ctk.CTkCheckBox(frame_regole, text="Blocca se Abbonamento Mensile scaduto", font=ctk.CTkFont(family="Montserrat"))
-        if self.config.get("blocco_abb", True): self.chk_abb.select()
-        self.chk_abb.pack(anchor="w", padx=20, pady=5)
+        self.chk_sub = ctk.CTkCheckBox(frame_rules, text="Blocca se Abbonamento Mensile scaduto", font=ctk.CTkFont(family="Montserrat"))
+        if self.config.get("blocco_abb", True): self.chk_sub.select()
+        self.chk_sub.pack(anchor="w", padx=20, pady=5)
 
-        self.chk_orari = ctk.CTkCheckBox(frame_regole, text="Blocca se fuori dall'orario della propria fascia", font=ctk.CTkFont(family="Montserrat"))
-        if self.config.get("blocco_orari", True): self.chk_orari.select()
-        self.chk_orari.pack(anchor="w", padx=20, pady=5)
+        self.chk_time = ctk.CTkCheckBox(frame_rules, text="Blocca se fuori dall'orario della propria fascia", font=ctk.CTkFont(family="Montserrat"))
+        if self.config.get("blocco_orari", True): self.chk_time.select()
+        self.chk_time.pack(anchor="w", padx=20, pady=5)
 
-        self.chk_cert = ctk.CTkCheckBox(frame_regole, text="Blocca se Certificato Medico mancante o scaduto", font=ctk.CTkFont(family="Montserrat"))
+        self.chk_cert = ctk.CTkCheckBox(frame_rules, text="Blocca se Certificato Medico mancante o scaduto", font=ctk.CTkFont(family="Montserrat"))
         if self.config.get("blocco_cert", False): self.chk_cert.select()
         self.chk_cert.pack(anchor="w", padx=20, pady=(5, 15))
 
@@ -87,20 +87,20 @@ class SettingsView(ctk.CTkFrame):
         frame_ui.pack(fill="x", pady=10, padx=10)
         ctk.CTkLabel(frame_ui, text="Interfaccia e Visualizzazione", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")).pack(anchor="w", padx=20, pady=(15, 10))
 
-        row_tema = ctk.CTkFrame(frame_ui, fg_color="transparent")
-        row_tema.pack(fill="x", padx=20, pady=5)
-        ctk.CTkLabel(row_tema, text="Tema Colori:", font=ctk.CTkFont(family="Montserrat", weight="bold"), width=220, anchor="w").pack(side="left")
-        self.cmb_tema = ctk.CTkOptionMenu(row_tema, values=["Light", "Dark", "System"], command=self.change_theme)
-        self.cmb_tema.set(self.config.get("tema", "Light"))
-        self.cmb_tema.pack(side="left")
+        row_theme = ctk.CTkFrame(frame_ui, fg_color="transparent")
+        row_theme.pack(fill="x", padx=20, pady=5)
+        ctk.CTkLabel(row_theme, text="Tema Colori:", font=ctk.CTkFont(family="Montserrat", weight="bold"), width=220, anchor="w").pack(side="left")
+        self.cmb_theme = ctk.CTkOptionMenu(row_theme, values=["Light", "Dark", "System"], command=self.change_theme)
+        self.cmb_theme.set(self.config.get("tema", "Light"))
+        self.cmb_theme.pack(side="left")
 
-        self.chk_mostra_costo = ctk.CTkCheckBox(frame_ui, text="Mostra colonna 'Costo' nella tabella Tariffe", font=ctk.CTkFont(family="Montserrat"))
-        if self.config.get("mostra_costo_fasce", False): self.chk_mostra_costo.select()
-        self.chk_mostra_costo.pack(anchor="w", padx=20, pady=5)
+        self.chk_show_cost = ctk.CTkCheckBox(frame_ui, text="Mostra colonna 'Costo' nella tabella Tariffe", font=ctk.CTkFont(family="Montserrat"))
+        if self.config.get("mostra_costo_fasce", False): self.chk_show_cost.select()
+        self.chk_show_cost.pack(anchor="w", padx=20, pady=5)
 
-        self.chk_mostra_eta = ctk.CTkCheckBox(frame_ui, text="Mostra colonne 'Età' nella tabella Tariffe", font=ctk.CTkFont(family="Montserrat"))
-        if self.config.get("mostra_eta_fasce", False): self.chk_mostra_eta.select()
-        self.chk_mostra_eta.pack(anchor="w", padx=20, pady=(5, 15))
+        self.chk_show_age = ctk.CTkCheckBox(frame_ui, text="Mostra colonne 'Età' nella tabella Tariffe", font=ctk.CTkFont(family="Montserrat"))
+        if self.config.get("mostra_eta_fasce", False): self.chk_show_age.select()
+        self.chk_show_age.pack(anchor="w", padx=20, pady=(5, 15))
 
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.pack(fill="x", padx=20, pady=20)
@@ -113,14 +113,14 @@ class SettingsView(ctk.CTkFrame):
         return ports
 
     def update_ports_menu(self):
-        nuove_porte = self.get_available_ports()
-        self.cmb_porta_lettore.configure(values=nuove_porte)
-        self.cmb_porta_rele.configure(values=nuove_porte)
+        new_ports = self.get_available_ports()
+        self.cmb_reader_port.configure(values=new_ports)
+        self.cmb_relay_port.configure(values=new_ports)
         messagebox.showinfo("Aggiornamento", "Lista porte aggiornata con successo. Controlla i menu a tendina.")
 
     def run_reader_test(self):
-        porta = self.cmb_porta_lettore.get()
-        if porta == "Nessun hardware" or not porta:
+        port = self.cmb_reader_port.get()
+        if port == "Nessun hardware" or not port:
             return messagebox.showwarning("Attenzione", "Seleziona una porta valida dal menu a tendina.")
 
         if self.app.serial_reader_conn and self.app.serial_reader_conn.is_open:
@@ -141,16 +141,23 @@ class SettingsView(ctk.CTkFrame):
 
         def update_success(card):
             if test_win.winfo_exists():
-                lbl_status.configure(text=f"✅ TEST SUPERATO!\n\nTessera letta: {card}", text_color="#34C759")
-                self.after(3000, test_win.destroy)
+                gym_prefix = "57340000000"
+                if card.startswith(gym_prefix):
+                    clean_number = card[len(gym_prefix):]
+                    msg = f"✅ TEST SUPERATO E TESSERA AUTENTICATA!\n\nStringa letta: {card}\nNumero da inserire in Anagrafica: {clean_number}"
+                else:
+                    msg = f"✅ TEST LETTORE SUPERATO!\n\nATTENZIONE: Questa tessera ({card})\nnon sembra avere il prefisso della tua palestra."
+                
+                lbl_status.configure(text=msg, text_color="#34C759")
+                self.after(5000, test_win.destroy)
 
         def update_error(err_msg):
             if test_win.winfo_exists():
                 lbl_status.configure(text=f"❌ Errore di Connessione:\n\n{err_msg}", text_color="#FF3B30")
 
-        def ascolta_test():
+        def listen_for_test():
             try:
-                with serial.Serial(porta, 9600, timeout=1) as ser:
+                with serial.Serial(port, 9600, timeout=1) as ser:
                     while not stop_test_event.is_set():
                         if ser.in_waiting > 0:
                             data = ser.readline().decode('utf-8').strip()
@@ -162,7 +169,7 @@ class SettingsView(ctk.CTkFrame):
                 if not stop_test_event.is_set():
                     self.after(0, update_error, str(e))
 
-        threading.Thread(target=ascolta_test, daemon=True).start()
+        threading.Thread(target=listen_for_test, daemon=True).start()
 
         def on_close():
             stop_test_event.set()
@@ -172,26 +179,26 @@ class SettingsView(ctk.CTkFrame):
         test_win.protocol("WM_DELETE_WINDOW", on_close)
 
     def run_relay_test(self):
-        porta = self.cmb_porta_rele.get()
-        if porta == "Nessun hardware" or not porta:
+        port = self.cmb_relay_port.get()
+        if port == "Nessun hardware" or not port:
             return messagebox.showwarning("Attenzione", "Seleziona una porta valida dal menu a tendina.")
 
         try:
-            with serial.Serial(porta, 9600, timeout=1) as ser:
-                comando_on = b'\xA0\x01\x01\xA2'
-                comando_off = b'\xA0\x01\x00\xA1'
+            with serial.Serial(port, 9600, timeout=1) as ser:
+                cmd_on = b'\xA0\x01\x01\xA2'
+                cmd_off = b'\xA0\x01\x00\xA1'
                 
-                ser.write(comando_on)
+                ser.write(cmd_on)
                 ser.dtr = True; ser.rts = True
                 
                 time.sleep(0.5) 
                 
-                ser.write(comando_off)
+                ser.write(cmd_off)
                 ser.dtr = False; ser.rts = False
 
             messagebox.showinfo("Test Tornello", "Impulso inviato con successo sulla porta!\n\nHai sentito il relè fare 'Click' e il tornello sbloccarsi?")
         except Exception as e:
-            messagebox.showerror("Errore di Connessione", f"Impossibile comunicare con il Relè sulla porta {porta}:\n\n{str(e)}")
+            messagebox.showerror("Errore di Connessione", f"Impossibile comunicare con il Relè sulla porta {port}:\n\n{str(e)}")
 
     def create_field(self, parent, label_text, default_value):
         row = ctk.CTkFrame(parent, fg_color="transparent")
@@ -208,8 +215,8 @@ class SettingsView(ctk.CTkFrame):
             self.ent_logo.delete(0, 'end')
             self.ent_logo.insert(0, file)
 
-    def change_theme(self, scelta):
-        ctk.set_appearance_mode(scelta)
+    def change_theme(self, choice):
+        ctk.set_appearance_mode(choice)
 
     def load_config(self):
         if os.path.exists(self.config_file):
@@ -220,17 +227,17 @@ class SettingsView(ctk.CTkFrame):
 
     def save_settings(self):
         config = {
-            "nome_palestra": self.ent_nome.get().strip(),
+            "nome_palestra": self.ent_name.get().strip(),
             "percorso_logo": self.ent_logo.get().strip(),
-            "porta_lettore": self.cmb_porta_lettore.get(),
-            "porta_rele": self.cmb_porta_rele.get(),
-            "blocco_iscr": self.chk_iscr.get() == 1,
-            "blocco_abb": self.chk_abb.get() == 1,
-            "blocco_orari": self.chk_orari.get() == 1,
+            "porta_lettore": self.cmb_reader_port.get(),
+            "porta_rele": self.cmb_relay_port.get(),
+            "blocco_iscr": self.chk_enr.get() == 1,
+            "blocco_abb": self.chk_sub.get() == 1,
+            "blocco_orari": self.chk_time.get() == 1,
             "blocco_cert": self.chk_cert.get() == 1,
-            "tema": self.cmb_tema.get(),
-            "mostra_costo_fasce": self.chk_mostra_costo.get() == 1,
-            "mostra_eta_fasce": self.chk_mostra_eta.get() == 1
+            "tema": self.cmb_theme.get(),
+            "mostra_costo_fasce": self.chk_show_cost.get() == 1,
+            "mostra_eta_fasce": self.chk_show_age.get() == 1
         }
         try:
             with open(self.config_file, "w") as f:

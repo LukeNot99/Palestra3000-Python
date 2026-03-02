@@ -15,6 +15,13 @@ def is_valid_date(date_str):
     if not date_str or not date_str.strip(): return True 
     return parse_date(date_str) is not None
 
+def is_valid_phone(phone_str):
+    """Verifica che il telefono contenga solo numeri, spazi, trattini o prefisso +"""
+    if not phone_str or not phone_str.strip(): 
+        return True # Il campo non è obbligatorio
+    pattern = r"^\+?[0-9\s\-\.]{7,20}$"
+    return re.match(pattern, phone_str.strip()) is not None
+
 def extract_consonants(testo):
     return re.sub(r'[^A-Z]', '', re.sub(r'[AEIOU]', '', testo.upper()))
 
