@@ -1,8 +1,10 @@
 import customtkinter as ctk
 from tkinter import messagebox
-from core.database import SessionLocal, Member, Tier
 from datetime import datetime, timedelta
 import calendar
+
+# SOLO REPOSITORIES E UTILS! Nessun import del DB!
+from core.repositories import MemberRepository, TierRepository
 from core.utils import parse_date, is_valid_date, is_valid_phone, calculate_partial_cf, generate_invoice_html
 
 class MemberFormWindow(ctk.CTkToplevel):
@@ -31,14 +33,9 @@ class MemberFormWindow(ctk.CTkToplevel):
         grid_container.grid_columnconfigure(1, weight=1, uniform="colonna")
         grid_container.grid_rowconfigure(0, weight=1)
 
-        db = SessionLocal()
-        unique_cities = sorted(list(set([m.city for m in db.query(Member.city).filter(Member.city != None).all()])))
-        unique_birth_places = sorted(list(set([m.birth_place for m in db.query(Member.birth_place).filter(Member.birth_place != None).all()])))
-        
-        tiers_db = db.query(Tier).all()
-        self.tiers_data = [{"id": t.id, "name": t.name, "max_entries": t.max_entries, "duration_months": t.duration_months} for t in tiers_db]
+        unique_cities, unique_birth_places = MemberRepository.get_unique_cities_and_birthplaces()
+        self.tiers_data = TierRepository.get_all()
         tier_names = ["Nessuna fascia"] + [t["name"] for t in self.tiers_data]
-        db.close()
 
         frame_left = ctk.CTkFrame(grid_container, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         frame_left.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
@@ -177,11 +174,9 @@ class MemberFormWindow(ctk.CTkToplevel):
 
     def generate_receipt(self):
         self.save_member(exit_after=False)
-        db = SessionLocal()
-        socio = db.query(Member).get(self.member_id)
-        if socio:
-            generate_invoice_html(socio)
-        db.close()
+        socio_data = MemberRepository.get_by_id(self.member_id)
+        if socio_data:
+            generate_invoice_html(socio_data)
 
     def close_window(self):
         self.grab_release()
@@ -236,45 +231,45 @@ class MemberFormWindow(ctk.CTkToplevel):
         self.ent_membership_exp.insert(0, d_scadenza.strftime("%d/%m/%Y"))
 
     def load_member_data(self):
-        db = SessionLocal()
-        socio = db.query(Member).filter(Member.id == self.member_id).first()
+        socio = MemberRepository.get_by_id(self.member_id)
         if socio:
-            if socio.badge_number: self.ent_badge.insert(0, socio.badge_number)
-            self.ent_first_name.insert(0, socio.first_name)
-            self.ent_last_name.insert(0, socio.last_name)
+            if socio["badge_number"]: self.ent_badge.insert(0, socio["badge_number"])
+            self.ent_first_name.insert(0, socio["first_name"])
+            self.ent_last_name.insert(0, socio["last_name"])
             
-            if socio.codice_fiscale:
-                self.ent_cf.insert(0, socio.codice_fiscale)
+            if socio["codice_fiscale"]:
+                self.ent_cf.insert(0, socio["codice_fiscale"])
                 self.cf_modified_manually = True 
                 
-            if socio.birth_date: 
-                self.ent_birth_date.insert(0, socio.birth_date)
+            if socio["birth_date"]: 
+                self.ent_birth_date.insert(0, socio["birth_date"])
                 self.calculate_age_live()
-            if socio.birth_place: self.cmb_birth_place.set(socio.birth_place)
-            if socio.city: self.cmb_city.set(socio.city)
-            if socio.address: self.ent_address.insert(0, socio.address)
-            if socio.phone: self.ent_phone.insert(0, socio.phone)
-            if socio.other_contact: self.ent_other_contact.insert(0, socio.other_contact)
-            self.cmb_gender.set(socio.gender)
+            if socio["birth_place"]: self.cmb_birth_place.set(socio["birth_place"])
+            if socio["city"]: self.cmb_city.set(socio["city"])
+            if socio["address"]: self.ent_address.insert(0, socio["address"])
+            if socio["phone"]: self.ent_phone.insert(0, socio["phone"])
+            if socio["other_contact"]: self.ent_other_contact.insert(0, socio["other_contact"])
+            self.cmb_gender.set(socio["gender"])
             
-            if socio.enrollment_expiration: self.ent_enrollment_exp.insert(0, socio.enrollment_expiration)
-            if socio.membership_start: self.ent_membership_start.insert(0, socio.membership_start)
-            if socio.membership_expiration: self.ent_membership_exp.insert(0, socio.membership_expiration)
+            if socio["enrollment_expiration"]: self.ent_enrollment_exp.insert(0, socio["enrollment_expiration"])
+            if socio["membership_start"]: self.ent_membership_start.insert(0, socio["membership_start"])
+            if socio["membership_expiration"]: self.ent_membership_exp.insert(0, socio["membership_expiration"])
             
-            if socio.tier: 
-                self.cmb_tier.set(socio.tier.name)
+            if socio["tier_name"]: 
+                self.cmb_tier.set(socio["tier_name"])
                 self.ent_entries.configure(state="normal")
                 self.ent_entries.delete(0, 'end')
-                if socio.tier.max_entries > 0:
-                    rimanenti = socio.tier.max_entries - (socio.entries_used or 0)
-                    self.ent_entries.insert(0, str(rimanenti))
+                
+                tier_dict = next((t for t in self.tiers_data if t["name"] == socio["tier_name"]), None)
+                if tier_dict and tier_dict["max_entries"] > 0:
+                    rimanenti = tier_dict["max_entries"] - (socio["entries_used"] or 0)
+                    self.ent_entries.insert(0, str(max(0, rimanenti)))
                 else:
                     self.ent_entries.insert(0, "Illimitati")
                     self.ent_entries.configure(state="disabled")
             
-            if socio.has_medical_certificate: self.chk_certificate.select()
-            if socio.certificate_expiration: self.ent_cert_exp.insert(0, socio.certificate_expiration)
-        db.close()
+            if socio["has_medical_certificate"]: self.chk_certificate.select()
+            if socio["certificate_expiration"]: self.ent_cert_exp.insert(0, socio["certificate_expiration"])
 
     def save_member(self, exit_after=True):
         nome = self.ent_first_name.get().strip()
@@ -285,16 +280,11 @@ class MemberFormWindow(ctk.CTkToplevel):
         
         if not nome or not cognome: return messagebox.showwarning("Errore", "Nome e Cognome sono obbligatori!")
         
-        # --- VERIFICA REGEX TELEFONO ---
         if not is_valid_phone(telefono):
             return messagebox.showwarning("Errore Formato", "Il numero di telefono inserito non è valido.\nInserisci un formato corretto (es. +39 333 1234567 o 0836 123456).")
         
-        db = SessionLocal()
-        if scheda:
-            esistente = db.query(Member).filter(Member.badge_number == scheda, Member.id != self.member_id).first()
-            if esistente: 
-                db.close()
-                return messagebox.showerror("Errore", f"Il Numero Scheda {scheda} è già assegnato a {esistente.first_name}!")
+        if scheda and MemberRepository.check_badge_exists(scheda, self.member_id):
+            return messagebox.showerror("Errore", f"Il Numero Scheda {scheda} è già assegnato a un altro socio!")
         
         d_nascita = self.ent_birth_date.get().strip()
         d_iscr = self.ent_enrollment_exp.get().strip()
@@ -302,66 +292,46 @@ class MemberFormWindow(ctk.CTkToplevel):
         d_scadenza = self.ent_membership_exp.get().strip()
         d_cert = self.ent_cert_exp.get().strip()
         
-        if not is_valid_date(d_nascita): 
-            db.close()
-            return messagebox.showwarning("Errore Data", "Data di nascita non valida.\nUsa il formato GG/MM/AAAA (es. 15/08/1985). Attenzione ai mesi di 30/31 giorni o bisestili.")
-        if not is_valid_date(d_iscr): 
-            db.close()
-            return messagebox.showwarning("Errore Data", "Scadenza iscrizione non valida.\nUsa il formato GG/MM/AAAA")
-        if not is_valid_date(d_partenza): 
-            db.close()
-            return messagebox.showwarning("Errore Data", "Data partenza mensilità non valida.\nUsa il formato GG/MM/AAAA")
-        if not is_valid_date(d_scadenza): 
-            db.close()
-            return messagebox.showwarning("Errore Data", "Data scadenza mensilità non valida.\nUsa il formato GG/MM/AAAA")
-        if not is_valid_date(d_cert): 
-            db.close()
-            return messagebox.showwarning("Errore Data", "Scadenza certificato non valida.\nUsa il formato GG/MM/AAAA")
+        if not is_valid_date(d_nascita): return messagebox.showwarning("Errore Data", "Data di nascita non valida.\nUsa il formato GG/MM/AAAA")
+        if not is_valid_date(d_iscr): return messagebox.showwarning("Errore Data", "Scadenza iscrizione non valida.\nUsa il formato GG/MM/AAAA")
+        if not is_valid_date(d_partenza): return messagebox.showwarning("Errore Data", "Data partenza mensilità non valida.\nUsa il formato GG/MM/AAAA")
+        if not is_valid_date(d_scadenza): return messagebox.showwarning("Errore Data", "Data scadenza mensilità non valida.\nUsa il formato GG/MM/AAAA")
+        if not is_valid_date(d_cert): return messagebox.showwarning("Errore Data", "Scadenza certificato non valida.\nUsa il formato GG/MM/AAAA")
 
         fascia_selezionata = self.cmb_tier.get()
         tier_dict = next((t for t in self.tiers_data if t["name"] == fascia_selezionata), None)
         
-        if self.member_id: socio = db.query(Member).filter(Member.id == self.member_id).first()
-        else:
-            socio = Member()
-            db.add(socio)
-            
-        socio.badge_number = scheda if scheda else None
-        socio.first_name = nome
-        socio.last_name = cognome
-        socio.codice_fiscale = cf 
-        socio.birth_date = d_nascita
-        socio.birth_place = self.cmb_birth_place.get().strip()
-        socio.city = self.cmb_city.get().strip()
-        socio.address = self.ent_address.get().strip()
-        socio.phone = telefono
-        socio.other_contact = self.ent_other_contact.get().strip()
-        socio.gender = self.cmb_gender.get()
-        
-        socio.enrollment_expiration = d_iscr
-        socio.membership_start = d_partenza
-        socio.membership_expiration = d_scadenza
-        socio.has_medical_certificate = self.chk_certificate.get() == 1
-        socio.certificate_expiration = d_cert
-        socio.tier_id = tier_dict["id"] if tier_dict else None
-        
+        entries_used = 0
         if tier_dict and tier_dict["max_entries"] > 0:
             val_ingressi = self.ent_entries.get().strip()
             try:
                 rimanenti = int(val_ingressi)
-                socio.entries_used = max(0, tier_dict["max_entries"] - rimanenti)
+                entries_used = max(0, tier_dict["max_entries"] - rimanenti)
             except ValueError: 
-                db.close()
                 return messagebox.showwarning("Errore", "Il numero di ingressi rimanenti deve essere un numero valido.")
-        else:
-            socio.entries_used = 0
         
-        db.commit()
+        data = {
+            "badge_number": scheda if scheda else None,
+            "first_name": nome,
+            "last_name": cognome,
+            "codice_fiscale": cf,
+            "birth_date": d_nascita,
+            "birth_place": self.cmb_birth_place.get().strip(),
+            "city": self.cmb_city.get().strip(),
+            "address": self.ent_address.get().strip(),
+            "phone": telefono,
+            "other_contact": self.ent_other_contact.get().strip(),
+            "gender": self.cmb_gender.get(),
+            "enrollment_expiration": d_iscr,
+            "membership_start": d_partenza,
+            "membership_expiration": d_scadenza,
+            "has_medical_certificate": self.chk_certificate.get() == 1,
+            "certificate_expiration": d_cert,
+            "tier_id": tier_dict["id"] if tier_dict else None,
+            "entries_used": entries_used
+        }
         
-        if not self.member_id:
-            self.member_id = socio.id
-            
-        db.close()
+        self.member_id = MemberRepository.save(data, self.member_id)
         self.refresh_callback()
         
         if exit_after:
@@ -385,10 +355,8 @@ class MembersView(ctk.CTkFrame):
         search_frame = ctk.CTkFrame(self, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         search_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=20)
 
-        db = SessionLocal()
-        tiers = db.query(Tier).all()
-        tier_names = ["Tutte"] + [t.name for t in tiers]
-        db.close()
+        tiers = TierRepository.get_all()
+        tier_names = ["Tutte"] + [t["name"] for t in tiers]
 
         row1 = ctk.CTkFrame(search_frame, fg_color="transparent")
         row1.pack(pady=(15, 5), fill="x", padx=15)
@@ -533,45 +501,22 @@ class MembersView(ctk.CTkFrame):
         self.row_frames.clear()
         self.selected_member_id = None
 
-        db = SessionLocal()
-        query = db.query(Member)
+        offset = (self.current_page - 1) * self.items_per_page
+        
+        members_data, total_members = MemberRepository.search(
+            badge=self.src_badge.get().strip(),
+            tier=self.src_tier.get(),
+            name=self.src_name.get().strip(),
+            surname=self.src_surname.get().strip(),
+            phone=self.src_phone.get().strip(),
+            limit=self.items_per_page,
+            offset=offset
+        )
 
-        badge = self.src_badge.get().strip()
-        if badge: query = query.filter(Member.badge_number.ilike(f"%{badge}%"))
-        
-        tier = self.src_tier.get()
-        if tier != "Tutte": query = query.join(Tier).filter(Tier.name == tier)
-        
-        name = self.src_name.get().strip()
-        if name: query = query.filter(Member.first_name.ilike(f"%{name}%"))
-        
-        surname = self.src_surname.get().strip()
-        if surname: query = query.filter(Member.last_name.ilike(f"%{surname}%"))
-        
-        phone = self.src_phone.get().strip()
-        if phone: query = query.filter(Member.phone.ilike(f"%{phone}%"))
-
-        total_members = query.count()
         total_pages = max(1, (total_members + self.items_per_page - 1) // self.items_per_page)
-        
         if self.current_page > total_pages:
             self.current_page = total_pages
-
-        members_db = query.order_by(Member.first_name, Member.last_name).offset((self.current_page - 1) * self.items_per_page).limit(self.items_per_page).all()
-        
-        members_data = []
-        for s in members_db:
-            members_data.append({
-                "id": s.id,
-                "scheda": s.badge_number if s.badge_number else "-",
-                "nome": s.first_name,
-                "cognome": s.last_name,
-                "fascia": s.tier.name if s.tier else "Nessuna",
-                "scad_abb": s.membership_expiration if s.membership_expiration else "N/D",
-                "scad_iscr": s.enrollment_expiration if s.enrollment_expiration else "N/D"
-            })
-        db.close()
-
+            
         for m_data in members_data:
             self.create_table_row(m_data)
             
@@ -591,12 +536,6 @@ class MembersView(ctk.CTkFrame):
     def delete_member(self):
         if not self.selected_member_id: return messagebox.showwarning("Attenzione", "Seleziona prima un socio dalla lista.")
         
-        db = SessionLocal()
-        socio = db.query(Member).filter(Member.id == self.selected_member_id).first()
-
-        if socio and messagebox.askyesno("Conferma", f"Vuoi eliminare definitivamente {socio.first_name} {socio.last_name}?"):
-            db.delete(socio)
-            db.commit()
-            
-        db.close()
-        self.load_data(reset_page=False)
+        if messagebox.askyesno("Conferma", "Vuoi eliminare definitivamente questo socio?"):
+            MemberRepository.delete(self.selected_member_id)
+            self.load_data(reset_page=False)

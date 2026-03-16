@@ -1,54 +1,35 @@
 import customtkinter as ctk
 import os
 import sys
-import json
-import time
-from datetime import datetime
-import threading
-import serial
-import platform
-import subprocess
+from datetime import datetime, timedelta
 from PIL import Image
 
-from core.database import SessionLocal, Member, Lesson, Booking, seed_data
-from core.utils import parse_date
+from core.database import seed_data
+from core.config import ConfigManager
+from core.services import (
+    SystemAudioPlayer, USBRelayTurnstile, SerialBadgeReader, AccessManager,
+    MedicalCertificateRule, EnrollmentRule, SubscriptionRule, TimeRule, EntriesRule
+)
 
-from ui.soci_window import MembersView, MemberFormWindow
+from ui.soci_window import MembersView
 from ui.tariffe_window import TiersView
 from ui.attivita_window import ActivitiesView
 from ui.lezioni_window import LessonsView
 from ui.calendario_window import CalendarView
 from ui.tornello_window import TurnstileView
 from ui.settings_window import SettingsView
+from core.repositories import DashboardRepository
 
 def resource_path(relative_path):
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
+    try: base_path = sys._MEIPASS
+    except Exception: base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
 
-def get_persistent_path(filename):
-    if getattr(sys, 'frozen', False):
-        base_dir = os.path.dirname(sys.executable)
-    else:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_dir, filename)
-
-def load_initial_setting(key, default):
-    config_path = get_persistent_path("config.json")
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, "r") as f: return json.load(f).get(key, default)
-        except: pass
-    return default
-
-ctk.set_appearance_mode(load_initial_setting("tema", "Light"))  
+ctk.set_appearance_mode(ConfigManager.get_setting("tema", "Light"))
 
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
-        
         self.title("Palestra 3000 - Gestione")
         self.geometry("1350x850") 
         self.configure(fg_color=("#F2F2F7", "#1C1C1E")) 
@@ -56,25 +37,33 @@ class App(ctk.CTk):
         
         seed_data()
 
-        self.serial_reader_conn = None
-        self.stop_serial_thread = threading.Event()
-        
-        self.relay_port = load_initial_setting("porta_rele", "")
-        self.start_reader_listener(load_initial_setting("porta_lettore", ""))
+        audio_player = SystemAudioPlayer(resource_path(""))
+        turnstile_hw = USBRelayTurnstile(ConfigManager.get_setting("porta_rele", ""))
+        self.reader_hw = SerialBadgeReader(ConfigManager.get_setting("porta_lettore", ""))
         
         self.access_history = [] 
-        self.day_tracker = datetime.now().date()
-        self.members_in_facility = set() 
-        
-        # Variabili per il debounce hardware (Anti-Rimbalzo)
-        self.last_badge_read = ""
-        self.last_read_time = 0
-        
-        self.bind_all("<F12>", self.global_manual_open)
+
+        ui_callbacks = {
+            "toast": self.show_toast_notification,
+            "log": self.register_log,
+            "update_counter": self.trigger_counter_update
+        }
+
+        self.access_manager = AccessManager(turnstile_hw, audio_player, ui_callbacks)
+        self.access_manager.register_rule(MedicalCertificateRule())
+        self.access_manager.register_rule(EnrollmentRule())
+        self.access_manager.register_rule(SubscriptionRule())
+        self.access_manager.register_rule(TimeRule())
+        self.access_manager.register_rule(EntriesRule())
+
+        self.reader_hw.start_listening(
+            lambda badge: self.after(0, self.access_manager.process_badge, badge, self.get_current_settings())
+        )
+
+        self.bind_all("<F12>", lambda e: self.access_manager.process_manual_open())
 
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
-
         self.sidebar = ctk.CTkFrame(self, width=280, corner_radius=0, fg_color=("#FFFFFF", "#2C2C2E"), border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         self.sidebar.grid(row=0, column=0, sticky="nsew")
         self.sidebar.grid_propagate(False) 
@@ -108,13 +97,21 @@ class App(ctk.CTk):
         
         self.show_view("dashboard")
 
+    def get_current_settings(self):
+        return {
+            "blocco_iscr": ConfigManager.get_setting("blocco_iscr", True),
+            "blocco_abb": ConfigManager.get_setting("blocco_abb", True),
+            "blocco_orari": ConfigManager.get_setting("blocco_orari", True),
+            "blocco_cert": ConfigManager.get_setting("blocco_cert", False)
+        }
+
     def update_logo(self):
         if self.logo_container: self.logo_container.destroy()
         self.logo_container = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         self.logo_container.grid(row=0, column=0, padx=20, pady=(30, 30), sticky="ew")
         
-        logo_path = load_initial_setting("percorso_logo", "")
-        gym_name = load_initial_setting("nome_palestra", "Palestra 3000")
+        logo_path = ConfigManager.get_setting("percorso_logo", "")
+        gym_name = ConfigManager.get_setting("nome_palestra", "Palestra 3000")
 
         if logo_path and os.path.exists(logo_path):
             try:
@@ -146,14 +143,14 @@ class App(ctk.CTk):
         if self.current_frame: self.current_frame.pack_forget()
             
         if view_name not in self.views:
-            if view_name == "dashboard": self.views[view_name] = DashboardView(self.main_content, self)
+            if view_name == "settings": self.views[view_name] = SettingsView(self.main_content, self)
+            elif view_name == "turnstile": self.views[view_name] = TurnstileView(self.main_content, self.access_manager, self.access_history)
             elif view_name == "members": self.views[view_name] = MembersView(self.main_content, self)
             elif view_name == "tiers": self.views[view_name] = TiersView(self.main_content, self)
             elif view_name == "activities": self.views[view_name] = ActivitiesView(self.main_content, self)
             elif view_name == "lessons": self.views[view_name] = LessonsView(self.main_content, self)
             elif view_name == "calendar": self.views[view_name] = CalendarView(self.main_content, self)
-            elif view_name == "turnstile": self.views[view_name] = TurnstileView(self.main_content, self)
-            elif view_name == "settings": self.views[view_name] = SettingsView(self.main_content, self)
+            elif view_name == "dashboard": self.views[view_name] = DashboardView(self.main_content, self)
 
         self.current_frame = self.views[view_name]
         self.current_frame.pack(fill="both", expand=True)
@@ -200,60 +197,14 @@ class App(ctk.CTk):
         except Exception: pass
         return None
 
-    def start_reader_listener(self, port):
-        if self.serial_reader_conn and self.serial_reader_conn.is_open:
-            self.stop_serial_thread.set()
-            self.serial_reader_conn.close()
-            
-        if port and "Nessun hardware" not in port:
-            try:
-                self.serial_reader_conn = serial.Serial(port, 9600, timeout=1)
-                self.stop_serial_thread.clear()
-                threading.Thread(target=self._reader_listen_loop, daemon=True).start()
-            except Exception as e: 
-                print(f"Errore connessione lettore: {e}")
-
-    def _reader_listen_loop(self):
-        while not self.stop_serial_thread.is_set():
-            if self.serial_reader_conn and self.serial_reader_conn.in_waiting > 0:
-                try:
-                    data = self.serial_reader_conn.readline().decode('utf-8').strip()
-                    badge = ''.join(filter(str.isdigit, data)) 
-                    if badge: self.after(0, self.handle_global_access, badge)
-                except Exception: pass
-
-    def open_physical_turnstile(self):
-        if self.relay_port and "Nessun hardware" not in self.relay_port:
-            threading.Thread(target=self._relay_pulse, daemon=True).start()
-
-    def _relay_pulse(self):
-        try:
-            with serial.Serial(self.relay_port, 9600, timeout=1) as ser:
-                cmd_on = b'\xA0\x01\x01\xA2'
-                cmd_off = b'\xA0\x01\x00\xA1'
-                ser.write(cmd_on)
-                ser.dtr = True; ser.rts = True
-                time.sleep(0.5) 
-                ser.write(cmd_off)
-                ser.dtr = False; ser.rts = False
-        except Exception as e:
-            print(f"Errore comando Relè USB: {e}")
-
-    def play_audio(self, file_name):
-        audio_path = resource_path(os.path.join("messaggi", file_name))
-        if os.path.exists(audio_path):
-            os_name = platform.system()
-            if os_name == "Windows":
-                import winsound
-                winsound.PlaySound(audio_path, winsound.SND_FILENAME | winsound.SND_ASYNC)
-            elif os_name == "Darwin":
-                subprocess.Popen(["afplay", audio_path])
-
     def register_log(self, message):
         self.access_history.append(message)
-        # FIX: Aggiorna il log SEMPRE, anche se la vista è nascosta (in background)
         if "turnstile" in self.views:
             self.views["turnstile"].add_log(message, skip_history=True)
+
+    def trigger_counter_update(self):
+        if "turnstile" in self.views:
+            self.views["turnstile"].update_in_facility_counter()
 
     def show_toast_notification(self, title, message, bg_color):
         toast = ctk.CTkToplevel(self)
@@ -266,147 +217,6 @@ class App(ctk.CTk):
         ctk.CTkLabel(toast, text=title, font=ctk.CTkFont(family="Montserrat", size=18, weight="bold"), text_color="white").pack(pady=(15, 5))
         ctk.CTkLabel(toast, text=message, font=ctk.CTkFont(family="Montserrat", size=14), text_color="white").pack()
         self.after(3500, toast.destroy)
-
-    def check_day_reset(self):
-        today = datetime.now().date()
-        if today != self.day_tracker:
-            self.day_tracker = today
-            self.members_in_facility.clear()
-
-    def handle_global_access(self, badge_str):
-        if not badge_str: return
-        
-        # --- DEBOUNCE HARDWARE (Anti-Rimbalzo 2 secondi) ---
-        current_time = time.time()
-        if badge_str == self.last_badge_read and (current_time - self.last_read_time) < 2.0:
-            return 
-        self.last_badge_read = badge_str
-        self.last_read_time = current_time
-        # ----------------------------------------------------
-
-        gym_prefix = "57340000000"
-        search_code = badge_str
-        
-        if len(badge_str) > 4:
-            if badge_str.startswith(gym_prefix):
-                search_code = badge_str[len(gym_prefix):]
-            else:
-                self.show_toast_notification("ACCESSO NEGATO", "Tessera estranea non riconosciuta!", "#FF3B30")
-                self.play_audio("NonValida.wav")
-                time_str = datetime.now().strftime("%H:%M:%S")
-                self.register_log(f"{time_str} > SCONOSCIUTO ( {badge_str} ) : NEGATO (Prefisso Errato) #-")
-                return
-
-        self.check_day_reset()
-        db = SessionLocal()
-        member = db.query(Member).filter(Member.badge_number == search_code).first()
-        time_str = datetime.now().strftime("%H:%M:%S")
-
-        if not member:
-            self.show_toast_notification("ACCESSO NEGATO", "Scheda Non Registrata!", "#FF3B30")
-            self.play_audio("NonValida.wav")
-            self.register_log(f"{time_str} > SCONOSCIUTO ( {search_code} ) : NEGATO (Invalida) #-")
-            db.close(); return
-
-        full_name = f"{member.first_name} {member.last_name}"
-        now = datetime.now()
-
-        block_enr = load_initial_setting("blocco_iscr", True)
-        block_sub = load_initial_setting("blocco_abb", True)
-        block_time = load_initial_setting("blocco_orari", True)
-        block_cert = load_initial_setting("blocco_cert", False)
-
-        if block_cert:
-            if not member.has_medical_certificate:
-                self.show_toast_notification("ACCESSO NEGATO", f"{full_name}\nCertificato Medico Mancante!", "#007AFF")
-                self.play_audio("HeyOp.wav")
-                self.register_log(f"{time_str} > {full_name} ( {search_code} ) : NEGATO (Cert. Medico Assente) #-")
-                db.close(); return
-            
-            exp_cert = parse_date(member.certificate_expiration)
-            if exp_cert and now > exp_cert:
-                self.show_toast_notification("ACCESSO NEGATO", f"{full_name}\nCertificato Medico Scaduto!", "#007AFF")
-                self.play_audio("HeyOp.wav")
-                self.register_log(f"{time_str} > {full_name} ( {search_code} ) : NEGATO (Cert. Medico Scaduto) #-")
-                db.close(); return
-
-        if block_enr:
-            exp_enr = parse_date(member.enrollment_expiration)
-            if exp_enr and now > exp_enr:
-                self.show_toast_notification("ACCESSO NEGATO", f"{full_name}\nIscrizione Annuale Scaduta!", "#FF3B30")
-                self.play_audio("HeyOp.wav")
-                self.register_log(f"{time_str} > {full_name} ( {search_code} ) : NEGATO (Iscrizione Scaduta) #-")
-                db.close(); return
-
-        if block_sub:
-            exp_sub = parse_date(member.membership_expiration)
-            if exp_sub and now > exp_sub:
-                self.show_toast_notification("ACCESSO NEGATO", f"{full_name}\nAbbonamento Scaduto!", "#FF9500")
-                self.play_audio("HeyOp.wav")
-                self.register_log(f"{time_str} > {full_name} ( {search_code} ) : NEGATO (Abbonamento Scaduto) #-")
-                db.close(); return
-
-        if not member.tier:
-            self.show_toast_notification("ACCESSO NEGATO", f"{full_name}\nNessuna fascia assegnata.", "#FF9500")
-            self.play_audio("HeyOp.wav")
-            self.register_log(f"{time_str} > {full_name} ( {search_code} ) : NEGATO (Senza Fascia) #-")
-            db.close(); return
-
-        tier = member.tier
-
-        if block_time:
-            try:
-                start_t = datetime.strptime(tier.start_time[:5], "%H:%M").time()
-                end_t = datetime.strptime(tier.end_time[:5], "%H:%M").time()
-                current_t = now.time()
-                
-                if start_t <= end_t: in_time = start_t <= current_t <= end_t
-                else: in_time = current_t >= start_t or current_t <= end_t
-                    
-                if not in_time:
-                    self.show_toast_notification("ACCESSO NEGATO", f"{full_name}\nFuori orario consentito!", "#FF3B30")
-                    self.play_audio("FuoriOrario.wav")
-                    self.register_log(f"{time_str} > {full_name} ( {search_code} ) : NEGATO (Fuori Orario) #-")
-                    db.close()
-                    return
-            except ValueError: pass
-
-        extra_msg = ""
-        log_entries = "#∞"
-        if tier.max_entries > 0:
-            used_entries = member.entries_used if member.entries_used else 0
-            if used_entries >= tier.max_entries:
-                self.show_toast_notification("ACCESSO NEGATO", f"{full_name}\nCarnet Esaurito!", "#FF3B30")
-                self.play_audio("FuoriOrario.wav")
-                self.register_log(f"{time_str} > {full_name} ( {search_code} ) : NEGATO (Carnet Esaurito) #0")
-                db.close(); return
-            else:
-                member.entries_used = used_entries + 1
-                db.commit()
-                rem_entries = tier.max_entries - member.entries_used
-                extra_msg = f"\nIngressi residui: {rem_entries}"
-                log_entries = f"#{rem_entries}"
-
-        self.show_toast_notification("ACCESSO CONSENTITO", f"Benvenuto {full_name}{extra_msg}", "#34C759")
-        self.register_log(f"{time_str} > {full_name} ( {search_code} ) : OK {log_entries}")
-        
-        self.members_in_facility.add(member.id)
-        # FIX: Aggiorna SEMPRE il contatore se la vista esiste
-        if "turnstile" in self.views:
-            self.views["turnstile"].update_in_facility_counter()
-
-        self.open_physical_turnstile()
-        self.play_audio("BuonLavoroDonne.wav" if member.gender == "F" else "BuonLavoro.wav")
-        db.close()
-
-    def global_manual_open(self, event=None):
-        self.play_audio("handopen.wav")
-        self.open_physical_turnstile() 
-        self.show_toast_notification("APERTURA D'UFFICIO", "Ingresso autorizzato dall'operatore.", "#007AFF")
-        
-        ora_str = datetime.now().strftime("%H:%M:%S")
-        self.register_log(f"{ora_str} > APERTURA MANUALE DA OPERATORE ESEGUITA")
-
 
 class DashboardView(ctk.CTkFrame):
     def __init__(self, parent, app):
@@ -486,6 +296,7 @@ class DashboardView(ctk.CTkFrame):
         self.load_stats()
 
     def open_member_card(self, member_id):
+        from ui.soci_window import MemberFormWindow
         MemberFormWindow(self.app, refresh_callback=self.load_stats, member_id=member_id)
 
     def create_action_button(self, parent, text, color, command, is_last=False):
@@ -513,99 +324,63 @@ class DashboardView(ctk.CTkFrame):
         lbl_val.pack(anchor="w", padx=20)
 
     def load_stats(self):
-        db = SessionLocal()
-        now_dt = datetime.now()
-        now_str = now_dt.strftime("%Y-%m-%d")
-        
-        from datetime import timedelta
-        date_today = now_dt.date()
-        date_tomorrow = date_today + timedelta(days=1)
-        date_after = date_today + timedelta(days=2)
-        target_dates = [date_today, date_tomorrow, date_after]
-        
-        all_members = db.query(Member).all()
-        active_members_count = 0
-        expiring_list = []
-        
-        for m in all_members:
-            exp_sub = parse_date(m.membership_expiration)
-            if exp_sub:
-                if exp_sub.date() in target_dates:
-                    expiring_list.append((m, exp_sub.date()))
-                    
-            if not m.tier: continue
-            if not exp_sub or now_dt > exp_sub: continue
-            
-            exp_enr = parse_date(m.enrollment_expiration)
-            if not exp_enr or now_dt > exp_enr: continue
-            
-            active_members_count += 1
+        stats = DashboardRepository.get_dashboard_stats()
 
-        expiring_list.sort(key=lambda x: x[1])
-
-        self.var_tot_members.set(str(active_members_count))
-        lessons_count = db.query(Lesson).filter(Lesson.date == now_str).count()
-        self.var_lessons_today.set(str(lessons_count))
-        self.var_expiring_soon.set(str(len(expiring_list)))
+        self.var_tot_members.set(str(stats["active_members"]))
+        self.var_lessons_today.set(str(stats["lessons_count"]))
+        self.var_expiring_soon.set(str(stats["expiring_count"]))
         
         for widget in self.scroll_lessons_today.winfo_children(): widget.destroy()
-        lessons_today = db.query(Lesson).filter(Lesson.date == now_str).order_by(Lesson.start_time).all()
         
-        if not lessons_today:
+        if not stats["lessons_today"]:
             ctk.CTkLabel(self.scroll_lessons_today, text="Nessun corso programmato oggi.", font=self.font_italic, text_color=("#86868B", "#98989D")).pack(pady=30)
         else:
-            for l in lessons_today:
+            for l in stats["lessons_today"]:
                 row_c = ctk.CTkFrame(self.scroll_lessons_today, fg_color="transparent")
                 row_c.pack(fill="x", pady=6)
                 
-                ctk.CTkLabel(row_c, text=f"🕒 {l.start_time[:5]}", font=self.font_bold13, text_color=("#007AFF", "#0A84FF"), width=60, anchor="w").pack(side="left")
+                ctk.CTkLabel(row_c, text=f"🕒 {l['start_time']}", font=self.font_bold13, text_color=("#007AFF", "#0A84FF"), width=60, anchor="w").pack(side="left")
+                ctk.CTkLabel(row_c, text=l['activity_name'], font=self.font_bold13, text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=5)
                 
-                act_name = l.activity.name if l.activity else "Attività"
-                ctk.CTkLabel(row_c, text=act_name, font=self.font_bold13, text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=5)
-                
-                booked = db.query(Booking).filter(Booking.lesson_id == l.id).count()
-                badge_color = "#34C759" if booked < l.total_seats else "#FF3B30"
+                badge_color = "#34C759" if l['occupati'] < l['total_seats'] else "#FF3B30"
                 badge = ctk.CTkFrame(row_c, fg_color=badge_color, corner_radius=6, height=22, width=50)
                 badge.pack(side="right", padx=5)
                 badge.pack_propagate(False)
-                ctk.CTkLabel(badge, text=f"{booked}/{l.total_seats}", text_color="white", font=self.font_badge).place(relx=0.5, rely=0.5, anchor="center")
+                ctk.CTkLabel(badge, text=f"{l['occupati']}/{l['total_seats']}", text_color="white", font=self.font_badge).place(relx=0.5, rely=0.5, anchor="center")
 
         for widget in self.scroll_expiring.winfo_children(): widget.destroy()
         
-        if not expiring_list:
+        if not stats["expiring_list"]:
             ctk.CTkLabel(self.scroll_expiring, text="Nessuna scadenza nei prossimi giorni. 🎉", font=self.font_italic, text_color=("#86868B", "#98989D")).pack(pady=40)
         else:
-            for m, exp_date in expiring_list:
+            for item in stats["expiring_list"]:
                 row_s = ctk.CTkFrame(self.scroll_expiring, fg_color=("#F8F8F9", "#3A3A3C"), height=50, corner_radius=10, cursor="hand2")
                 row_s.pack(fill="x", pady=4, padx=5)
                 row_s.pack_propagate(False)
                 
-                if exp_date == date_today:
+                if item["exp_date"] == stats["date_today"]:
                     exp_text = "🔴 Scade OGGI"
                     exp_color = "#FF3B30"
-                elif exp_date == date_tomorrow:
+                elif item["exp_date"] == stats["date_tomorrow"]:
                     exp_text = "🟠 Scade DOMANI"
                     exp_color = "#FF9500"
                 else:
-                    exp_text = f"🟡 Scade il {exp_date.strftime('%d/%m')}"
+                    exp_text = f"🟡 Scade il {item['exp_date'].strftime('%d/%m')}"
                     exp_color = "#FF9500"
 
                 badge_exp = ctk.CTkFrame(row_s, fg_color="transparent")
                 badge_exp.pack(side="right", padx=15)
                 ctk.CTkLabel(badge_exp, text=exp_text, font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"), text_color=exp_color).pack()
 
-                full_name = f"{m.first_name} {m.last_name}"
-                badge_txt = f" [{m.badge_number}]" if m.badge_number else ""
+                badge_txt = f" [{item['badge']}]" if item['badge'] else ""
                 
-                lbl_n = ctk.CTkLabel(row_s, text=full_name + badge_txt, font=self.font_bold13, text_color=("#1D1D1F", "#FFFFFF"))
+                lbl_n = ctk.CTkLabel(row_s, text=item["full_name"] + badge_txt, font=self.font_bold13, text_color=("#1D1D1F", "#FFFFFF"))
                 lbl_n.pack(side="left", padx=20)
 
                 for w in [row_s, lbl_n, badge_exp] + badge_exp.winfo_children():
-                    w.bind("<Double-Button-1>", lambda e, mid=m.id: self.open_member_card(mid))
+                    w.bind("<Double-Button-1>", lambda e, mid=item["id"]: self.open_member_card(mid))
                     w.bind("<Enter>", lambda e, fr=row_s: fr.configure(fg_color=("#E5E5EA", "#48484A")))
                     w.bind("<Leave>", lambda e, fr=row_s: fr.configure(fg_color=("#F8F8F9", "#3A3A3C")))
-
-        db.close()
 
 if __name__ == "__main__":
     app = App()

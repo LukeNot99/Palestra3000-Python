@@ -1,7 +1,7 @@
 import customtkinter as ctk
 from tkinter import messagebox
-from datetime import datetime, date, timedelta
-from core.database import SessionLocal, Lesson, Activity
+from datetime import datetime, timedelta
+from core.repositories import LessonRepository, ActivityRepository
 from core.utils import parse_date
 
 class LessonsView(ctk.CTkFrame):
@@ -10,7 +10,6 @@ class LessonsView(ctk.CTkFrame):
         self.app = app
         self.row_frames = {}
         self.selected_lesson_ids = set()
-
         self.font_row = ctk.CTkFont(family="Montserrat", size=13)
 
         self.grid_rowconfigure(0, weight=1)
@@ -56,10 +55,8 @@ class LessonsView(ctk.CTkFrame):
         
         ctk.CTkLabel(top_right, text="Attività:", font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=(0, 5))
         
-        db = SessionLocal()
-        activities = db.query(Activity).order_by(Activity.name).all()
-        act_names = [a.name for a in activities] if activities else ["Nessuna attività registrata"]
-        db.close()
+        activities = ActivityRepository.get_all()
+        act_names = [a["name"] for a in activities] if activities else ["Nessuna attività registrata"]
         
         self.cmb_activity = ctk.CTkOptionMenu(top_right, values=act_names, font=ctk.CTkFont(family="Montserrat", size=14), width=180, fg_color="#007AFF", command=self.load_table)
         self.cmb_activity.pack(side="left", padx=(0, 20))
@@ -120,12 +117,7 @@ class LessonsView(ctk.CTkFrame):
         f = ctk.CTkFrame(self.scroll_table, fg_color=("#FFFFFF", "#2C2C2E"), height=45, corner_radius=8, border_width=1, border_color=("#E5E5EA", "#3A3A3C"), cursor="hand2")
         f.pack(fill="x", pady=2); f.pack_propagate(False)
         
-        valori = [
-            l_data["data"], 
-            l_data["giorno"], 
-            l_data["orario"], 
-            l_data["posti"]
-        ]
+        valori = [l_data["data"], l_data["giorno"], l_data["orario"], l_data["posti"]]
         elems = [f]
         for i, val in enumerate(valori):
             f.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
@@ -148,45 +140,23 @@ class LessonsView(ctk.CTkFrame):
         self.row_frames.clear()
         self.selected_lesson_ids.clear() 
 
-        db = SessionLocal()
-        activities = db.query(Activity).order_by(Activity.name).all()
-        act_names = [a.name for a in activities] if activities else ["Nessuna attività registrata"]
+        activities = ActivityRepository.get_all()
+        act_names = [a["name"] for a in activities] if activities else ["Nessuna attività registrata"]
         
         self.cmb_activity.configure(values=act_names)
         if self.cmb_activity.get() not in act_names:
             self.cmb_activity.set(act_names[0])
         
         nome_att = self.cmb_activity.get()
-        if nome_att == "Nessuna attività registrata": 
-            db.close()
-            return
+        if nome_att == "Nessuna attività registrata": return
 
-        att_id = next((a.id for a in activities if a.name == nome_att), None)
-        if att_id:
-            mese_selezionato = self.cmb_filter_month.get()
-            anno_selezionato = self.cmb_filter_year.get()
-            filtro_data = f"{anno_selezionato}-{mese_selezionato}-"
-
-            lezioni = db.query(Lesson).filter(
-                Lesson.activity_id == att_id,
-                Lesson.date.like(f"{filtro_data}%")
-            ).order_by(Lesson.date, Lesson.start_time).all()
-
-            lez_data = []
-            for l in lezioni:
-                lez_data.append({
-                    "id": l.id,
-                    "data": datetime.strptime(l.date, "%Y-%m-%d").strftime("%d/%m/%Y") if l.date else "-",
-                    "giorno": l.day_of_week,
-                    "orario": f"{l.start_time} - {l.end_time}",
-                    "posti": str(l.total_seats)
-                })
-        else:
-            lez_data = []
-        db.close()
-
-        for l_d in lez_data:
-            self.create_table_row(l_d)
+        att_data = ActivityRepository.get_by_name(nome_att)
+        if att_data:
+            mese = int(self.cmb_filter_month.get())
+            anno = int(self.cmb_filter_year.get())
+            lez_data = LessonRepository.get_by_month_and_activity(att_data["id"], anno, mese)
+            for l_d in lez_data:
+                self.create_table_row(l_d)
 
     def generate_lessons(self):
         nome_att = self.cmb_activity.get()
@@ -208,8 +178,8 @@ class LessonsView(ctk.CTkFrame):
             if ora_ini_dt >= ora_fin_dt: return messagebox.showwarning("Errore Logico", "L'orario di fine lezione deve essere successivo all'orario di inizio.")
         except ValueError: return messagebox.showwarning("Errore Orario", "Inserisci orari validi nel formato HH:MM (es. 19:00 o 08:30).")
             
-        d_inizio = parse_date(self.ent_data_inizio.get())
-        d_fine = parse_date(self.ent_data_fine.get())
+        d_inizio = parse_date(self.ent_start_date.get())
+        d_fine = parse_date(self.ent_end_date.get())
 
         if not d_inizio or not d_fine:
             return messagebox.showwarning("Errore Data", "Le date inserite non sono valide (Usa formato GG/MM/AAAA).")
@@ -223,29 +193,12 @@ class LessonsView(ctk.CTkFrame):
         g_scelti = [i for i in range(7) if self.days_vars[i].get() == 1]
         if not g_scelti: return messagebox.showwarning("Errore", "Spunta almeno un giorno della settimana.")
 
-        g_nomi = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
-        count = 0
+        att_data = ActivityRepository.get_by_name(nome_att)
+        if not att_data: return
         
-        db = SessionLocal()
-        att = db.query(Activity).filter(Activity.name == nome_att).first()
-        if not att:
-            db.close()
-            return
-        att_id = att.id
-
-        current_date = d_inizio
-        while current_date <= d_fine:
-            if current_date.weekday() in g_scelti:
-                ds = current_date.strftime("%Y-%m-%d")
-                if not db.query(Lesson).filter(Lesson.date == ds, Lesson.start_time == ini, Lesson.activity_id == att_id).first():
-                    db.add(Lesson(date=ds, day_of_week=g_nomi[current_date.weekday()], start_time=ini, end_time=fin, total_seats=int(p), activity_id=att_id))
-                    count += 1
-            current_date += timedelta(days=1)
-            
-        db.commit()
-        db.close()
-        
+        count = LessonRepository.generate_batch(att_data["id"], d_inizio, d_fine, ini, fin, int(p), g_scelti)
         messagebox.showinfo("Completato", f"Pianificazione conclusa.\nSono state generate {count} nuove lezioni!")
+        
         self.cmb_filter_month.set(f"{d_inizio.month:02d}")
         self.cmb_filter_year.set(str(d_inizio.year))
         self.load_table()
@@ -257,12 +210,6 @@ class LessonsView(ctk.CTkFrame):
         messaggio = f"Vuoi davvero eliminare le {len(self.selected_lesson_ids)} lezioni selezionate?" if len(self.selected_lesson_ids) > 1 else "Vuoi annullare la lezione selezionata?"
         
         if messagebox.askyesno("Conferma", messaggio):
-            db = SessionLocal()
-            for l_id in self.selected_lesson_ids:
-                l = db.query(Lesson).filter(Lesson.id == l_id).first()
-                if l: db.delete(l)
-            db.commit()
-            db.close()
-            
+            LessonRepository.delete_multiple(self.selected_lesson_ids)
             self.selected_lesson_ids.clear()
             self.load_table()

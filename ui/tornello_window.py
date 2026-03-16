@@ -1,13 +1,10 @@
 import customtkinter as ctk
-import serial
-import serial.tools.list_ports
-import threading
-import time
 
 class TurnstileView(ctk.CTkFrame):
-    def __init__(self, parent, controller=None, **kwargs):
+    def __init__(self, parent, access_manager, access_history, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
-        self.controller = controller
+        self.access_manager = access_manager
+        self.access_history = access_history
 
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -57,32 +54,39 @@ class TurnstileView(ctk.CTkFrame):
 
         self.update_in_facility_counter()
 
-        if self.controller and hasattr(self.controller, "access_history"):
-            for row in self.controller.access_history:
-                self.add_log(row)
+        for row in self.access_history:
+            self.add_log(row, skip_history=True)
+
+        self.bind("<Map>", self.force_scroll_down)
+
+    def force_scroll_down(self, event=None):
+        self.txt_log.see("end")
 
     def simulate_badge(self, event=None):
         badge_str = self.ent_manual.get().strip()
         if badge_str:
-            if self.controller and hasattr(self.controller, "handle_global_access"):
-                self.controller.handle_global_access(badge_str)
+            # Delegata la responsabilità al Business Layer! (Inversione di dipendenza)
+            import json, os # Lazy load just to grab settings mock
+            settings = {}
+            cfg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config.json")
+            if os.path.exists(cfg_path):
+                with open(cfg_path, "r") as f: settings = json.load(f)
+                
+            self.access_manager.process_badge(badge_str, settings)
             self.ent_manual.delete(0, 'end')
 
     def manual_open(self):
-        if self.controller and hasattr(self.controller, "global_manual_open"):
-            self.controller.global_manual_open()
+        self.access_manager.process_manual_open()
 
     def clear_log(self):
         self.txt_log.configure(state="normal")
         self.txt_log.delete("1.0", "end")
         self.txt_log.configure(state="disabled")
-        if self.controller and hasattr(self.controller, "access_history"):
-            self.controller.access_history.clear()
+        self.access_history.clear()
 
     def update_in_facility_counter(self):
-        if self.controller and hasattr(self.controller, "members_in_facility"):
-            num_presenti = len(self.controller.members_in_facility)
-            self.lbl_counter.configure(text=str(num_presenti))
+        num_presenti = len(self.access_manager.members_in_facility)
+        self.lbl_counter.configure(text=str(num_presenti))
 
     def add_log(self, message, skip_history=False):
         self.txt_log.configure(state="normal")
@@ -103,3 +107,7 @@ class TurnstileView(ctk.CTkFrame):
             
         self.txt_log.see("end")
         self.txt_log.configure(state="disabled")
+        
+        if not skip_history:
+            if message not in self.access_history:
+                self.access_history.append(message)

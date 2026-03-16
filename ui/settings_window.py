@@ -1,18 +1,16 @@
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
-import json
-import os
 import serial
 import serial.tools.list_ports
 import threading
 import time
+from core.config import ConfigManager
 
 class SettingsView(ctk.CTkFrame):
     def __init__(self, parent, app):
         super().__init__(parent, fg_color="transparent")
         self.app = app
-        self.config_file = "config.json"
-        self.config = self.load_config()
+        self.config = ConfigManager.load_all()
 
         ctk.CTkLabel(self, text="⚙️ Impostazioni di Sistema", font=ctk.CTkFont(family="Montserrat", size=24, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20, pady=(20, 10))
 
@@ -34,7 +32,7 @@ class SettingsView(ctk.CTkFrame):
         self.ent_logo.pack(side="left", padx=(0, 10))
         ctk.CTkButton(row_logo, text="Scegli File", width=100, command=self.choose_logo, fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"), hover_color=("#D1D1D6", "#5C5C5E")).pack(side="left")
 
-        # --- SEZIONE 2: HARDWARE (LETTORE E RELÈ) CON AUTO-DISCOVERY ---
+        # --- SEZIONE 2: HARDWARE ---
         frame_hw = ctk.CTkFrame(self.scroll_frame, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         frame_hw.pack(fill="x", pady=10, padx=10)
         
@@ -116,16 +114,15 @@ class SettingsView(ctk.CTkFrame):
         new_ports = self.get_available_ports()
         self.cmb_reader_port.configure(values=new_ports)
         self.cmb_relay_port.configure(values=new_ports)
-        messagebox.showinfo("Aggiornamento", "Lista porte aggiornata con successo. Controlla i menu a tendina.")
+        messagebox.showinfo("Aggiornamento", "Lista porte aggiornata con successo.")
 
     def run_reader_test(self):
         port = self.cmb_reader_port.get()
         if port == "Nessun hardware" or not port:
-            return messagebox.showwarning("Attenzione", "Seleziona una porta valida dal menu a tendina.")
+            return messagebox.showwarning("Attenzione", "Seleziona una porta valida.")
 
-        if self.app.serial_reader_conn and self.app.serial_reader_conn.is_open:
-            self.app.stop_serial_thread.set()
-            self.app.serial_reader_conn.close()
+        if self.app.reader_hw:
+            self.app.reader_hw.stop()
 
         test_win = ctk.CTkToplevel(self)
         test_win.title("Test Lettore Badge")
@@ -134,9 +131,8 @@ class SettingsView(ctk.CTkFrame):
         test_win.transient(self.winfo_toplevel())
         test_win.grab_set()
 
-        lbl_status = ctk.CTkLabel(test_win, text="In attesa...\n\nStriscia o avvicina una tessera al lettore.", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
+        lbl_status = ctk.CTkLabel(test_win, text="In attesa...\n\nStriscia o avvicina una tessera.", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
         lbl_status.pack(expand=True)
-
         stop_test_event = threading.Event()
 
         def update_success(card):
@@ -144,16 +140,15 @@ class SettingsView(ctk.CTkFrame):
                 gym_prefix = "57340000000"
                 if card.startswith(gym_prefix):
                     clean_number = card[len(gym_prefix):]
-                    msg = f"✅ TEST SUPERATO E TESSERA AUTENTICATA!\n\nStringa letta: {card}\nNumero da inserire in Anagrafica: {clean_number}"
+                    msg = f"✅ TEST SUPERATO E AUTENTICATO!\n\nLettura: {card}\nNumero da inserire: {clean_number}"
                 else:
-                    msg = f"✅ TEST LETTORE SUPERATO!\n\nATTENZIONE: Questa tessera ({card})\nnon sembra avere il prefisso della tua palestra."
-                
+                    msg = f"✅ TEST SUPERATO!\n\nATTENZIONE: Questa tessera ({card})\nnon ha il prefisso corretto."
                 lbl_status.configure(text=msg, text_color="#34C759")
                 self.after(5000, test_win.destroy)
 
         def update_error(err_msg):
             if test_win.winfo_exists():
-                lbl_status.configure(text=f"❌ Errore di Connessione:\n\n{err_msg}", text_color="#FF3B30")
+                lbl_status.configure(text=f"❌ Errore:\n\n{err_msg}", text_color="#FF3B30")
 
         def listen_for_test():
             try:
@@ -174,31 +169,26 @@ class SettingsView(ctk.CTkFrame):
         def on_close():
             stop_test_event.set()
             test_win.destroy()
-            self.app.start_reader_listener(self.config.get("porta_lettore", ""))
+            self.app.reader_hw.start_listening(
+                lambda badge: self.app.after(0, self.app.access_manager.process_badge, badge, self.app.get_current_settings())
+            )
 
         test_win.protocol("WM_DELETE_WINDOW", on_close)
 
     def run_relay_test(self):
         port = self.cmb_relay_port.get()
         if port == "Nessun hardware" or not port:
-            return messagebox.showwarning("Attenzione", "Seleziona una porta valida dal menu a tendina.")
-
+            return messagebox.showwarning("Attenzione", "Seleziona una porta valida.")
         try:
             with serial.Serial(port, 9600, timeout=1) as ser:
-                cmd_on = b'\xA0\x01\x01\xA2'
-                cmd_off = b'\xA0\x01\x00\xA1'
-                
-                ser.write(cmd_on)
+                ser.write(b'\xA0\x01\x01\xA2')
                 ser.dtr = True; ser.rts = True
-                
                 time.sleep(0.5) 
-                
-                ser.write(cmd_off)
+                ser.write(b'\xA0\x01\x00\xA1')
                 ser.dtr = False; ser.rts = False
-
-            messagebox.showinfo("Test Tornello", "Impulso inviato con successo sulla porta!\n\nHai sentito il relè fare 'Click' e il tornello sbloccarsi?")
+            messagebox.showinfo("Test", "Impulso inviato con successo!")
         except Exception as e:
-            messagebox.showerror("Errore di Connessione", f"Impossibile comunicare con il Relè sulla porta {port}:\n\n{str(e)}")
+            messagebox.showerror("Errore", f"Impossibile comunicare:\n\n{str(e)}")
 
     def create_field(self, parent, label_text, default_value):
         row = ctk.CTkFrame(parent, fg_color="transparent")
@@ -218,15 +208,8 @@ class SettingsView(ctk.CTkFrame):
     def change_theme(self, choice):
         ctk.set_appearance_mode(choice)
 
-    def load_config(self):
-        if os.path.exists(self.config_file):
-            try:
-                with open(self.config_file, "r") as f: return json.load(f)
-            except: return {}
-        return {}
-
     def save_settings(self):
-        config = {
+        config_dict = {
             "nome_palestra": self.ent_name.get().strip(),
             "percorso_logo": self.ent_logo.get().strip(),
             "porta_lettore": self.cmb_reader_port.get(),
@@ -240,9 +223,8 @@ class SettingsView(ctk.CTkFrame):
             "mostra_eta_fasce": self.chk_show_age.get() == 1
         }
         try:
-            with open(self.config_file, "w") as f:
-                json.dump(config, f, indent=4)
-            messagebox.showinfo("Successo", "Impostazioni salvate correttamente!\nRiavvia il programma per applicare definitivamente le modifiche hardware.")
+            ConfigManager.save_all(config_dict)
+            messagebox.showinfo("Successo", "Impostazioni salvate! Riavvia per applicare modifiche HW.")
             self.app.update_logo()
         except Exception as e:
-            messagebox.showerror("Errore", f"Impossibile salvare le impostazioni:\n{e}")
+            messagebox.showerror("Errore", f"Impossibile salvare:\n{e}")

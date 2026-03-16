@@ -1,16 +1,8 @@
 import customtkinter as ctk
 from tkinter import messagebox
 from datetime import datetime
-import json
-import os
-from core.database import SessionLocal, Tier, Member
-
-def read_setting(key, default):
-    if os.path.exists("config.json"):
-        try:
-            with open("config.json", "r") as f: return json.load(f).get(key, default)
-        except: pass
-    return default
+from core.repositories import TierRepository
+from core.config import ConfigManager
 
 class TiersView(ctk.CTkFrame):
     def __init__(self, parent, controller=None, **kwargs):
@@ -19,8 +11,8 @@ class TiersView(ctk.CTkFrame):
         self.row_frames = {}
         self.selected_tier_id = None
         self.font_row = ctk.CTkFont(family="Montserrat", size=13)
-        self.show_cost = read_setting("mostra_costo_fasce", False)
-        self.show_age = read_setting("mostra_eta_fasce", False)
+        self.show_cost = ConfigManager.get_setting("mostra_costo_fasce", False)
+        self.show_age = ConfigManager.get_setting("mostra_eta_fasce", False)
 
         self.grid_rowconfigure(2, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -131,13 +123,13 @@ class TiersView(ctk.CTkFrame):
         row_frame.pack(fill="x", pady=2)
         row_frame.pack_propagate(False)
 
-        valori = [t.name]
-        if self.show_cost: valori.append(f"€ {t.cost:.2f}")
-        if self.show_age: valori.append(f"{t.min_age} - {t.max_age} anni")
+        valori = [t["name"]]
+        if self.show_cost: valori.append(f"€ {t['cost']:.2f}")
+        if self.show_age: valori.append(f"{t['min_age']} - {t['max_age']} anni")
         valori.extend([
-            f"{t.start_time[:5]} - {t.end_time[:5]}",
-            f"{t.duration_months} Mesi",
-            "Illimitati" if t.max_entries == 0 else f"{t.max_entries} Ingressi"
+            f"{t['start_time'][:5]} - {t['end_time'][:5]}",
+            f"{t['duration_months']} Mesi",
+            "Illimitati" if t['max_entries'] == 0 else f"{t['max_entries']} Ingressi"
         ])
 
         row_elements = [row_frame]
@@ -148,40 +140,39 @@ class TiersView(ctk.CTkFrame):
             row_elements.append(lbl)
 
         for w in row_elements:
-            w.bind("<Button-1>", lambda e, id=t.id: self.select_row(id))
-            w.bind("<Enter>", lambda e, f=row_frame, id=t.id: f.configure(fg_color=("#F8F8F9", "#3A3A3C")) if f.winfo_exists() and self.selected_tier_id != id else None)
-            w.bind("<Leave>", lambda e, f=row_frame, id=t.id: f.configure(fg_color=("#FFFFFF", "#2C2C2E")) if f.winfo_exists() and self.selected_tier_id != id else None)
+            w.bind("<Button-1>", lambda e, id=t["id"]: self.select_row(id))
+            w.bind("<Enter>", lambda e, f=row_frame, id=t["id"]: f.configure(fg_color=("#F8F8F9", "#3A3A3C")) if f.winfo_exists() and self.selected_tier_id != id else None)
+            w.bind("<Leave>", lambda e, f=row_frame, id=t["id"]: f.configure(fg_color=("#FFFFFF", "#2C2C2E")) if f.winfo_exists() and self.selected_tier_id != id else None)
 
-        self.row_frames[t.id] = row_frame
+        self.row_frames[t["id"]] = row_frame
 
     def load_data(self):
         for widget in self.scroll_table.winfo_children(): widget.destroy()
         self.row_frames.clear()
-        db = SessionLocal()
-        tariffe = db.query(Tier).all()
+        
+        tariffe = TierRepository.get_all()
         for t in tariffe:
             self.create_table_row(t)
-        db.close()
 
     def load_into_form(self):
         if not self.selected_tier_id: return messagebox.showwarning("Attenzione", "Seleziona una fascia.")
-        db = SessionLocal()
-        tariffa = db.query(Tier).filter(Tier.id == self.selected_tier_id).first()
+        
+        tariffa = TierRepository.get_by_id(self.selected_tier_id)
         if tariffa:
             self.clear_form()
-            self.ent_tier_name.delete(0, 'end'); self.ent_tier_name.insert(0, tariffa.name)
+            self.ent_tier_name.delete(0, 'end'); self.ent_tier_name.insert(0, tariffa["name"])
             if self.show_age:
-                self.ent_min_age.delete(0, 'end'); self.ent_min_age.insert(0, str(tariffa.min_age))
-                self.ent_max_age.delete(0, 'end'); self.ent_max_age.insert(0, str(tariffa.max_age))
+                self.ent_min_age.delete(0, 'end'); self.ent_min_age.insert(0, str(tariffa["min_age"]))
+                self.ent_max_age.delete(0, 'end'); self.ent_max_age.insert(0, str(tariffa["max_age"]))
             if self.show_cost:
-                self.ent_cost.delete(0, 'end'); self.ent_cost.insert(0, str(tariffa.cost))
-            self.ent_start_time.delete(0, 'end'); self.ent_start_time.insert(0, tariffa.start_time[:5])
-            self.ent_end_time.delete(0, 'end'); self.ent_end_time.insert(0, tariffa.end_time[:5])
-            self.ent_duration.delete(0, 'end'); self.ent_duration.insert(0, str(tariffa.duration_months))
-            self.ent_entries.delete(0, 'end'); self.ent_entries.insert(0, str(tariffa.max_entries))
-            self.tier_id_in_modifica = tariffa.id
+                self.ent_cost.delete(0, 'end'); self.ent_cost.insert(0, str(tariffa["cost"]))
+            self.ent_start_time.delete(0, 'end'); self.ent_start_time.insert(0, tariffa["start_time"][:5])
+            self.ent_end_time.delete(0, 'end'); self.ent_end_time.insert(0, tariffa["end_time"][:5])
+            self.ent_duration.delete(0, 'end'); self.ent_duration.insert(0, str(tariffa["duration_months"]))
+            self.ent_entries.delete(0, 'end'); self.ent_entries.insert(0, str(tariffa["max_entries"]))
+            
+            self.tier_id_in_modifica = tariffa["id"]
             self.btn_save.configure(text="Aggiorna Dati", fg_color="#007AFF", hover_color="#005ecb")
-        db.close()
 
     def save_tier(self):
         sigla = self.ent_tier_name.get().strip()
@@ -209,34 +200,24 @@ class TiersView(ctk.CTkFrame):
         except ValueError:
             return messagebox.showwarning("Errore", "Verifica che Costo, Età, Durata e Ingressi siano numeri validi.")
 
-        db = SessionLocal()
-        if self.tier_id_in_modifica:
-            tariffa = db.query(Tier).filter(Tier.id == self.tier_id_in_modifica).first()
-            if tariffa:
-                tariffa.name = sigla; tariffa.cost = costo; tariffa.min_age = eta_min; tariffa.max_age = eta_max
-                tariffa.start_time = accesso; tariffa.end_time = uscita
-                tariffa.duration_months = durata_mesi; tariffa.max_entries = ingressi
-        else:
-            nuova_tariffa = Tier(name=sigla, cost=costo, min_age=eta_min, max_age=eta_max, start_time=accesso, end_time=uscita, duration_months=durata_mesi, max_entries=ingressi)
-            db.add(nuova_tariffa)
-
-        db.commit()
-        db.close()
+        data = {
+            "name": sigla, "cost": costo, "min_age": eta_min, "max_age": eta_max,
+            "start_time": accesso, "end_time": uscita, "duration_months": durata_mesi,
+            "max_entries": ingressi
+        }
+        
+        TierRepository.save(data, self.tier_id_in_modifica)
         self.clear_form()
         self.load_data()
 
     def delete_tier(self):
         if not self.selected_tier_id: return messagebox.showwarning("Attenzione", "Seleziona una fascia.")
-        db = SessionLocal()
-        soci_collegati = db.query(Member).filter(Member.tier_id == self.selected_tier_id).count()
+        
+        soci_collegati = TierRepository.count_linked_members(self.selected_tier_id)
         if soci_collegati > 0: 
-            db.close()
             return messagebox.showerror("Errore", f"Ci sono {soci_collegati} soci iscritti con questa fascia!")
 
         if messagebox.askyesno("Conferma", "Sei sicuro di voler eliminare questa fascia?"):
-            tariffa = db.query(Tier).filter(Tier.id == self.selected_tier_id).first()
-            if tariffa:
-                db.delete(tariffa)
-                db.commit()
+            TierRepository.delete(self.selected_tier_id)
             self.clear_form()
-        db.close()
+            self.load_data()

@@ -2,8 +2,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 from datetime import datetime, date
 import calendar
-from sqlalchemy import func
-from core.database import SessionLocal, Lesson, Booking, Member
+from core.repositories import LessonRepository, BookingRepository
 
 class QuickBookingWindow(ctk.CTkToplevel):
     def __init__(self, parent, lesson_id, refresh_callback):
@@ -18,16 +17,12 @@ class QuickBookingWindow(ctk.CTkToplevel):
         self.transient(parent.winfo_toplevel())
         self.grab_set()
 
-        db = SessionLocal()
-        lezione = db.query(Lesson).get(self.lesson_id)
-        if not lezione: 
-            db.close()
+        self.lezione = LessonRepository.get_lesson_details(self.lesson_id)
+        if not self.lezione: 
             self.destroy()
             return
             
-        titolo = f"Prenota: {lezione.activity.name} ({lezione.start_time[:5]})"
-        db.close()
-
+        titolo = f"Prenota: {self.lezione['activity_name']} ({self.lezione['start_time']})"
         ctk.CTkLabel(self, text=titolo, font=ctk.CTkFont(family="Montserrat", size=18, weight="bold")).pack(pady=(20, 5))
         ctk.CTkLabel(self, text="Cerca per Nome, Cognome o Scheda:", font=ctk.CTkFont(family="Montserrat", size=13), text_color=("#86868B", "#98989D")).pack(pady=(5, 10))
 
@@ -51,56 +46,15 @@ class QuickBookingWindow(ctk.CTkToplevel):
 
     def search_members(self):
         for w in self.scroll_results.winfo_children(): w.destroy()
-        
         termine = self.ent_search.get().strip()
         
-        db = SessionLocal()
-        lezione = db.query(Lesson).get(self.lesson_id)
-        soci_suggeriti = []
-        mostra_suggeriti = False
-        soci = []
-
-        if termine:
-            soci_db = db.query(Member).filter(
-                (Member.first_name.ilike(f"%{termine}%")) |
-                (Member.last_name.ilike(f"%{termine}%")) |
-                (Member.badge_number.ilike(f"%{termine}%"))
-            ).order_by(Member.first_name).limit(30).all()
-            soci = list(soci_db)
-        else:
-            mostra_suggeriti = True
-            soci_suggeriti = db.query(Member).\
-                join(Booking).\
-                join(Lesson).\
-                filter(Lesson.activity_id == lezione.activity_id).\
-                group_by(Member.id).\
-                order_by(func.count(Booking.id).desc()).\
-                limit(15).all()
-            
-            soci = list(soci_suggeriti)
-            if len(soci) < 30:
-                suggeriti_ids = [s.id for s in soci_suggeriti]
-                query_altri = db.query(Member)
-                if suggeriti_ids: query_altri = query_altri.filter(~Member.id.in_(suggeriti_ids))
-                altri_soci = query_altri.order_by(Member.first_name).limit(30 - len(soci)).all()
-                soci.extend(altri_soci)
-
-        soci_data = []
-        for s in soci:
-            soci_data.append({
-                "id": s.id,
-                "first_name": s.first_name,
-                "last_name": s.last_name,
-                "badge_number": s.badge_number,
-                "is_abituale": mostra_suggeriti and (s in soci_suggeriti)
-            })
-        db.close()
+        soci_data = BookingRepository.search_for_booking(self.lesson_id, self.lezione["activity_id"], term=termine)
 
         if not soci_data:
             ctk.CTkLabel(self.scroll_results, text="Nessun socio trovato.", font=ctk.CTkFont(family="Montserrat", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=20)
             return
 
-        if mostra_suggeriti and any(s["is_abituale"] for s in soci_data):
+        if any(s["is_abituale"] for s in soci_data):
             ctk.CTkLabel(self.scroll_results, text="💡 In cima: Soci iscritti abitualmente a questo corso", font=ctk.CTkFont(family="Montserrat", size=12, slant="italic"), text_color="#007AFF").pack(pady=(5, 5), padx=10, anchor="w")
 
         for s in soci_data:
@@ -116,24 +70,15 @@ class QuickBookingWindow(ctk.CTkToplevel):
             ctk.CTkFrame(self.scroll_results, height=1, fg_color=("#E5E5EA", "#3A3A3C")).pack(fill="x", padx=10)
 
     def make_booking(self, member_id):
-        db = SessionLocal()
-        lezione = db.query(Lesson).get(self.lesson_id)
-        
-        esistente = db.query(Booking).filter_by(member_id=member_id, lesson_id=self.lesson_id).first()
-        if esistente:
-            db.close()
-            return messagebox.showwarning("Attenzione", "Il socio è già prenotato per questo corso!")
-        
-        occupati = db.query(Booking).filter_by(lesson_id=self.lesson_id).count()
-        if occupati >= lezione.total_seats:
-            if not messagebox.askyesno("Attenzione", "I posti per questo corso sono esauriti!\nVuoi forzare l'inserimento in Overbooking?"):
-                db.close()
-                return
-                
-        nuova = Booking(member_id=member_id, lesson_id=self.lesson_id)
-        db.add(nuova)
-        db.commit()
-        db.close()
+        success, msg = BookingRepository.make_booking(member_id, self.lesson_id)
+        if not success:
+            if msg == "OVERBOOKING_PROMPT":
+                if not messagebox.askyesno("Attenzione", "I posti per questo corso sono esauriti!\nVuoi forzare l'inserimento in Overbooking?"):
+                    return
+                # Forza overbooking
+                success, msg = BookingRepository.make_booking(member_id, self.lesson_id, force_overbooking=True)
+            else:
+                return messagebox.showwarning("Attenzione", msg)
         
         self.refresh_callback()
         self.grab_release()
@@ -245,24 +190,9 @@ class CalendarView(ctk.CTkFrame):
     def load_daily_lessons(self):
         for w in self.scroll_lessons.winfo_children(): w.destroy()
         
-        data_str = self.selected_date.strftime("%Y-%m-%d")
         self.lbl_date_lessons.configure(text=f"Corsi del {self.selected_date.strftime('%d/%m/%Y')}")
 
-        db = SessionLocal()
-        lezioni = db.query(Lesson).filter(Lesson.date == data_str).order_by(Lesson.start_time).all()
-        
-        lez_data = []
-        for l in lezioni:
-            occupati = db.query(Booking).filter_by(lesson_id=l.id).count()
-            lez_data.append({
-                "id": l.id,
-                "start_time": l.start_time[:5],
-                "end_time": l.end_time[:5],
-                "activity_name": l.activity.name,
-                "total_seats": l.total_seats,
-                "occupati": occupati
-            })
-        db.close()
+        lez_data = LessonRepository.get_daily_lessons_with_bookings(self.selected_date)
 
         if not lez_data:
             ctk.CTkLabel(self.scroll_lessons, text="Nessun corso programmato.", font=ctk.CTkFont(family="Montserrat", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=40)
@@ -297,13 +227,11 @@ class CalendarView(ctk.CTkFrame):
         self.selected_lesson_id = lesson_id
         self.load_daily_lessons() 
         
-        db = SessionLocal()
-        lezione = db.query(Lesson).get(lesson_id)
+        lezione = LessonRepository.get_lesson_details(lesson_id)
         if lezione:
-            self.lbl_lesson_details.configure(text=lezione.activity.name)
-            self.lbl_lesson_info.configure(text=f"Orario: {lezione.start_time[:5]} - {lezione.end_time[:5]}")
+            self.lbl_lesson_details.configure(text=lezione["activity_name"])
+            self.lbl_lesson_info.configure(text=f"Orario: {lezione['start_time']} - {lezione['end_time']}")
             self.btn_add_booking.pack(fill="x", padx=20, pady=20)
-        db.close()
 
         self.load_booked_list()
 
@@ -311,10 +239,7 @@ class CalendarView(ctk.CTkFrame):
         for w in self.scroll_bookings.winfo_children(): w.destroy()
         if not self.selected_lesson_id: return
         
-        db = SessionLocal()
-        prenotazioni = db.query(Booking).filter_by(lesson_id=self.selected_lesson_id).join(Member).order_by(Member.first_name).all()
-        pren_data = [{"id": p.id, "nome_comp": f"{p.member.first_name} {p.member.last_name}"} for p in prenotazioni]
-        db.close()
+        pren_data = BookingRepository.get_bookings_for_lesson(self.selected_lesson_id)
         
         if not pren_data:
             ctk.CTkLabel(self.scroll_bookings, text="Nessun socio prenotato.", font=ctk.CTkFont(family="Montserrat", slant="italic"), text_color=("#86868B", "#98989D")).pack(pady=40)
@@ -330,12 +255,7 @@ class CalendarView(ctk.CTkFrame):
 
     def remove_booking(self, booking_id):
         if messagebox.askyesno("Conferma", "Vuoi annullare questa prenotazione?"):
-            db = SessionLocal()
-            b = db.query(Booking).get(booking_id)
-            if b:
-                db.delete(b)
-                db.commit()
-            db.close()
+            BookingRepository.remove(booking_id)
             self.load_booked_list()
             self.load_daily_lessons() 
 

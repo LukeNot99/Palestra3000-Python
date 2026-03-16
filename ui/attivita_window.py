@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from tkinter import messagebox
-from core.database import SessionLocal, Activity, Lesson, Booking
+from core.repositories import ActivityRepository
 
 class ActivitiesView(ctk.CTkFrame):
     def __init__(self, parent, app):
@@ -42,39 +42,37 @@ class ActivitiesView(ctk.CTkFrame):
         for r_id, f in self.row_frames.items(): 
             f.configure(fg_color=("#E5F1FF", "#0A2A4A") if r_id == a_id else ("#FFFFFF", "#2C2C2E"), border_color="#007AFF" if r_id == a_id else ("#E5E5EA", "#3A3A3C"))
 
-    def create_table_row(self, activity):
+    def create_table_row(self, activity_data):
         f = ctk.CTkFrame(self.scroll_table, fg_color=("#FFFFFF", "#2C2C2E"), height=45, corner_radius=8, border_width=1, border_color=("#E5E5EA", "#3A3A3C"), cursor="hand2")
         f.pack(fill="x", pady=2); f.pack_propagate(False); f.grid_columnconfigure(0, weight=1)
-        lbl = ctk.CTkLabel(f, text=activity.name, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), anchor="w")
+        
+        lbl = ctk.CTkLabel(f, text=activity_data["name"], font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), anchor="w")
         lbl.grid(row=0, column=0, padx=20, pady=10, sticky="w")
+        
         for w in [f, lbl]:
-            w.bind("<Button-1>", lambda e, id=activity.id: self.select_row(id))
-            w.bind("<Enter>", lambda e, fr=f, id=activity.id: fr.configure(fg_color=("#F8F8F9", "#3A3A3C")) if self.selected_activity_id != id else None)
-            w.bind("<Leave>", lambda e, fr=f, id=activity.id: fr.configure(fg_color=("#FFFFFF", "#2C2C2E")) if self.selected_activity_id != id else None)
-        self.row_frames[activity.id] = f
+            w.bind("<Button-1>", lambda e, id=activity_data["id"]: self.select_row(id))
+            w.bind("<Enter>", lambda e, fr=f, id=activity_data["id"]: fr.configure(fg_color=("#F8F8F9", "#3A3A3C")) if self.selected_activity_id != id else None)
+            w.bind("<Leave>", lambda e, fr=f, id=activity_data["id"]: fr.configure(fg_color=("#FFFFFF", "#2C2C2E")) if self.selected_activity_id != id else None)
+        
+        self.row_frames[activity_data["id"]] = f
 
     def load_data(self):
         for w in self.scroll_table.winfo_children(): w.destroy()
         self.row_frames.clear()
         self.selected_activity_id = None
         
-        db = SessionLocal()
-        for a in db.query(Activity).order_by(Activity.name).all(): 
+        activities = ActivityRepository.get_all()
+        for a in activities: 
             self.create_table_row(a)
-        db.close()
 
     def insert_activity(self):
         act_name = self.ent_name.get().strip()
         if not act_name: return messagebox.showwarning("Attenzione", "Inserisci nome.")
         
-        db = SessionLocal()
-        if db.query(Activity).filter(Activity.name.ilike(act_name)).first(): 
-            db.close()
+        if ActivityRepository.check_exists(act_name): 
             return messagebox.showerror("Errore", "Esiste già.")
-        db.add(Activity(name=act_name))
-        db.commit()
-        db.close()
-        
+            
+        ActivityRepository.save(act_name)
         self.ent_name.delete(0, 'end')
         self.load_data()
 
@@ -82,33 +80,18 @@ class ActivitiesView(ctk.CTkFrame):
         if not self.selected_activity_id: 
             return messagebox.showwarning("Attenzione", "Seleziona un'attività dalla lista.")
             
-        db = SessionLocal()
-        a = db.query(Activity).filter(Activity.id == self.selected_activity_id).first()
-        if not a: 
-            db.close()
-            return
-
-        linked_lessons = db.query(Lesson).filter(Lesson.activity_id == a.id).all()
+        linked_lessons_count = ActivityRepository.get_linked_lessons_count(self.selected_activity_id)
+        force_cascade = False
         
-        if linked_lessons:
-            msg = (f"⚠️ ATTENZIONE!\nCi sono {len(linked_lessons)} lezioni collegate a '{a.name}'.\n"
-                   "Eliminando l'attività cancellerai anche le lezioni e le relative prenotazioni.\nProcedere?")
-            if not messagebox.askyesno("Conferma", msg, icon="warning"):
-                db.close()
-                return
-                
-            for lez in linked_lessons:
-                db.query(Booking).filter(Booking.lesson_id == lez.id).delete()
-            db.query(Lesson).filter(Lesson.activity_id == a.id).delete()
+        if linked_lessons_count > 0:
+            msg = (f"⚠️ ATTENZIONE!\nCi sono {linked_lessons_count} lezioni collegate a questa attività.\n"
+                   "Eliminandola cancellerai anche le lezioni e le relative prenotazioni.\nProcedere?")
+            if not messagebox.askyesno("Conferma", msg, icon="warning"): return
+            force_cascade = True
         else:
-            if not messagebox.askyesno("Conferma", f"Vuoi eliminare l'attività '{a.name}'?"):
-                db.close()
-                return
+            if not messagebox.askyesno("Conferma", f"Vuoi eliminare questa attività?"): return
 
-        act_name = a.name
-        db.delete(a)
-        db.commit()
-        db.close()
-        
-        self.load_data()
-        messagebox.showinfo("Completato", f"Attività '{act_name}' eliminata.")
+        success = ActivityRepository.delete(self.selected_activity_id, force_cascade=force_cascade)
+        if success:
+            self.load_data()
+            messagebox.showinfo("Completato", "Attività eliminata con successo.")

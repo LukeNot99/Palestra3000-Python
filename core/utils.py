@@ -16,9 +16,8 @@ def is_valid_date(date_str):
     return parse_date(date_str) is not None
 
 def is_valid_phone(phone_str):
-    """Verifica che il telefono contenga solo numeri, spazi, trattini o prefisso +"""
     if not phone_str or not phone_str.strip(): 
-        return True # Il campo non è obbligatorio
+        return True 
     pattern = r"^\+?[0-9\s\-\.]{7,20}$"
     return re.match(pattern, phone_str.strip()) is not None
 
@@ -29,19 +28,16 @@ def extract_vowels(testo):
     return re.sub(r'[^AEIOU]', '', testo.upper())
 
 def calculate_partial_cf(nome, cognome, data_nascita_str, sesso):
-    """Calculates the first 11 characters of the Italian Fiscal Code."""
     if not nome or not cognome or not data_nascita_str:
         return ""
         
     dt = parse_date(data_nascita_str)
     if not dt: return ""
 
-    # SURNAME
     cog_c = extract_consonants(cognome)
     cog_v = extract_vowels(cognome)
     cf_cognome = (cog_c + cog_v + "XXX")[:3]
 
-    # NAME
     nom_c = extract_consonants(nome)
     nom_v = extract_vowels(nome)
     if len(nom_c) >= 4:
@@ -49,12 +45,10 @@ def calculate_partial_cf(nome, cognome, data_nascita_str, sesso):
     else:
         cf_nome = (nom_c + nom_v + "XXX")[:3]
 
-    # YEAR and MONTH
     anno = str(dt.year)[-2:]
     mesi_cf = {1:'A', 2:'B', 3:'C', 4:'D', 5:'E', 6:'H', 7:'L', 8:'M', 9:'P', 10:'R', 11:'S', 12:'T'}
     mese = mesi_cf[dt.month]
 
-    # DAY / GENDER
     giorno = dt.day
     if sesso.upper() == 'F':
         giorno += 40
@@ -63,19 +57,21 @@ def calculate_partial_cf(nome, cognome, data_nascita_str, sesso):
     cf_parziale = f"{cf_cognome}{cf_nome}{anno}{mese}{giorno_str}XXXX"
     return cf_parziale
 
-def generate_invoice_html(socio):
-    """Generates an HTML receipt (2 copies per A4 sheet) and opens it in the browser."""
+def generate_invoice_html(socio_data):
+    """Generates an HTML receipt using a dictionary of member data (DTO)."""
     cartella_fatture = os.path.join(os.getcwd(), "Ricevute")
     os.makedirs(cartella_fatture, exist_ok=True)
     
     data_oggi = datetime.now().strftime("%d/%m/%Y")
     orario = datetime.now().strftime("%H%M%S")
     
-    nome_file = f"Ricevuta_{socio.last_name}_{socio.first_name}_{orario}.html"
+    nome_file = f"Ricevuta_{socio_data['last_name']}_{socio_data['first_name']}_{orario}.html"
     percorso_file = os.path.join(cartella_fatture, nome_file)
     
-    cf_print = socio.codice_fiscale if socio.codice_fiscale else "_________________________"
-    indirizzo_print = socio.address if socio.address else "____________________________________"
+    cf_print = socio_data.get('codice_fiscale') or "_________________________"
+    indirizzo_print = socio_data.get('address') or "____________________________________"
+    abbonamento = socio_data.get('tier_name') or "Iscrizione Base"
+    costo = f"€ {socio_data.get('tier_cost', 0.0):.2f}" if socio_data.get('tier_name') else "€ 0.00"
     
     def blocco_ricevuta(tipo_copia):
         return f"""
@@ -99,7 +95,7 @@ def generate_invoice_html(socio):
             <div class="details">
                 <h3 style="margin: 0 0 10px 0; color: #2C2C2E; font-size: 18px;">Intestato a:</h3>
                 <p style="margin: 0; font-size: 16px; line-height: 1.6;">
-                    <strong>{socio.first_name} {socio.last_name}</strong><br>
+                    <strong>{socio_data['first_name']} {socio_data['last_name']}</strong><br>
                     Codice Fiscale: <strong>{cf_print}</strong><br>
                     Indirizzo: {indirizzo_print}
                 </p>
@@ -114,8 +110,8 @@ def generate_invoice_html(socio):
                 </thead>
                 <tbody>
                     <tr>
-                        <td style="padding: 20px 10px; font-size: 16px;">Quota partecipazione corso attività sportiva dilettantistica</td>
-                        <td style="text-align: right; font-weight: bold; font-size: 22px;">€ ____________</td>
+                        <td style="padding: 20px 10px; font-size: 16px;">Quota partecipazione corso attività sportiva dilettantistica ({abbonamento})</td>
+                        <td style="text-align: right; font-weight: bold; font-size: 22px;">{costo}</td>
                     </tr>
                 </tbody>
             </table>
@@ -135,7 +131,7 @@ def generate_invoice_html(socio):
     <html lang="it">
     <head>
         <meta charset="UTF-8">
-        <title>Ricevuta {socio.last_name}</title>
+        <title>Ricevuta {socio_data['last_name']}</title>
         <style>
             @page {{ size: A4 portrait; margin: 0; }}
             body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; margin: 0; padding: 20px; background-color: #555; box-sizing: border-box; }}
