@@ -129,7 +129,7 @@ class App(ctk.CTk):
             
         if view_name not in self.views:
             if view_name == "settings": self.views[view_name] = SettingsView(self.main_content, self)
-            elif view_name == "turnstile": self.views[view_name] = TurnstileView(self.main_content, self)
+            elif view_name == "turnstile": self.views[view_name] = TurnstileView(self.main_content, self.access_manager, self.access_history, app=self)
             elif view_name == "members": self.views[view_name] = MembersView(self.main_content, self)
             elif view_name == "tiers": self.views[view_name] = TiersView(self.main_content, self)
             elif view_name == "activities": self.views[view_name] = ActivitiesView(self.main_content, self)
