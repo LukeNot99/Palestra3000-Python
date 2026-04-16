@@ -1,0 +1,171 @@
+from datetime import datetime
+import re
+import os
+import webbrowser
+
+def parse_date(date_str):
+    if not date_str: return None
+    date_str = date_str.strip()
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d"):
+        try: return datetime.strptime(date_str, fmt)
+        except ValueError: continue
+    return None
+
+def is_valid_date(date_str):
+    if not date_str or not date_str.strip(): return True 
+    return parse_date(date_str) is not None
+
+def is_valid_phone(phone_str):
+    if not phone_str or not phone_str.strip(): 
+        return True 
+    pattern = r"^\+?[0-9\s\-\.]{7,20}$"
+    return re.match(pattern, phone_str.strip()) is not None
+
+def extract_consonants(testo):
+    return re.sub(r'[^A-Z]', '', re.sub(r'[AEIOU]', '', testo.upper()))
+
+def extract_vowels(testo):
+    return re.sub(r'[^AEIOU]', '', testo.upper())
+
+def calculate_partial_cf(nome, cognome, data_nascita_str, sesso):
+    if not nome or not cognome or not data_nascita_str:
+        return ""
+        
+    dt = parse_date(data_nascita_str)
+    if not dt: return ""
+
+    cog_c = extract_consonants(cognome)
+    cog_v = extract_vowels(cognome)
+    cf_cognome = (cog_c + cog_v + "XXX")[:3]
+
+    nom_c = extract_consonants(nome)
+    nom_v = extract_vowels(nome)
+    if len(nom_c) >= 4:
+        cf_nome = nom_c[0] + nom_c[2] + nom_c[3]
+    else:
+        cf_nome = (nom_c + nom_v + "XXX")[:3]
+
+    anno = str(dt.year)[-2:]
+    mesi_cf = {1:'A', 2:'B', 3:'C', 4:'D', 5:'E', 6:'H', 7:'L', 8:'M', 9:'P', 10:'R', 11:'S', 12:'T'}
+    mese = mesi_cf[dt.month]
+
+    giorno = dt.day
+    if sesso.upper() == 'F':
+        giorno += 40
+    giorno_str = f"{giorno:02d}"
+
+    cf_parziale = f"{cf_cognome}{cf_nome}{anno}{mese}{giorno_str}XXXX"
+    return cf_parziale
+
+def generate_invoice_html(socio_data):
+    """Generates an HTML receipt using a dictionary of member data (DTO)."""
+    cartella_fatture = os.path.join(os.getcwd(), "Ricevute")
+    os.makedirs(cartella_fatture, exist_ok=True)
+    
+    data_oggi = datetime.now().strftime("%d/%m/%Y")
+    orario = datetime.now().strftime("%H%M%S")
+    
+    nome_file = f"Ricevuta_{socio_data['last_name']}_{socio_data['first_name']}_{orario}.html"
+    percorso_file = os.path.join(cartella_fatture, nome_file)
+    
+    cf_print = socio_data.get('codice_fiscale') or "_________________________"
+    indirizzo_print = socio_data.get('address') or "____________________________________"
+    abbonamento = socio_data.get('tier_name') or "Iscrizione Base"
+    costo = f"€ {socio_data.get('tier_cost', 0.0):.2f}" if socio_data.get('tier_name') else "€ 0.00"
+    
+    def blocco_ricevuta(tipo_copia):
+        return f"""
+        <div class="invoice-box">
+            <div class="copia-label">{tipo_copia}</div>
+            <div class="header">
+                <div class="header-left">
+                    <h1>RICEVUTA</h1>
+                    <p style="margin-top: 15px; font-size: 16px;">
+                        Data: <strong>{data_oggi}</strong><br><br>
+                        Numero: ___________________
+                    </p>
+                </div>
+                <div class="header-right">
+                    <div class="timbro-box">
+                        Spazio Timbro
+                    </div>
+                </div>
+            </div>
+            
+            <div class="details">
+                <h3 style="margin: 0 0 10px 0; color: #2C2C2E; font-size: 18px;">Intestato a:</h3>
+                <p style="margin: 0; font-size: 16px; line-height: 1.6;">
+                    <strong>{socio_data['first_name']} {socio_data['last_name']}</strong><br>
+                    Codice Fiscale: <strong>{cf_print}</strong><br>
+                    Indirizzo: {indirizzo_print}
+                </p>
+            </div>
+            
+            <table class="item-table">
+                <thead>
+                    <tr>
+                        <th>Descrizione</th>
+                        <th style="text-align: right; width: 200px;">Importo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="padding: 20px 10px; font-size: 16px;">Quota partecipazione corso attività sportiva dilettantistica ({abbonamento})</td>
+                        <td style="text-align: right; font-weight: bold; font-size: 22px;">{costo}</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="footer-grid">
+                <div></div>
+                <div class="signature">
+                    <div class="signature-line"></div>
+                    <div style="font-size: 14px; text-align: right;">Firma</div>
+                </div>
+            </div>
+        </div>
+        """
+
+    html_content = f"""
+    <!DOCTYPE html>
+    <html lang="it">
+    <head>
+        <meta charset="UTF-8">
+        <title>Ricevuta {socio_data['last_name']}</title>
+        <style>
+            @page {{ size: A4 portrait; margin: 0; }}
+            body {{ font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; margin: 0; padding: 20px; background-color: #555; box-sizing: border-box; }}
+            .page {{ width: 210mm; height: 296mm; margin: auto; background: white; padding: 15mm; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 0 10px rgba(0,0,0,0.5); }}
+            .invoice-box {{ height: 46%; position: relative; display: flex; flex-direction: column; }}
+            .copia-label {{ font-size: 11px; color: #888; text-align: right; margin-bottom: 5px; text-transform: uppercase; letter-spacing: 1px; }}
+            .header {{ display: flex; justify-content: space-between; border-bottom: 2px solid #007AFF; padding-bottom: 15px; margin-bottom: 20px; }}
+            .header h1 {{ margin: 0; color: #007AFF; font-size: 32px; letter-spacing: 1px; }}
+            .header-left {{ display: flex; flex-direction: column; justify-content: space-between; }}
+            .header-right {{ display: flex; align-items: flex-start; }}
+            .timbro-box {{ width: 180px; height: 110px; border: 2px dashed #ccc; display: flex; align-items: center; justify-content: center; color: #bbb; font-size: 12px; }}
+            .details {{ margin-bottom: 30px; }}
+            .item-table {{ width: 100%; border-collapse: collapse; margin-bottom: auto; }}
+            .item-table th, .item-table td {{ padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }}
+            .item-table th {{ background-color: #f2f2f7; color: #1D1D1F; font-size: 14px; text-transform: uppercase; }}
+            .footer-grid {{ display: flex; justify-content: space-between; align-items: flex-end; margin-top: 30px; }}
+            .signature {{ width: 250px; }}
+            .signature-line {{ border-bottom: 1px solid #333; margin-bottom: 8px; height: 40px; }}
+            .cut-line {{ text-align: center; border-bottom: 2px dashed #ccc; margin: 0; line-height: 0.1em; color: #ccc; }}
+            .cut-line span {{ background: white; padding: 0 15px; font-size: 20px; }}
+            @media print {{ 
+                body {{ background-color: white; padding: 0; }} 
+                .page {{ box-shadow: none; margin: 0; width: 100%; height: 100%; }}
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="page">
+            {blocco_ricevuta("Copia per il Cliente")}
+            <div class="cut-line"><span>&#9986;</span></div>
+            {blocco_ricevuta("Copia per l'Associazione")}
+        </div>
+    </body>
+    </html>
+    """
+    with open(percorso_file, "w", encoding="utf-8") as f: f.write(html_content)
+    webbrowser.open(f"file://{percorso_file}")
