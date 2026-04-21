@@ -67,8 +67,16 @@ class TurnstileView(ctk.CTkFrame):
     def simulate_badge(self, event=None):
         badge_str = self.ent_manual.get().strip()
         if badge_str:
+            # L'operatore inserisce solo le ultime cifre (es. "1234")
+            # Il sistema aggiunge automaticamente il prefisso per simulare il badge completo
+            gym_prefix = "57340000000"
+            if not badge_str.startswith(gym_prefix):
+                full_badge = gym_prefix + badge_str
+            else:
+                full_badge = badge_str
+            
             settings = ConfigManager.load_all()
-            self.access_manager.process_badge(badge_str, settings)
+            self.access_manager.process_badge(full_badge, settings)
             self.ent_manual.delete(0, 'end')
 
     def manual_open(self):
