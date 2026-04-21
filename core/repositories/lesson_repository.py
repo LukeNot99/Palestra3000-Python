@@ -3,7 +3,7 @@
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta, date
 from sqlalchemy.orm import Session
-from core.database import Lesson, Booking, Activity
+from core.models import Lesson, Booking, Activity
 from core.repositories.base import BaseRepository
 
 

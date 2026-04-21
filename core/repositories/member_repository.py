@@ -2,7 +2,7 @@
 
 from typing import Optional, List, Dict, Any, Tuple
 from sqlalchemy.orm import Session
-from core.database import Member, Tier
+from core.models import Member, Tier
 from core.repositories.base import BaseRepository
 from core.utils import parse_date
 

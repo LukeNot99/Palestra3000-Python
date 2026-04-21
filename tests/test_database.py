@@ -1,4 +1,5 @@
-from core.database import Tier, Member, Activity, Lesson, Booking
+from core.models import Tier, Member, Activity, Lesson, Booking
+from core.database import Base, engine, SessionLocal
 from datetime import datetime
 
 def test_creazione_fascia(db_session):
