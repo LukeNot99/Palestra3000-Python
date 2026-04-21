@@ -1,19 +1,13 @@
-```
-# Database files
-*.db
-
-# Python
+```gitignore
+# Python cache files
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-env/
-venv/
-.venv/
-.ENV
-.ENV.local
-.env
-.env.local
-.env.*
+
+# Database files
+*.db
+
+# Test cache
+.pytest_cache/
 ```
