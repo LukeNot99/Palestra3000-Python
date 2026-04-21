@@ -291,7 +291,7 @@ class DashboardView(ctk.CTkFrame):
         btn.pack(fill="x", padx=20, pady=pady_val)
 
     def create_card(self, parent, col, title, text_variable, icon_name, accent_color, padx_val):
-        card = ctk.CTkFrame(parent, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=16, height=130, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
+        card = ctk.CTkFrame(parent, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=16, height=145, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         card.grid(row=0, column=col, padx=padx_val, sticky="ew")
         card.grid_propagate(False)
         
@@ -307,7 +307,7 @@ class DashboardView(ctk.CTkFrame):
         
         ctk.CTkLabel(header, text=title, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), text_color=("#86868B", "#98989D")).pack(side="left", padx=12)
         lbl_val = ctk.CTkLabel(card, textvariable=text_variable, font=ctk.CTkFont(family="Montserrat", size=38, weight="bold"), text_color=("#1D1D1F", "#FFFFFF"))
-        lbl_val.pack(anchor="w", padx=20)
+        lbl_val.pack(anchor="w", padx=20, pady=(5, 0))
 
     def load_stats(self):
         stats = self.dashboard_repository.get_dashboard_stats()
@@ -325,8 +325,7 @@ class DashboardView(ctk.CTkFrame):
                 row_c = ctk.CTkFrame(self.scroll_lessons_today, fg_color="transparent")
                 row_c.pack(fill="x", pady=6)
                 
-                ctk.CTkLabel(row_c, text=f"🕒 {l['start_time']}", font=self.font_bold13, text_color=("#007AFF", "#0A84FF"), width=60, anchor="w").pack(side="left")
-                ctk.CTkLabel(row_c, text=l['activity_name'], font=self.font_bold13, text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=5)
+                ctk.CTkLabel(row_c, text=l['lesson_name'], font=self.font_bold13, text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=5)
                 
                 badge_color = "#34C759" if l['occupati'] < l['total_seats'] else "#FF3B30"
                 badge = ctk.CTkFrame(row_c, fg_color=badge_color, corner_radius=6, height=22, width=50)

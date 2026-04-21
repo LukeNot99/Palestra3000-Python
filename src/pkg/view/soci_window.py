@@ -537,6 +537,10 @@ class MembersView(ctk.CTkFrame):
             return messagebox.showwarning("Attenzione", "Seleziona prima un socio dalla lista.")
         MemberFormWindow(self, self.app, refresh_callback=lambda: self.load_data(reset_page=False), member_id=target_id)
 
+    def open_member_form(self, member_id):
+        """Apri il form di modifica per un membro specifico (chiamato dal log accessi)"""
+        MemberFormWindow(self, self.app, refresh_callback=lambda: self.load_data(reset_page=False), member_id=member_id)
+
     def delete_member(self):
         if not self.selected_member_id: return messagebox.showwarning("Attenzione", "Seleziona prima un socio dalla lista.")
         

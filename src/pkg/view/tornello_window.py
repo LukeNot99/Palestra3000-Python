@@ -88,9 +88,30 @@ class TurnstileView(ctk.CTkFrame):
         self.txt_log.configure(state="normal")
         
         tag_name = "normale"
-        if "OK" in message: tag_name = "successo"
-        elif "NEGATO" in message: tag_name = "errore"
-        elif "MANUALE" in message: tag_name = "info"
+        member_id = None
+        
+        if "OK" in message: 
+            tag_name = "successo"
+            parts = message.split("(")
+            if len(parts) >= 2:
+                name_part = parts[0].split(">")[1].strip() if ">" in parts[0] else ""
+                full_name_parts = name_part.strip().rsplit(" ", 1)
+                if len(full_name_parts) >= 2:
+                    last_name = full_name_parts[-1]
+                    first_names = " ".join(full_name_parts[:-1])
+                    member_id = self.get_member_id_by_name(first_names, last_name)
+        elif "NEGATO" in message: 
+            tag_name = "errore"
+            parts = message.split("(")
+            if len(parts) >= 2:
+                name_part = parts[0].split(">")[1].strip() if ">" in parts[0] else ""
+                full_name_parts = name_part.strip().rsplit(" ", 1)
+                if len(full_name_parts) >= 2:
+                    last_name = full_name_parts[-1]
+                    first_names = " ".join(full_name_parts[:-1])
+                    member_id = self.get_member_id_by_name(first_names, last_name)
+        elif "MANUALE" in message: 
+            tag_name = "info"
         
         self.txt_log.tag_config("successo", foreground="#34C759")
         self.txt_log.tag_config("errore", foreground="#FF3B30")
@@ -99,7 +120,11 @@ class TurnstileView(ctk.CTkFrame):
         if tag_name == "normale":
             self.txt_log.insert("end", message + "\n")
         else:
-            self.txt_log.insert("end", message + "\n", tag_name)
+            if member_id:
+                self.txt_log.insert("end", message + "\n", tag_name, f"member_{member_id}")
+                self.txt_log.tag_bind(f"member_{member_id}", "<Double-Button-1>", lambda e: self.open_member_from_log(member_id))
+            else:
+                self.txt_log.insert("end", message + "\n", tag_name)
             
         self.txt_log.see("end")
         self.txt_log.configure(state="disabled")
@@ -107,3 +132,17 @@ class TurnstileView(ctk.CTkFrame):
         if not skip_history:
             if message not in self.access_history:
                 self.access_history.append(message)
+
+    def get_member_id_by_name(self, first_name, last_name):
+        try:
+            member_repo = self.app.di.get_member_repository()
+            member = member_repo.get_member_by_name(first_name, last_name)
+            return member.id if member else None
+        except Exception:
+            return None
+
+    def open_member_from_log(self, member_id):
+        if self.app and hasattr(self.app, 'show_view'):
+            self.app.show_view("members")
+            if "members" in self.app.views and hasattr(self.app.views["members"], 'open_member_form'):
+                self.app.views["members"].open_member_form(member_id)
