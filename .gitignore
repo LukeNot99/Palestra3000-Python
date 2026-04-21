@@ -1,13 +1,6 @@
-```gitignore
-# Python cache files
+```
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-# Database files
-*.db
-
-# Test cache
-.pytest_cache/
 ```
