@@ -38,7 +38,8 @@ class LessonRepository:
                 result.append({
                     "id": l.id, "start_time": l.start_time[:5], "end_time": l.end_time[:5],
                     "activity_name": l.activity.name if l.activity else "Attività",
-                    "total_seats": l.total_seats, "occupati": occupati
+                    "total_seats": l.total_seats, "occupati": occupati,
+                    "lesson_name": f"{l.activity.name if l.activity else 'Corso'} - {l.start_time[:5]}"
                 })
             return result
 

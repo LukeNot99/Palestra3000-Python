@@ -114,3 +114,11 @@ class MemberRepository:
                 db.commit()
                 return m.entries_used
             return 0
+
+    def get_member_by_name(self, first_name, last_name):
+        with self._get_session() as db:
+            m = db.query(Member).filter(
+                func.lower(Member.first_name) == func.lower(first_name),
+                func.lower(Member.last_name) == func.lower(last_name)
+            ).first()
+            return m
