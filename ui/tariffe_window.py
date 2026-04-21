@@ -2,7 +2,7 @@ import customtkinter as ctk
 from tkinter import messagebox
 from datetime import datetime
 from core.repositories import TierRepository
-from core.config import ConfigManager
+from core.config.settings import Settings
 
 class TiersView(ctk.CTkFrame):
     def __init__(self, parent, controller=None, **kwargs):
@@ -11,8 +11,9 @@ class TiersView(ctk.CTkFrame):
         self.row_frames = {}
         self.selected_tier_id = None
         self.font_row = ctk.CTkFont(family="Montserrat", size=13)
-        self.show_cost = ConfigManager.get_setting("mostra_costo_fasce", False)
-        self.show_age = ConfigManager.get_setting("mostra_eta_fasce", False)
+        self.settings = Settings()
+        self.show_cost = self.settings.get("mostra_costo_fasce", False)
+        self.show_age = self.settings.get("mostra_eta_fasce", False)
 
         self.grid_rowconfigure(2, weight=1)
         self.grid_columnconfigure(0, weight=1)

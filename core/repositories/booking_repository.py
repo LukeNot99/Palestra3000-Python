@@ -3,7 +3,7 @@
 from typing import Optional, List, Dict, Any, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from core.database import Booking, Member, Lesson
+from core.models import Booking, Member, Lesson
 from core.repositories.base import BaseRepository
 
 

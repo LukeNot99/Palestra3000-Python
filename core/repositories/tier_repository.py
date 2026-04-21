@@ -2,7 +2,7 @@
 
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
-from core.database import Tier, Member
+from core.models import Tier, Member
 from core.repositories.base import BaseRepository
 
 

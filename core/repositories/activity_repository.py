@@ -2,7 +2,7 @@
 
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
-from core.database import Activity, Lesson, Booking
+from core.models import Activity, Lesson, Booking
 from core.repositories.base import BaseRepository
 
 
