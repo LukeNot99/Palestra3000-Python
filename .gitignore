@@ -3,6 +3,10 @@
 core/backups/*.db
 
 # Dependencies
+```gitignore
+# Python cache files
+```
+# Python
 __pycache__/
 *.pyc
 *.pyo
@@ -50,4 +54,18 @@ Thumbs.db
 *.swp
 *.swo
 *~
+
+# Database files
+*.db
+
+# Test cache
+.pytest_cache/
+# Database
+*.db
+
+# Testing
+.pytest_cache/
+
+# Logs
+*.log
 ```
