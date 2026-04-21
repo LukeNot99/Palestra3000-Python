@@ -14,9 +14,9 @@ class DatabaseConfig:
             
         data_dir = os.path.join(base_dir, "data")
         os.makedirs(data_dir, exist_ok=True)
-        db_path = os.path.join(data_dir, "palestra3000.db")
+        self.db_path = os.path.join(data_dir, "palestra3000.db")
 
-        self.engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+        self.engine = create_engine(f"sqlite:///{self.db_path}", connect_args={"check_same_thread": False})
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
 
         Base.metadata.create_all(bind=self.engine)
@@ -24,6 +24,10 @@ class DatabaseConfig:
 
     def get_session(self):
         return self.SessionLocal()
+
+    def close_all_sessions(self):
+        """Chiude tutte le connessioni al database."""
+        self.engine.dispose()
 
     def _run_migrations(self):
         # --- MIGRAZIONI AUTOMATICHE (AGGIORNA I VECCHI DATABASE) ---
