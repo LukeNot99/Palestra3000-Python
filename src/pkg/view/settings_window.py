@@ -100,6 +100,40 @@ class SettingsView(ctk.CTkFrame):
         if self.config.get("mostra_eta_fasce", False): self.chk_show_age.select()
         self.chk_show_age.pack(anchor="w", padx=20, pady=(5, 15))
 
+        # --- SEZIONE 5: GESTIONE DATABASE ---
+        from src.pkg.config.db_config import DatabaseConfig
+        frame_db = ctk.CTkFrame(self.scroll_frame, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
+        frame_db.pack(fill="x", pady=10, padx=10)
+        ctk.CTkLabel(frame_db, text="🗄️ Gestione Database", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")).pack(anchor="w", padx=20, pady=(15, 10))
+        
+        # Info database
+        db_config = DatabaseConfig()
+        db_path = db_config.db_path
+        import os
+        if os.path.exists(db_path):
+            size_kb = os.path.getsize(db_path) / 1024
+            import datetime
+            modified = datetime.datetime.fromtimestamp(os.path.getmtime(db_path)).strftime("%Y-%m-%d %H:%M:%S")
+            info_text = f"Percorso: {db_path}\nDimensione: {size_kb:.1f} KB\nUltima modifica: {modified}"
+        else:
+            info_text = "Database non trovato."
+        
+        ctk.CTkLabel(frame_db, text=info_text, font=ctk.CTkFont(family="Montserrat", size=12), justify="left").pack(anchor="w", padx=20, pady=(5, 10))
+        
+        # Pulsanti gestione database
+        btn_db_frame = ctk.CTkFrame(frame_db, fg_color="transparent")
+        btn_db_frame.pack(fill="x", padx=20, pady=(0, 15))
+        
+        ctk.CTkButton(btn_db_frame, text="💾 Crea Backup", width=140, height=35, 
+                     font=ctk.CTkFont(family="Montserrat", weight="bold"), 
+                     fg_color="#34C759", hover_color="#2eb350",
+                     command=self.create_backup).pack(side="left", padx=(0, 10))
+        
+        ctk.CTkButton(btn_db_frame, text="📂 Ripristina Backup", width=140, height=35,
+                     font=ctk.CTkFont(family="Montserrat", weight="bold"),
+                     fg_color="#FF9500", hover_color="#d67e00",
+                     command=self.restore_backup).pack(side="left")
+
         btn_frame = ctk.CTkFrame(self, fg_color="transparent")
         btn_frame.pack(fill="x", padx=20, pady=20)
         ctk.CTkButton(btn_frame, text="Salva Impostazioni", width=200, height=45, font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.save_settings).pack(side="right")
@@ -228,3 +262,102 @@ class SettingsView(ctk.CTkFrame):
             self.app.update_logo()
         except Exception as e:
             messagebox.showerror("Errore", f"Impossibile salvare:\n{e}")
+
+    def create_backup(self):
+        """Crea un backup del database."""
+        from src.pkg.config.db_config import DatabaseConfig
+        import shutil
+        import datetime
+        import os
+        
+        db_config = DatabaseConfig()
+        db_path = db_config.db_path
+        
+        if not os.path.exists(db_path):
+            return messagebox.showerror("Errore", "Database non trovato.")
+        
+        # Crea cartella backup se non esiste
+        backup_dir = os.path.join(os.path.dirname(db_path), "backups")
+        os.makedirs(backup_dir, exist_ok=True)
+        
+        # Genera nome file con timestamp
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"backup_{timestamp}.db"
+        backup_path = os.path.join(backup_dir, backup_filename)
+        
+        try:
+            shutil.copy2(db_path, backup_path)
+            messagebox.showinfo("Backup completato", f"Backup creato con successo:\n{backup_filename}")
+        except Exception as e:
+            messagebox.showerror("Errore backup", f"Impossibile creare il backup:\n{str(e)}")
+
+    def restore_backup(self):
+        """Ripristina il database da un backup."""
+        from src.pkg.config.db_config import DatabaseConfig
+        import shutil
+        import os
+        
+        db_config = DatabaseConfig()
+        db_path = db_config.db_path
+        backup_dir = os.path.join(os.path.dirname(db_path), "backups")
+        
+        # Se non ci sono backup, avvisa l'utente
+        if not os.path.exists(backup_dir):
+            return messagebox.showwarning("Nessun backup", "Non sono presenti backup nella cartella.")
+        
+        backups = [f for f in os.listdir(backup_dir) if f.startswith("backup_") and f.endswith(".db")]
+        if not backups:
+            return messagebox.showwarning("Nessun backup", "Non sono presenti backup nella cartella.")
+        
+        # Crea una finestra di dialogo personalizzata per scegliere il backup
+        dialog = ctk.CTkToplevel(self)
+        dialog.title("Seleziona Backup")
+        dialog.geometry("500x400")
+        dialog.configure(fg_color=("#F2F2F7", "#1C1C1E"))
+        dialog.transient(self.winfo_toplevel())
+        dialog.grab_set()
+        
+        ctk.CTkLabel(dialog, text="Seleziona un backup da ripristinare:", 
+                    font=ctk.CTkFont(family="Montserrat", size=14, weight="bold")).pack(pady=(20, 10))
+        
+        # Lista dei backup
+        listbox_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        listbox_frame.pack(fill="both", expand=True, padx=20, pady=10)
+        
+        selected_backup = {"path": None}
+        
+        def select_backup(backup_path):
+            selected_backup["path"] = backup_path
+        
+        for backup in sorted(backups, reverse=True):
+            backup_path = os.path.join(backup_dir, backup)
+            size_kb = os.path.getsize(backup_path) / 1024
+            btn_text = f"{backup} ({size_kb:.1f} KB)"
+            btn = ctk.CTkButton(listbox_frame, text=btn_text, width=450, anchor="w",
+                               font=ctk.CTkFont(family="Montserrat", size=11),
+                               fg_color=("#FFFFFF", "#2C2C2E"),
+                               hover_color=("#E5E5EA", "#3A3A3C"),
+                               command=lambda p=backup_path: select_backup(p))
+            btn.pack(fill="x", pady=2)
+        
+        def confirm_restore():
+            if not selected_backup["path"]:
+                return messagebox.showwarning("Attenzione", "Seleziona un backup.")
+            
+            if messagebox.askyesno("Conferma ripristino", "Sei sicuro di voler ripristinare questo backup?\\n\\nIl database attuale verrà sovrascritto.", icon="warning"):
+                try:
+                    # Chiudi eventuali connessioni al database
+                    db_config.close_all_sessions()
+                    # Copia il backup sul database
+                    shutil.copy2(selected_backup["path"], db_path)
+                    messagebox.showinfo("Ripristino completato", "Database ripristinato con successo.\\n\\nRiavvia l'applicazione.")
+                    dialog.destroy()
+                except Exception as e:
+                    messagebox.showerror("Errore ripristino", f"Impossibile ripristinare il backup:\n{str(e)}")
+        
+        btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        btn_frame.pack(fill="x", padx=20, pady=(0, 20))
+        ctk.CTkButton(btn_frame, text="Annulla", width=100, command=dialog.destroy,
+                     fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left")
+        ctk.CTkButton(btn_frame, text="Ripristina", width=120, command=confirm_restore,
+                     fg_color="#FF9500", hover_color="#d67e00").pack(side="right")
