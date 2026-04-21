@@ -92,16 +92,18 @@ class AccessManager:
             self.members_in_facility.clear()
 
         gym_prefix = "57340000000"
-        search_code = badge_str
+        search_code = None
         time_str = datetime.now().strftime("%H:%M:%S")
 
-        if len(badge_str) > 4:
-            if badge_str.startswith(gym_prefix): search_code = badge_str[len(gym_prefix):]
-            else:
-                self.ui.get("toast", lambda *args: None)("ACCESSO NEGATO", "Tessera non riconosciuta!", "#FF3B30")
-                self.audio.play("NonValida.wav")
-                self.ui.get("log", lambda *args: None)(f"{time_str} > SCONOSCIUTO ( {badge_str} ) : NEGATO (Prefisso Errato)")
-                return
+        # Il prefisso è OBBLIGATORIO per l'autenticità della tessera
+        if badge_str.startswith(gym_prefix):
+            search_code = badge_str[len(gym_prefix):]
+        else:
+            # Tessera senza prefisso: non autentica, accesso negato
+            self.ui.get("toast", lambda *args: None)("ACCESSO NEGATO", "Tessera Non Autentica!", "#FF3B30")
+            self.audio.play("NonValida.wav")
+            self.ui.get("log", lambda *args: None)(f"{time_str} > SCONOSCIUTO ( {badge_str} ) : NEGATO (Prefisso Mancante)")
+            return
 
         member = self.member_repository.get_member_for_access(search_code)
         if not member:

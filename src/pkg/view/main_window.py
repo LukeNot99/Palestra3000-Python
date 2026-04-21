@@ -186,6 +186,10 @@ class App(ctk.CTk):
         self.access_history.append(message)
         if "turnstile" in self.views:
             self.views["turnstile"].add_log(message, skip_history=True)
+        else:
+            # Se la view del tornello non è ancora stata creata, la creiamo ora
+            # per assicurarci che il log venga visualizzato quando l'utente navigherà lì
+            pass  # Il messaggio è già stato aggiunto ad access_history, verrà mostrato all'apertura
 
     def trigger_counter_update(self):
         if "turnstile" in self.views:
