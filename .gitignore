@@ -1,19 +1,16 @@
 ```
-# Database files
-*.db
-
 # Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-env/
-venv/
-.venv/
-.ENV
-.ENV.local
-.env
-.env.local
-.env.*
+
+# Database
+*.db
+
+# Testing
+.pytest_cache/
+
+# Logs
+*.log
 ```
