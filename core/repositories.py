@@ -1,28 +1,35 @@
-from sqlalchemy import func
+from sqlalchemy import func, select
 from datetime import datetime, date, timedelta
+from contextlib import contextmanager
 from core.database import SessionLocal, Tier, Activity, Lesson, Booking, Member
 from core.utils import parse_date
+
+# Context manager per gestire automaticamente le sessioni DB
+@contextmanager
+def get_db_session():
+    """Context manager per gestire automaticamente apertura/chiusura sessioni DB."""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 class TierRepository:
     @staticmethod
     def get_all():
-        db = SessionLocal()
-        try:
-            tiers = db.query(Tier).all()
+        with get_db_session() as db:
+            tiers = db.execute(select(Tier)).scalars().all()
             return [{
                 "id": t.id, "name": t.name, "cost": t.cost, 
                 "start_time": t.start_time, "end_time": t.end_time,
                 "min_age": t.min_age, "max_age": t.max_age,
                 "max_entries": t.max_entries, "duration_months": t.duration_months
             } for t in tiers]
-        finally:
-            db.close()
 
     @staticmethod
     def get_by_id(tier_id):
-        db = SessionLocal()
-        try:
-            t = db.query(Tier).filter(Tier.id == tier_id).first()
+        with get_db_session() as db:
+            t = db.get(Tier, tier_id)
             if not t: return None
             return {
                 "id": t.id, "name": t.name, "cost": t.cost, 
@@ -30,91 +37,65 @@ class TierRepository:
                 "min_age": t.min_age, "max_age": t.max_age,
                 "max_entries": t.max_entries, "duration_months": t.duration_months
             }
-        finally:
-            db.close()
 
     @staticmethod
     def save(data, tier_id=None):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             if tier_id:
-                t = db.query(Tier).filter(Tier.id == tier_id).first()
+                t = db.get(Tier, tier_id)
                 if t:
-                    for key, value in data.items(): setattr(t, key, value)
+                    for key, value in data.items(): 
+                        setattr(t, key, value)
             else:
                 t = Tier(**data)
                 db.add(t)
             db.commit()
-        finally:
-            db.close()
 
     @staticmethod
     def delete(tier_id):
-        db = SessionLocal()
-        try:
-            t = db.query(Tier).filter(Tier.id == tier_id).first()
+        with get_db_session() as db:
+            t = db.get(Tier, tier_id)
             if t:
                 db.delete(t)
                 db.commit()
-        finally:
-            db.close()
 
     @staticmethod
     def count_linked_members(tier_id):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             return db.query(Member).filter(Member.tier_id == tier_id).count()
-        finally:
-            db.close()
 
 class ActivityRepository:
     @staticmethod
     def get_all():
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             activities = db.query(Activity).order_by(Activity.name).all()
             return [{"id": a.id, "name": a.name} for a in activities]
-        finally:
-            db.close()
 
     @staticmethod
     def get_by_name(name):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             a = db.query(Activity).filter(Activity.name == name).first()
             return {"id": a.id, "name": a.name} if a else None
-        finally:
-            db.close()
 
     @staticmethod
     def check_exists(name):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             return db.query(Activity).filter(Activity.name.ilike(name)).first() is not None
-        finally:
-            db.close()
 
     @staticmethod
     def save(name):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             db.add(Activity(name=name))
             db.commit()
-        finally:
-            db.close()
 
     @staticmethod
     def get_linked_lessons_count(activity_id):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             return db.query(Lesson).filter(Lesson.activity_id == activity_id).count()
-        finally:
-            db.close()
 
     @staticmethod
     def delete(activity_id, force_cascade=False):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             a = db.query(Activity).filter(Activity.id == activity_id).first()
             if not a: return False
             if force_cascade:
@@ -125,24 +106,18 @@ class ActivityRepository:
             db.delete(a)
             db.commit()
             return True
-        finally:
-            db.close()
 
 class MemberRepository:
     @staticmethod
     def get_unique_cities_and_birthplaces():
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             cities = sorted(list(set([m.city for m in db.query(Member.city).filter(Member.city != None).all()])))
             places = sorted(list(set([m.birth_place for m in db.query(Member.birth_place).filter(Member.birth_place != None).all()])))
             return cities, places
-        finally:
-            db.close()
 
     @staticmethod
     def get_by_id(member_id):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             m = db.query(Member).filter(Member.id == member_id).first()
             if not m: return None
             return {
@@ -156,13 +131,10 @@ class MemberRepository:
                 "tier_name": m.tier.name if m.tier else None, "tier_cost": m.tier.cost if m.tier else 0.0,
                 "entries_used": m.entries_used
             }
-        finally:
-            db.close()
 
     @staticmethod
     def search(badge="", tier="Tutte", name="", surname="", phone="", limit=50, offset=0):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             query = db.query(Member)
             if badge: query = query.filter(Member.badge_number.ilike(f"%{badge}%"))
             if tier != "Tutte": query = query.join(Tier).filter(Tier.name == tier)
@@ -183,23 +155,17 @@ class MemberRepository:
                     "scad_iscr": m.enrollment_expiration if m.enrollment_expiration else "N/D"
                 })
             return data, total_count
-        finally:
-            db.close()
 
     @staticmethod
     def check_badge_exists(badge, exclude_id=None):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             q = db.query(Member).filter(Member.badge_number == badge)
             if exclude_id: q = q.filter(Member.id != exclude_id)
             return q.first() is not None
-        finally:
-            db.close()
 
     @staticmethod
     def save(data, member_id=None):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             if member_id:
                 m = db.query(Member).filter(Member.id == member_id).first()
                 if m:
@@ -209,25 +175,19 @@ class MemberRepository:
                 db.add(m)
             db.commit()
             return m.id
-        finally:
-            db.close()
 
     @staticmethod
     def delete(member_id):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             m = db.query(Member).filter(Member.id == member_id).first()
             if m:
                 db.delete(m)
                 db.commit()
-        finally:
-            db.close()
 
     # --- METODI NUOVI PER IL TORNELLO ---
     @staticmethod
     def get_member_for_access(badge_number):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             m = db.query(Member).filter(Member.badge_number == badge_number).first()
             if not m: return None
             return {
@@ -245,27 +205,21 @@ class MemberRepository:
                 "tier_start_time": m.tier.start_time if m.tier else "00:00",
                 "tier_end_time": m.tier.end_time if m.tier else "23:59"
             }
-        finally:
-            db.close()
 
     @staticmethod
     def increment_entries(member_id):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             m = db.query(Member).filter(Member.id == member_id).first()
             if m:
                 m.entries_used = (m.entries_used or 0) + 1
                 db.commit()
                 return m.entries_used
             return 0
-        finally:
-            db.close()
 
 class LessonRepository:
     @staticmethod
     def get_by_month_and_activity(activity_id, year, month):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             filtro_data = f"{year}-{month:02d}-"
             lezioni = db.query(Lesson).filter(
                 Lesson.activity_id == activity_id,
@@ -276,13 +230,10 @@ class LessonRepository:
                 "giorno": l.day_of_week, "orario": f"{l.start_time} - {l.end_time}",
                 "posti": str(l.total_seats)
             } for l in lezioni]
-        finally:
-            db.close()
 
     @staticmethod
     def get_daily_lessons_with_bookings(date_obj):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             data_str = date_obj.strftime("%Y-%m-%d")
             lezioni = db.query(Lesson).filter(Lesson.date == data_str).order_by(Lesson.start_time).all()
             result = []
@@ -294,29 +245,23 @@ class LessonRepository:
                     "total_seats": l.total_seats, "occupati": occupati
                 })
             return result
-        finally:
-            db.close()
 
     @staticmethod
     def get_lesson_details(lesson_id):
-        db = SessionLocal()
-        try:
-            l = db.query(Lesson).get(lesson_id)
+        with get_db_session() as db:
+            l = db.get(Lesson, lesson_id)
             if not l: return None
             return {
                 "id": l.id, "activity_name": l.activity.name,
                 "start_time": l.start_time[:5], "end_time": l.end_time[:5],
                 "total_seats": l.total_seats, "activity_id": l.activity_id
             }
-        finally:
-            db.close()
 
     @staticmethod
     def generate_batch(activity_id, start_date, end_date, start_time, end_time, seats, days_selected):
         g_nomi = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
         count = 0
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             current_date = start_date
             while current_date <= end_date:
                 if current_date.weekday() in days_selected:
@@ -328,34 +273,25 @@ class LessonRepository:
                 current_date += timedelta(days=1)
             db.commit()
             return count
-        finally:
-            db.close()
 
     @staticmethod
     def delete_multiple(lesson_ids):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             for l_id in lesson_ids:
                 l = db.query(Lesson).filter(Lesson.id == l_id).first()
                 if l: db.delete(l)
             db.commit()
-        finally:
-            db.close()
 
 class BookingRepository:
     @staticmethod
     def get_bookings_for_lesson(lesson_id):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             prenotazioni = db.query(Booking).filter_by(lesson_id=lesson_id).join(Member).order_by(Member.first_name).all()
             return [{"id": p.id, "nome_comp": f"{p.member.first_name} {p.member.last_name}"} for p in prenotazioni]
-        finally:
-            db.close()
 
     @staticmethod
     def search_for_booking(lesson_id, activity_id, term=""):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             if term:
                 soci = db.query(Member).filter(
                     (Member.first_name.ilike(f"%{term}%")) |
@@ -375,17 +311,14 @@ class BookingRepository:
                 altri = query_altri.order_by(Member.first_name).limit(30 - len(result)).all()
                 result.extend([{"id": s.id, "first_name": s.first_name, "last_name": s.last_name, "badge_number": s.badge_number, "is_abituale": False} for s in altri])
             return result
-        finally:
-            db.close()
 
     @staticmethod
     def make_booking(member_id, lesson_id, force_overbooking=False):
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             esistente = db.query(Booking).filter_by(member_id=member_id, lesson_id=lesson_id).first()
             if esistente: return False, "Il socio è già prenotato per questo corso!"
             
-            lezione = db.query(Lesson).get(lesson_id)
+            lezione = db.get(Lesson, lesson_id)
             occupati = db.query(Booking).filter_by(lesson_id=lesson_id).count()
             
             if occupati >= lezione.total_seats and not force_overbooking:
@@ -394,25 +327,19 @@ class BookingRepository:
             db.add(Booking(member_id=member_id, lesson_id=lesson_id))
             db.commit()
             return True, "Prenotazione effettuata."
-        finally:
-            db.close()
 
     @staticmethod
     def remove(booking_id):
-        db = SessionLocal()
-        try:
-            b = db.query(Booking).get(booking_id)
+        with get_db_session() as db:
+            b = db.get(Booking, booking_id)
             if b:
                 db.delete(b)
                 db.commit()
-        finally:
-            db.close()
 
 class DashboardRepository:
     @staticmethod
     def get_dashboard_stats():
-        db = SessionLocal()
-        try:
+        with get_db_session() as db:
             now_dt = datetime.now()
             now_str = now_dt.strftime("%Y-%m-%d")
             
@@ -452,5 +379,3 @@ class DashboardRepository:
                 "date_today": date_today,
                 "date_tomorrow": date_tomorrow
             }
-        finally:
-            db.close()
