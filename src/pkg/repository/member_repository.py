@@ -87,7 +87,13 @@ class MemberRepository:
                 db.commit()
 
     def get_member_for_access(self, badge_number):
+        """
+        Cerca un socio per il controllo accessi.
+        Il badge_number passato sono le ultime 4 cifre estratte dal badge completo.
+        Nel database, i badge possono essere memorizzati solo con le ultime 4 cifre.
+        """
         with self._get_session() as db:
+            # Cerco il socio usando solo le ultime 4 cifre (come memorizzato nel DB)
             m = db.query(Member).filter(Member.badge_number == badge_number).first()
             if not m: return None
             return {
