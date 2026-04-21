@@ -95,11 +95,17 @@ class AccessManager:
         search_code = None
         time_str = datetime.now().strftime("%H:%M:%S")
 
-        # Il prefisso è OBBLIGATORIO per l'autenticità della tessera
+        # Gestione flessibile del badge:
+        # 1. Se il badge completo include il prefisso (es. "573400000001234"), estrai le ultime cifre
+        # 2. Se il badge è solo il numero breve (es. "1234"), usalo direttamente
         if badge_str.startswith(gym_prefix):
+            # Badge completo con prefisso: estrai le ultime cifre
             search_code = badge_str[len(gym_prefix):]
+        elif len(badge_str) <= 10:
+            # Badge breve (solo ultime cifre): assumi sia valido (già validato dal simulatore)
+            search_code = badge_str
         else:
-            # Tessera senza prefisso: non autentica, accesso negato
+            # Tessera senza prefisso e troppo lunga: non autentica, accesso negato
             self.ui.get("toast", lambda *args: None)("ACCESSO NEGATO", "Tessera Non Autentica!", "#FF3B30")
             self.audio.play("NonValida.wav")
             self.ui.get("log", lambda *args: None)(f"{time_str} > SCONOSCIUTO ( {badge_str} ) : NEGATO (Prefisso Mancante)")
