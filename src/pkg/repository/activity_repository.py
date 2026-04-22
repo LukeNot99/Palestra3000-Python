@@ -1,18 +1,7 @@
-from contextlib import contextmanager
-from src.pkg.models.models import Activity, Lesson, Booking
+from src.pkg.models import Activity, Lesson, Booking
+from src.pkg.repository.base_repository import BaseRepository
 
-class ActivityRepository:
-    def __init__(self, session_factory):
-        self.session_factory = session_factory
-    
-    @contextmanager
-    def _get_session(self):
-        """Context manager per gestire automaticamente aperture/chiusura sessioni DB."""
-        db = self.session_factory()
-        try:
-            yield db
-        finally:
-            db.close()
+class ActivityRepository(BaseRepository):
 
     def get_all(self):
         with self._get_session() as db:

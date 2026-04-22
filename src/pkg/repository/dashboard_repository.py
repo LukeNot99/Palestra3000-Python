@@ -1,22 +1,13 @@
-from contextlib import contextmanager
 from datetime import datetime, timedelta
-from src.pkg.models.models import Member, Lesson
+from src.pkg.models import Member, Lesson
 from src.pkg.utility.utils import parse_date
 from src.pkg.repository.lesson_repository import LessonRepository
+from src.pkg.repository.base_repository import BaseRepository
 
-class DashboardRepository:
+class DashboardRepository(BaseRepository):
     def __init__(self, session_factory, lesson_repository: LessonRepository):
-        self.session_factory = session_factory
+        super().__init__(session_factory)
         self.lesson_repository = lesson_repository
-    
-    @contextmanager
-    def _get_session(self):
-        """Context manager per gestire automaticamente aperture/chiusura sessioni DB."""
-        db = self.session_factory()
-        try:
-            yield db
-        finally:
-            db.close()
 
     def get_dashboard_stats(self):
         with self._get_session() as db:
