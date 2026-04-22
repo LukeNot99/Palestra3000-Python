@@ -109,12 +109,15 @@ class App(ctk.CTk):
         if self.current_view_name == view_name: return
         self.current_view_name = view_name
         
+        # Recupera il colore primario dalle impostazioni
+        primary_color = ConfigManager.get_colors().get("primary", "#007AFF")
+        
         for name, data in self.menu_buttons.items():
             btn_f, l_icon, l_text = data
             if name == view_name:
                 btn_f.configure(fg_color=("#F2F2F7", "#3A3A3C"))
-                l_icon.configure(text_color=("#007AFF", "#0A84FF"))
-                l_text.configure(text_color=("#007AFF", "#0A84FF"), font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"))
+                l_icon.configure(text_color=primary_color)
+                l_text.configure(text_color=primary_color, font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"))
             else:
                 btn_f.configure(fg_color="transparent")
                 l_icon.configure(text_color=("#1D1D1F", "#FFFFFF"))
@@ -271,7 +274,10 @@ class DashboardView(ctk.CTkFrame):
         header_scad.pack(fill="x", padx=20, pady=(20, 5))
         
         ctk.CTkLabel(header_scad, text="⚠️ Scadenze Mensilità", font=ctk.CTkFont(family="Montserrat", size=18, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left")
-        ctk.CTkLabel(header_scad, text="Prossimi 2 giorni", font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"), text_color="#FF3B30", fg_color=("#FFE5E5", "#4A1010"), corner_radius=6, padx=8, pady=4).pack(side="left", padx=15)
+        
+        # Recupera dinamicamente i giorni di alert dalle impostazioni
+        giorni_alert = ConfigManager.get_scadenza_alert_giorni()
+        ctk.CTkLabel(header_scad, text=f"Prossimi {giorni_alert} giorni", font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"), text_color="#FF3B30", fg_color=("#FFE5E5", "#4A1010"), corner_radius=6, padx=8, pady=4).pack(side="left", padx=15)
         
         ctk.CTkLabel(expiring_card, text="Doppio click su un nome per aprire la scheda e registrare il rinnovo", font=ctk.CTkFont(family="Montserrat", size=13), text_color=("#86868B", "#98989D")).pack(anchor="w", padx=20, pady=(0, 15))
 

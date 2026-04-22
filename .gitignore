@@ -19,17 +19,31 @@ venv/
 .venv/
 venv/
 env/
-ENV/
+venv/
+.venv/
+.ENV
+.venv.bak/
+pip-log.txt
+pip-delete-this-directory.txt
 
 # Build artifacts
 build/
 dist/
+*.egg
 *.egg-info/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
 
 # Logs
 *.log
 
-# Environment files
+# Environment
 .env
 .env.local
 *.env.*
@@ -43,6 +57,10 @@ htmlcov/
 # Logs
 *.log
 
+# Testing
+.pytest_cache/
+.mypy_cache/
+.coverage
 # Editors
 .vscode/
 .idea/
