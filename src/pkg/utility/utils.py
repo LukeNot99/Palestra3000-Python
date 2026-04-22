@@ -1,7 +1,17 @@
 from datetime import datetime
 import re
 import os
+import sys
 import webbrowser
+
+def resource_path(relative_path):
+    """Ottiene il percorso assoluto per le risorse, funzionante sia in dev che con PyInstaller."""
+    try:
+        # PyInstaller crea una cartella temp _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 def parse_date(date_str):
     if not date_str: return None

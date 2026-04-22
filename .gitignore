@@ -15,16 +15,20 @@ venv/
 .env.*
 *.env.*
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
+# Dependencies
+.venv/
+venv/
+env/
+.env
+.env.local
+.env.*
 
 # Logs
 *.log
 
 # Coverage
 .coverage
+coverage/
 htmlcov/
 .coverage.*
 .coverage.xml
@@ -39,6 +43,10 @@ htmlcov/
 *.swo
 *.tmp
 
+# Build artifacts
+dist/
+build/
+*.egg-info/
 # Coverage
 .coverage
 coverage/

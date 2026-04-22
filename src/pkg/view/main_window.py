@@ -1,10 +1,10 @@
 import customtkinter as ctk
 import os
-import sys
 from datetime import datetime, timedelta
 from PIL import Image
 
 from src.pkg.config.app_config import ConfigManager
+from src.pkg.utility.utils import resource_path
 
 from src.pkg.view.soci_window import MembersView
 from src.pkg.view.tariffe_window import TiersView
@@ -14,11 +14,6 @@ from src.pkg.view.calendario_window import CalendarView
 from src.pkg.view.tornello_window import TurnstileView
 from src.pkg.view.settings_window import SettingsView
 
-def resource_path(relative_path):
-    try: base_path = sys._MEIPASS
-    except Exception: base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
-
 class App(ctk.CTk):
     def __init__(self, di):
         super().__init__()
@@ -26,7 +21,7 @@ class App(ctk.CTk):
         
         self.title("Palestra 3000 - Gestione")
         self.geometry("1350x850") 
-        self.configure(fg_color=("#F2F2F7", "#1C1C1E")) 
+        self.configure(fg_color=(ConfigManager.get_colors().get("bg_color", "#F2F2F7"), "#1C1C1E")) 
         self.icons_dir = resource_path("icons")
         
         self.access_history = [] 
