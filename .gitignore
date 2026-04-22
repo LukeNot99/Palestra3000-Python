@@ -8,6 +8,45 @@ __pycache__/
 env/
 venv/
 .venv/
+.ENV
+.ENV.local
+.env
+.env.local
+.env.*
+*.env.*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# Coverage
+.coverage
+coverage/
+htmlcov/
+
+# Alembic
+alembic/versions/*.py
+
+# Dependencies
+*.egg-info/
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# OS
+.DS_Store
+Thumbs.db
 pip-log.txt
 pip-delete-this-directory.txt
 .tox/
