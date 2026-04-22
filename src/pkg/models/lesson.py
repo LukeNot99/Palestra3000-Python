@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
-from sqlalchemy.orm import relationship
 from .base import Base
+from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, ForeignKey
 
 class Lesson(Base):
     __tablename__ = "lessons"

@@ -1,7 +1,7 @@
 import pytest
+from src.pkg.models import Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from core.database import Base
 
 # Creiamo un database temporaneo in RAM per i test
 TEST_DATABASE_URL = "sqlite:///:memory:"

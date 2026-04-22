@@ -1,6 +1,6 @@
-from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
-from sqlalchemy.orm import relationship
 from .base import Base
+from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
 
 class Member(Base):
     __tablename__ = "members"

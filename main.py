@@ -8,7 +8,7 @@ def bootstrap():
     # Carica la configurazione
     ConfigManager.load_all()
     tema = ConfigManager.get_setting("tema", "Light")
-    ctk.set_appearance_mode(tema)
+    ctk.set_appearance_mode(str(tema))
 
     # Inizializza il container delle dipendenze
     di = DependencyContainer()

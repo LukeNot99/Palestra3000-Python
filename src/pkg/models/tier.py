@@ -1,5 +1,5 @@
-from sqlalchemy import Column, Integer, String, Float
 from .base import Base
+from sqlalchemy import Column, Integer, String, Float
 
 class Tier(Base):
     __tablename__ = "tiers"
