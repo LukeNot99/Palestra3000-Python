@@ -1,7 +1,11 @@
 import os
 import platform
 import subprocess
+import logging
 from abc import ABC, abstractmethod
+from ..utility.utils import resource_path
+
+logger = logging.getLogger(__name__)
 
 class IAudioPlayer(ABC):
     @abstractmethod
@@ -12,11 +16,11 @@ class SystemAudioPlayer(IAudioPlayer):
         self.base_path = base_path
         
     def play(self, file_name: str):
-        # Forza un percorso assoluto compatibile con Windows
-        audio_path = os.path.abspath(os.path.join(self.base_path, "messaggi", file_name))
+        # Usa resource_path per gestire correttamente PyInstaller
+        audio_path = resource_path(os.path.join("messaggi", file_name))
         
         if not os.path.exists(audio_path): 
-            print(f"DEBUG: File non trovato - {audio_path}")
+            logger.warning(f"File audio non trovato: {audio_path}")
             return
             
         os_name = platform.system()

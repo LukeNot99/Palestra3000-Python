@@ -4,24 +4,32 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
-env/
-venv/
-.venv/
-.ENV
-.ENV.local
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
+# Dependencies
+.venv/
+venv/
+env/
+.env
+.env.local
+.env.*
 
 # Logs
 *.log
 
 # Coverage
 .coverage
+coverage/
 htmlcov/
-.coverage.*
-.coverage.xml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
 ```

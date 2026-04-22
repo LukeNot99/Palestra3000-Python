@@ -8,6 +8,7 @@ class Member(Base):
     badge_number = Column(String, unique=True, index=True, nullable=True)
     first_name = Column(String, nullable=False)
     last_name = Column(String, nullable=False)
+    email = Column(String, nullable=True)
     codice_fiscale = Column(String, nullable=True)
     birth_date = Column(String, nullable=True)
     birth_place = Column(String, nullable=True)

@@ -1,7 +1,10 @@
 import time
 import serial
 import threading
+import logging
 from abc import ABC, abstractmethod
+
+logger = logging.getLogger(__name__)
 
 class ITurnstileHardware(ABC):
     @abstractmethod
@@ -32,7 +35,7 @@ class USBRelayTurnstile(ITurnstileHardware):
                 ser.write(b'\xA0\x01\x00\xA1')
                 ser.dtr = False; ser.rts = False
         except Exception as e:
-            print(f"Errore Relè USB: {e}")
+            logger.error(f"Errore Relè USB: {e}", exc_info=True)
 
 
 class SerialBadgeReader(IBadgeReader):
@@ -48,7 +51,7 @@ class SerialBadgeReader(IBadgeReader):
             self.stop_event.clear()
             threading.Thread(target=self._listen, args=(callback,), daemon=True).start()
         except Exception as e:
-            print(f"Errore Lettore Seriale: {e}")
+            logger.error(f"Errore Lettore Seriale: {e}", exc_info=True)
             
     def stop(self):
         self.stop_event.set()
