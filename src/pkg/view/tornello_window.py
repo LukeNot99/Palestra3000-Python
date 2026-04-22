@@ -7,6 +7,9 @@ class TurnstileView(ctk.CTkFrame):
         self.access_manager = access_manager
         self.access_history = access_history
         self.app = app
+        
+        # Recupera il colore primario dalle impostazioni
+        primary_color = ConfigManager.get_colors().get("primary", "#007AFF")
 
         self.grid_rowconfigure(1, weight=1)
         self.grid_columnconfigure(0, weight=1)
@@ -15,7 +18,7 @@ class TurnstileView(ctk.CTkFrame):
         header_frame.grid(row=0, column=0, sticky="ew", pady=(0, 20))
         header_frame.grid_columnconfigure(1, weight=1) 
 
-        self.card_in_facility = ctk.CTkFrame(header_frame, fg_color="#007AFF", corner_radius=12)
+        self.card_in_facility = ctk.CTkFrame(header_frame, fg_color=primary_color, corner_radius=12)
         self.card_in_facility.grid(row=0, column=0, sticky="w", padx=(0, 20))
         
         ctk.CTkLabel(self.card_in_facility, text="INGRESSI UNICI DI OGGI", font=ctk.CTkFont(family="Montserrat", size=11, weight="bold"), text_color="#E5F1FF").pack(pady=(10, 0), padx=20)
@@ -121,9 +124,12 @@ class TurnstileView(ctk.CTkFrame):
         elif "MANUALE" in message: 
             tag_name = "info"
         
+        # Recupera il colore primario per i log informativi
+        primary_color = ConfigManager.get_colors().get("primary", "#007AFF")
+        
         self.txt_log.tag_config("successo", foreground="#34C759")
         self.txt_log.tag_config("errore", foreground="#FF3B30")
-        self.txt_log.tag_config("info", foreground="#007AFF")
+        self.txt_log.tag_config("info", foreground=primary_color)
         
         if tag_name == "normale":
             self.txt_log.insert("end", message + "\n")
