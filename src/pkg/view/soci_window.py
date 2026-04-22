@@ -93,6 +93,10 @@ class MemberFormWindow(ctk.CTkToplevel):
         self.ent_phone = ctk.CTkEntry(frame_left)
         self.ent_phone.pack(pady=(0, 10), padx=20, fill="x")
 
+        ctk.CTkLabel(frame_left, text="Email:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
+        self.ent_email = ctk.CTkEntry(frame_left, placeholder_text="Opzionale")
+        self.ent_email.pack(pady=(0, 10), padx=20, fill="x")
+
         ctk.CTkLabel(frame_left, text="Altro Recapito (Es. Tel fisso o Parenti):", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
         self.ent_other_contact = ctk.CTkEntry(frame_left, placeholder_text="Opzionale")
         self.ent_other_contact.pack(pady=(0, 20), padx=20, fill="x")
@@ -249,6 +253,7 @@ class MemberFormWindow(ctk.CTkToplevel):
             if socio["city"]: self.cmb_city.set(socio["city"])
             if socio["address"]: self.ent_address.insert(0, socio["address"])
             if socio["phone"]: self.ent_phone.insert(0, socio["phone"])
+            if socio["email"]: self.ent_email.insert(0, socio["email"])
             if socio["other_contact"]: self.ent_other_contact.insert(0, socio["other_contact"])
             self.cmb_gender.set(socio["gender"])
             
@@ -278,11 +283,16 @@ class MemberFormWindow(ctk.CTkToplevel):
         scheda = self.ent_badge.get().strip()
         cf = self.ent_cf.get().strip().upper()
         telefono = self.ent_phone.get().strip()
+        email = self.ent_email.get().strip()
         
         if not nome or not cognome: return messagebox.showwarning("Errore", "Nome e Cognome sono obbligatori!")
         
         if not is_valid_phone(telefono):
             return messagebox.showwarning("Errore Formato", "Il numero di telefono inserito non è valido.\nInserisci un formato corretto (es. +39 333 1234567 o 0836 123456).")
+        
+        # Validazione email se inserita
+        if email and not self.is_valid_email(email):
+            return messagebox.showwarning("Errore Email", "L'indirizzo email inserito non è valido.\nInserisci un formato corretto (es. nome@dominio.it)")
         
         if scheda and self.member_repository.check_badge_exists(scheda, self.member_id):
             return messagebox.showerror("Errore", f"Il Numero Scheda {scheda} è già assegnato a un altro socio!")
@@ -321,6 +331,7 @@ class MemberFormWindow(ctk.CTkToplevel):
             "city": self.cmb_city.get().strip(),
             "address": self.ent_address.get().strip(),
             "phone": telefono,
+            "email": email if email else None,
             "other_contact": self.ent_other_contact.get().strip(),
             "gender": self.cmb_gender.get(),
             "enrollment_expiration": d_iscr,
@@ -337,6 +348,12 @@ class MemberFormWindow(ctk.CTkToplevel):
         
         if exit_after:
             self.close_window()
+
+    def is_valid_email(self, email):
+        """Valida il formato dell'email"""
+        import re
+        pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+        return re.match(pattern, email) is not None
 
 
 class MembersView(ctk.CTkFrame):

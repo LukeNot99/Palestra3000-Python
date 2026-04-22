@@ -80,6 +80,32 @@ class SettingsView(ctk.CTkFrame):
         if self.config.get("blocco_cert", False): self.chk_cert.select()
         self.chk_cert.pack(anchor="w", padx=20, pady=(5, 15))
 
+        # --- SEZIONE 3B: CONFIGURAZIONE TESSERE ---
+        frame_badge = ctk.CTkFrame(self.scroll_frame, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
+        frame_badge.pack(fill="x", pady=10, padx=10)
+        ctk.CTkLabel(frame_badge, text="🎫 Configurazione Tessere", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")).pack(anchor="w", padx=20, pady=(15, 10))
+
+        row_prefix = ctk.CTkFrame(frame_badge, fg_color="transparent")
+        row_prefix.pack(fill="x", padx=20, pady=(0, 15))
+        ctk.CTkLabel(row_prefix, text="Prefisso Badge Palestra:", font=ctk.CTkFont(family="Montserrat", weight="bold"), width=220, anchor="w").pack(side="left")
+        self.ent_badge_prefix = ctk.CTkEntry(row_prefix, width=200, font=ctk.CTkFont(family="Montserrat"))
+        self.ent_badge_prefix.insert(0, ConfigManager.get_badge_prefix())
+        self.ent_badge_prefix.pack(side="left", padx=(0, 10))
+        ctk.CTkLabel(row_prefix, text="(Es. 57340000000)", font=ctk.CTkFont(family="Montserrat", size=11), text_color=("#86868B", "#98989D")).pack(side="left")
+
+        # --- SEZIONE 3C: ALERT SCADENZE ---
+        frame_alerts = ctk.CTkFrame(self.scroll_frame, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
+        frame_alerts.pack(fill="x", pady=10, padx=10)
+        ctk.CTkLabel(frame_alerts, text="⏰ Alert Scadenze", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")).pack(anchor="w", padx=20, pady=(15, 10))
+
+        row_alert_days = ctk.CTkFrame(frame_alerts, fg_color="transparent")
+        row_alert_days.pack(fill="x", padx=20, pady=(0, 15))
+        ctk.CTkLabel(row_alert_days, text="Giorni Alert Scadenza:", font=ctk.CTkFont(family="Montserrat", weight="bold"), width=220, anchor="w").pack(side="left")
+        self.ent_alert_days = ctk.CTkEntry(row_alert_days, width=80, font=ctk.CTkFont(family="Montserrat"))
+        self.ent_alert_days.insert(0, str(ConfigManager.get_scadenza_alert_giorni()))
+        self.ent_alert_days.pack(side="left", padx=(0, 10))
+        ctk.CTkLabel(row_alert_days, text="(giorni prima della scadenza)", font=ctk.CTkFont(family="Montserrat", size=11), text_color=("#86868B", "#98989D")).pack(side="left")
+
         # --- SEZIONE 4: INTERFACCIA ---
         frame_ui = ctk.CTkFrame(self.scroll_frame, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
         frame_ui.pack(fill="x", pady=10, padx=10)
@@ -91,6 +117,19 @@ class SettingsView(ctk.CTkFrame):
         self.cmb_theme = ctk.CTkOptionMenu(row_theme, values=["Light", "Dark", "System"], command=self.change_theme)
         self.cmb_theme.set(self.config.get("tema", "Light"))
         self.cmb_theme.pack(side="left")
+
+        # Sezione colori personalizzati
+        row_colors = ctk.CTkFrame(frame_ui, fg_color="transparent")
+        row_colors.pack(fill="x", padx=20, pady=(10, 5))
+        ctk.CTkLabel(row_colors, text="Colore Primario:", font=ctk.CTkFont(family="Montserrat", weight="bold"), width=220, anchor="w").pack(side="left")
+        
+        colors = ConfigManager.get_colors()
+        self.ent_primary_color = ctk.CTkEntry(row_colors, width=120, font=ctk.CTkFont(family="Montserrat"))
+        self.ent_primary_color.insert(0, colors.get("primary", "#007AFF"))
+        self.ent_primary_color.pack(side="left", padx=(0, 5))
+        ctk.CTkButton(row_colors, text="🎨 Scegli", width=80, command=self.choose_primary_color, 
+                     fg_color=("#E5E5EA", "#3A3A3C"), text_color=("#1D1D1F", "#FFFFFF"),
+                     hover_color=("#D1D1D6", "#5C5C5E")).pack(side="left")
 
         self.chk_show_cost = ctk.CTkCheckBox(frame_ui, text="Mostra colonna 'Costo' nella tabella Tariffe", font=ctk.CTkFont(family="Montserrat"))
         if self.config.get("mostra_costo_fasce", False): self.chk_show_cost.select()
@@ -242,6 +281,15 @@ class SettingsView(ctk.CTkFrame):
     def change_theme(self, choice):
         ctk.set_appearance_mode(choice)
 
+    def choose_primary_color(self):
+        """Apre il selettore colore per scegliere il colore primario."""
+        from tkinter import colorchooser
+        current_color = self.ent_primary_color.get()
+        color = colorchooser.askcolor(color=current_color, title="Scegli Colore Primario")
+        if color[1]:  # Se l'utente ha selezionato un colore
+            self.ent_primary_color.delete(0, 'end')
+            self.ent_primary_color.insert(0, color[1])
+
     def save_settings(self):
         config_dict = {
             "nome_palestra": self.ent_name.get().strip(),
@@ -254,7 +302,11 @@ class SettingsView(ctk.CTkFrame):
             "blocco_cert": self.chk_cert.get() == 1,
             "tema": self.cmb_theme.get(),
             "mostra_costo_fasce": self.chk_show_cost.get() == 1,
-            "mostra_eta_fasce": self.chk_show_age.get() == 1
+            "mostra_eta_fasce": self.chk_show_age.get() == 1,
+            # Nuovi campi configurabili
+            "badge_prefix": self.ent_badge_prefix.get().strip(),
+            "scadenza_alert_giorni": int(self.ent_alert_days.get()) if self.ent_alert_days.get().isdigit() else 2,
+            "colors": {"primary": self.ent_primary_color.get().strip()}
         }
         try:
             ConfigManager.save_all(config_dict)
