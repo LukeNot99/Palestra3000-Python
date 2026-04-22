@@ -1,64 +1,50 @@
-# --- Python ---
+```
+# Python
 __pycache__/
-*.py[cod]
-*$py.class
-*.so
+*.pyc
+*.pyo
+*.pyd
 .Python
 env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# --- Ambienti Virtuali ---
 venv/
 .venv/
-ENV/
-env.bak/
-venv.bak/
-
-# --- Database e Dati Locali ---
-# Ignora il database SQLite principale e quelli di test
-*.db
-*.sqlite3
-# Ignora la cartella data che contiene database e config.json locale
-data/
-# Ignora le ricevute generate per evitare di caricarle su GitHub
-Ricevute/
-
-# --- Configurazioni Locali ---
-config.json
+.ENV
+.ENV.local
 .env
+.env.local
+.env.*
+*.env.*
 
-# --- PyInstaller ---
-# Ignora le cartelle di build create durante la generazione dell'eseguibile
-build/
-dist/
-*.manifest
-*.spec
+# Database
+*.db
+*.sqlite
+*.sqlite3
 
-# --- IDE / Editor ---
+# Logs
+*.log
+
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-.project
-.pydevproject
-.settings/
+*.tmp
 
-# --- Test ---
-.pytest_cache/
+# Coverage
 .coverage
+coverage/
 htmlcov/
+
+# Alembic
+alembic/versions/*.py
+
+# Dependencies
+*.egg-info/
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# OS
+.DS_Store
+Thumbs.db
+```
