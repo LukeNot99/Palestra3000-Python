@@ -10,6 +10,10 @@ venv/
 .venv/
 .ENV
 .ENV.local
+.env
+.env.local
+.env.*
+*.env.*
 
 # Database
 *.db
@@ -24,4 +28,56 @@ venv/
 htmlcov/
 .coverage.*
 .coverage.xml
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+
+# Coverage
+.coverage
+coverage/
+htmlcov/
+
+# Alembic
+alembic/versions/*.py
+
+# Dependencies
+*.egg-info/
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# OS
+.DS_Store
+Thumbs.db
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+.mypy_cache/
+
+# Database
+*.db
+*.db-journal
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Alembic
+alembic/versions/*.py
 ```
