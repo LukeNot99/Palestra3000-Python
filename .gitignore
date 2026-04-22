@@ -4,6 +4,16 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.Python
+env/
+venv/
+.venv/
+.ENV
+.ENV.local
+.env
+.env.local
+.env.*
+*.env.*
 
 # Dependencies
 .venv/
@@ -23,6 +33,15 @@ dist/
 .env
 .env.local
 *.env.*
+# Coverage
+.coverage
+coverage/
+htmlcov/
+.coverage.*
+.coverage.xml
+
+# Logs
+*.log
 
 # Editors
 .vscode/
@@ -30,6 +49,10 @@ dist/
 *.swp
 *.swo
 
+# Build artifacts
+dist/
+build/
+*.egg-info/
 # Coverage
 .coverage
 coverage/
@@ -38,4 +61,40 @@ htmlcov/
 # Testing
 .pytest_cache/
 .mypy_cache/
+# Alembic
+alembic/versions/*.py
+
+# Dependencies
+*.egg-info/
+.eggs/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# OS
+.DS_Store
+Thumbs.db
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.pytest_cache/
+.mypy_cache/
+
+# Database
+*.db
+*.db-journal
+
+# Environment
+.env
+.env.local
+.env.*
+
+# Alembic
+alembic/versions/*.py
 ```
