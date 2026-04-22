@@ -1,9 +1,9 @@
 import os
 import sys
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from src.pkg.models.models import Base, Tier
+from src.pkg.models import Base, Tier
 
 class DatabaseConfig:
     def __init__(self):
@@ -19,8 +19,9 @@ class DatabaseConfig:
         self.engine = create_engine(f"sqlite:///{self.db_path}", connect_args={"check_same_thread": False})
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
 
+        # Creazione tabelle basata sui modelli SQLAlchemy
+        # Le migrazioni sono gestite da Alembic (vedi cartella alembic/)
         Base.metadata.create_all(bind=self.engine)
-        self._run_migrations()
 
     def get_session(self):
         return self.SessionLocal()
@@ -28,24 +29,6 @@ class DatabaseConfig:
     def close_all_sessions(self):
         """Chiude tutte le connessioni al database."""
         self.engine.dispose()
-
-    def _run_migrations(self):
-        # --- MIGRAZIONI AUTOMATICHE (AGGIORNA I VECCHI DATABASE) ---
-        migrations = [
-            "ALTER TABLE members ADD COLUMN enrollment_expiration VARCHAR",
-            "ALTER TABLE members ADD COLUMN other_contact VARCHAR",
-            "ALTER TABLE members ADD COLUMN membership_start VARCHAR",
-            "ALTER TABLE tiers ADD COLUMN duration_months INTEGER DEFAULT 1",
-            "ALTER TABLE members ADD COLUMN codice_fiscale VARCHAR"
-        ]
-        
-        for migration in migrations:
-            try:
-                with self.engine.connect() as conn:
-                    conn.execute(text(migration))
-                    conn.commit()
-            except Exception:
-                pass
 
 
 def seed_data(session_factory):
