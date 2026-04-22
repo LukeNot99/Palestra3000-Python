@@ -70,12 +70,14 @@ class DependencyContainer:
     # --- Service Getters ---
     def get_reader_hardware(self):
         porta_lettore = ConfigManager.get_setting("porta_lettore", "Nessun hardware")
-        return SerialBadgeReader(porta_lettore)
+            
+        return SerialBadgeReader(str(porta_lettore))
 
     def get_access_manager(self, ui_callbacks) -> AccessManager:
         # Hardware Setup
         porta_rele = ConfigManager.get_setting("porta_rele", "Nessun hardware")
-        turnstile = USBRelayTurnstile(porta_rele)
+        
+        turnstile = USBRelayTurnstile(str(porta_rele))
         
         # Determine Base Path for Audio 
         if getattr(sys, 'frozen', False):

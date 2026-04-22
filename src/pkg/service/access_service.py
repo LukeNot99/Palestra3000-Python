@@ -8,7 +8,7 @@ from src.pkg.service.hardware_service import ITurnstileHardware
 
 class IAccessRule(ABC):
     @abstractmethod
-    def check(self, member_dict: dict, settings: dict) -> tuple[bool, str, str]:
+    def check(self, member: dict, settings: dict) -> tuple[bool, str, str]:
         pass
 
 class MedicalCertificateRule(IAccessRule):
@@ -43,12 +43,22 @@ class TimeRule(IAccessRule):
         if not member.get("tier_name"): return False, "Nessuna fascia assegnata.", "HeyOp.wav"
         try:
             now = datetime.now()
-            start_t = datetime.strptime(member.get("tier_start_time")[:5], "%H:%M").time()
-            end_t = datetime.strptime(member.get("tier_end_time")[:5], "%H:%M").time()
+
+            start_time = member.get("tier_start_time")
+            start_t = datetime.strptime(start_time[:5], "%H:%M").time() if start_time else None
+
+            end_time = member.get("tier_end_time")
+            end_t = datetime.strptime(end_time[:5], "%H:%M").time() if end_time else None
+            
             current_t = now.time()
             
-            if start_t <= end_t: in_time = start_t <= current_t <= end_t
-            else: in_time = current_t >= start_t or current_t <= end_t
+            if start_t is None or end_t is None or current_t is None:
+                in_time = False  # oppure gestisci diversamente
+            else:
+                if start_t <= end_t:
+                    in_time = start_t <= current_t <= end_t
+                else:
+                    in_time = current_t >= start_t or current_t <= end_t
                 
             if not in_time: return False, "Fuori orario consentito!", "FuoriOrario.wav"
         except ValueError: pass
@@ -82,7 +92,7 @@ class AccessManager:
     def register_rule(self, rule: IAccessRule):
         self.rules.append(rule)
 
-    def process_badge(self, badge_str: str, settings: dict):
+    def process_badge(self, badge_str: str, settings: dict, gym_prefix: str):
         curr_time = time.time()
         if badge_str == self.last_badge and (curr_time - self.last_time) < 2.0: return
         self.last_badge = badge_str; self.last_time = curr_time
@@ -91,7 +101,6 @@ class AccessManager:
             self.day_tracker = datetime.now().date()
             self.members_in_facility.clear()
 
-        gym_prefix = "57340000000"
         search_code = None
         time_str = datetime.now().strftime("%H:%M:%S")
 

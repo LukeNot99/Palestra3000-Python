@@ -4,8 +4,8 @@ from .base import Base
 
 class Booking(Base):
     __tablename__ = "bookings"
+    member = relationship("Member")
+    lesson = relationship("Lesson")
     id = Column(Integer, primary_key=True, index=True)
     member_id = Column(Integer, ForeignKey("members.id"))
     lesson_id = Column(Integer, ForeignKey("lessons.id"))
-    member = relationship("Member")
-    lesson = relationship("Lesson")

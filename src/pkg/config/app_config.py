@@ -88,7 +88,7 @@ class ConfigManager:
         }
         colors = ConfigManager.get_setting("colors", {})
         # Merge con defaults se mancano chiavi
-        return {**default_colors, **colors}
+        return {**default_colors, **colors} #type: ignore
 
     @staticmethod
     def set_colors(colors_dict):

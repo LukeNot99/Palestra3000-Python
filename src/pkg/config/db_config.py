@@ -7,10 +7,7 @@ from src.pkg.models import Base, Tier
 
 class DatabaseConfig:
     def __init__(self):
-        if getattr(sys, 'frozen', False):
-            base_dir = os.path.dirname(sys.executable)
-        else:
-            base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
             
         data_dir = os.path.join(base_dir, "data")
         os.makedirs(data_dir, exist_ok=True)
@@ -19,16 +16,10 @@ class DatabaseConfig:
         self.engine = create_engine(f"sqlite:///{self.db_path}", connect_args={"check_same_thread": False})
         self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
 
-        # Creazione tabelle basata sui modelli SQLAlchemy
-        # Le migrazioni sono gestite da Alembic (vedi cartella alembic/)
         Base.metadata.create_all(bind=self.engine)
 
     def get_session(self):
         return self.SessionLocal()
-
-    def close_all_sessions(self):
-        """Chiude tutte le connessioni al database."""
-        self.engine.dispose()
 
 
 def seed_data(session_factory):
