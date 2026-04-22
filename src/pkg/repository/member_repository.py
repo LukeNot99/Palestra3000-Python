@@ -1,20 +1,9 @@
-from contextlib import contextmanager
 from sqlalchemy import func
-from src.pkg.models.models import Member, Tier
+from src.pkg.models import Member, Tier
 from src.pkg.utility.utils import parse_date
+from src.pkg.repository.base_repository import BaseRepository
 
-class MemberRepository:
-    def __init__(self, session_factory):
-        self.session_factory = session_factory
-    
-    @contextmanager
-    def _get_session(self):
-        """Context manager per gestire automaticamente apertura/chiusura sessioni DB."""
-        db = self.session_factory()
-        try:
-            yield db
-        finally:
-            db.close()
+class MemberRepository(BaseRepository):
 
     def get_unique_cities_and_birthplaces(self):
         with self._get_session() as db:
