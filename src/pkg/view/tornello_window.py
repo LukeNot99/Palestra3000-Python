@@ -129,8 +129,9 @@ class TurnstileView(ctk.CTkFrame):
             self.txt_log.insert("end", message + "\n")
         else:
             if member_id:
-                self.txt_log.insert("end", message + "\n", tag_name, f"member_{member_id}")
-                self.txt_log.tag_bind(f"member_{member_id}", "<Double-Button-1>", lambda e: self.open_member_from_log(member_id))
+                # Correzione: i tag multipli devono essere raggruppati in una tupla con "tags=(...)"
+                self.txt_log.insert("end", message + "\n", tags=(tag_name, f"member_{member_id}"))
+                self.txt_log.tag_bind(f"member_{member_id}", "<Double-Button-1>", lambda e, m_id=member_id: self.open_member_from_log(m_id))
             else:
                 self.txt_log.insert("end", message + "\n", tag_name)
             
