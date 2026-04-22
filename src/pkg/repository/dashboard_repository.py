@@ -3,6 +3,7 @@ from src.pkg.models import Member, Lesson
 from src.pkg.utility.utils import parse_date
 from src.pkg.repository.lesson_repository import LessonRepository
 from src.pkg.repository.base_repository import BaseRepository
+from src.pkg.config.app_config import ConfigManager
 
 class DashboardRepository(BaseRepository):
     def __init__(self, session_factory, lesson_repository: LessonRepository):
@@ -15,9 +16,11 @@ class DashboardRepository(BaseRepository):
             now_str = now_dt.strftime("%Y-%m-%d")
             
             date_today = now_dt.date()
-            date_tomorrow = date_today + timedelta(days=1)
-            date_after = date_today + timedelta(days=2)
-            target_dates = [date_today, date_tomorrow, date_after]
+            # Recupera giorni alert dalla configurazione (default 2)
+            giorni_alert = ConfigManager.get_scadenza_alert_giorni()
+            
+            # Genera lista date dinamicamente in base ai giorni configurati
+            target_dates = [date_today + timedelta(days=i) for i in range(giorni_alert + 1)]
             
             all_members = db.query(Member).all()
             active_members_count = 0
@@ -48,5 +51,5 @@ class DashboardRepository(BaseRepository):
                 "lessons_today": lessons_today,
                 "expiring_list": expiring_list,
                 "date_today": date_today,
-                "date_tomorrow": date_tomorrow
+                "date_tomorrow": date_today + timedelta(days=1)
             }
