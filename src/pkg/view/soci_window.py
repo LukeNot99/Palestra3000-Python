@@ -44,7 +44,7 @@ class MemberFormWindow(ctk.CTkToplevel):
         ctk.CTkLabel(frame_left, text="👤 Dati Personali", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(pady=(15, 15))
 
         ctk.CTkLabel(frame_left, text="Numero Scheda:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)
-        self.ent_badge = ctk.CTkEntry(frame_left, placeholder_text="Es. 000123")
+        self.ent_badge = ctk.CTkEntry(frame_left, placeholder_text="Es. 4123")
         self.ent_badge.pack(pady=(0, 10), padx=20, fill="x")
 
         ctk.CTkLabel(frame_left, text="Nome:", font=ctk.CTkFont(family="Montserrat"), text_color=("#1D1D1F", "#FFFFFF")).pack(anchor="w", padx=20)

@@ -1,18 +1,18 @@
 {
-    "nome_palestra": "Palestra 3000",
-    "percorso_logo": "",
+    "nome_palestra": "Five Foot S.r.l.",
+    "percorso_logo": "C:/Users/GIGABYTE/Downloads/logonavbar-removebg-preview-CcZTPwgx.png",
     "porta_lettore": "Nessun hardware",
     "porta_rele": "Nessun hardware",
     "blocco_iscr": true,
     "blocco_abb": true,
     "blocco_orari": true,
     "blocco_cert": false,
-    "tema": "Light",
-    "mostra_costo_fasce": false,
+    "tema": "Dark",
+    "mostra_costo_fasce": true,
     "mostra_eta_fasce": false,
     "badge_prefix": "57340000000",
     "scadenza_alert_giorni": 7,
     "colors": {
-        "primary": "#007AFF"
+        "primary": "#ba181b"
     }
 }

@@ -14,7 +14,7 @@ class ConfigManager:
             if getattr(sys, 'frozen', False):
                 base_dir = os.path.dirname(sys.executable)
             else:
-                base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+                base_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))) #type: ignore
             ConfigManager._path_cache = os.path.join(base_dir, "data", filename)
         return ConfigManager._path_cache
     
