@@ -29,7 +29,7 @@ def main():
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = SessionLocal()
 
-    # 1. MIGRAZIONE ATTIVITÀ
+    # 1. MIGRAZIONE ATTIVITa
     print("Migrazione Attività in corso...")
     cursor.execute('SELECT "ID Attivita", "Descrizione" FROM "Attività"')
     attivita_rows = cursor.fetchall()
