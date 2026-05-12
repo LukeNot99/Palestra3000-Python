@@ -1,13 +1,18 @@
 [build-system]
-requires = ["setuptools>=82.0.1"]
+requires = ["setuptools>=82.0.1", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "palestra3000-python"
 version = "0.1.0"
-description = "Add your description here"
+description = "Gestionale Palestra 3000"
 readme = "README.md"
-requires-python = ">=3.14.4"
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
 dependencies = [
     "alembic>=1.18.4",
     "altgraph==0.17.5",
@@ -32,12 +37,19 @@ dependencies = [
 ]
 
 [project.scripts]
-main = "main:bootstrap"
+palestra3000 = "main:bootstrap"
 
 [tool.setuptools]
+# Include il file main.py nella root
 py-modules = ["main"]
 
 [tool.setuptools.packages.find]
+# Cerca i pacchetti nella root e dentro src se necessario
 where = ["."]
 include = ["src*"]
 namespaces = true
+
+[tool.pytest.ini_options]
+# Configura pytest per trovare i moduli correttamente
+pythonpath = ["."]
+testpaths = ["tests"]
