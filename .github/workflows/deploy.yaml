@@ -1,40 +1,78 @@
-name: Deploy
+name: Build and Release
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-env:
-  # Risolve il warning relativo alla deprecazione di Node.js 20
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    tags:
+      - 'v*'
+  workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: windows-latest
+  test:
+    runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        # Usa una versione stabile (3.11 o 3.12) per evitare problemi di incompatibilità
-        # pacchetti o Pyinstaller in ambiente Windows
-        python-version: '3.11' 
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        
-    - name: Build application with PyInstaller
-      run: |
-        # Usare "python -m PyInstaller" su Windows è più sicuro
-        python -m PyInstaller Palestra3000.spec
-        
-    - name: Upload artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: Palestra3000-executable
-        path: dist/
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run tests
+        run: |
+          pytest tests/ -v
+
+  build-windows:
+    needs: test
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Build EXE with PyInstaller
+        run: |
+          pyinstaller Palestra3000.spec
+
+      - name: Upload EXE artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Palestra3000-exe
+          path: dist/Palestra3000.exe
+          retention-days: 7
+
+  release:
+    needs: build-windows
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download EXE artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: Palestra3000-exe
+          path: ./dist
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./dist/Palestra3000.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
