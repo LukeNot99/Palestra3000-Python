@@ -1,0 +1,217 @@
+import customtkinter as ctk
+from tkinter import messagebox
+from datetime import datetime, timedelta
+from src.pkg.utility.utils import parse_date
+
+class LessonsView(ctk.CTkFrame):
+    def __init__(self, parent, app):
+        super().__init__(parent, fg_color="transparent")
+        self.app = app
+        self.lesson_repository = self.app.di.get_lesson_repository()
+        self.activity_repository = self.app.di.get_activity_repository()
+        
+        self.row_frames = {}
+        self.selected_lesson_ids = set()
+        self.font_row = ctk.CTkFont(family="Montserrat", size=13)
+
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(1, weight=1)
+
+        left_frame = ctk.CTkFrame(self, width=240, fg_color=("#FFFFFF", "#2C2C2E"), corner_radius=12, border_width=1, border_color=("#E5E5EA", "#3A3A3C"))
+        left_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 20))
+        
+        ctk.CTkLabel(left_frame, text="📅 Periodo Generazione", font=ctk.CTkFont(family="Montserrat", size=16, weight="bold")).pack(pady=(20, 5))
+        
+        self.ent_start_date = ctk.CTkEntry(left_frame, placeholder_text="Dal: GG/MM/AAAA", justify="center")
+        self.ent_start_date.pack(pady=5, padx=20, fill="x")
+        self.ent_start_date.insert(0, datetime.now().strftime("%d/%m/%Y")) 
+        
+        self.ent_end_date = ctk.CTkEntry(left_frame, placeholder_text="Al: GG/MM/AAAA", justify="center")
+        self.ent_end_date.pack(pady=5, padx=20, fill="x")
+        futuro = datetime.now() + timedelta(days=30)
+        self.ent_end_date.insert(0, futuro.strftime("%d/%m/%Y"))
+
+        ctk.CTkLabel(left_frame, text="Giorni della Settimana:", font=ctk.CTkFont(family="Montserrat", weight="bold")).pack(pady=(15, 5))
+        self.days_vars = {i: ctk.IntVar() for i in range(7)}
+        for i, nome in enumerate(["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]):
+            ctk.CTkCheckBox(left_frame, text=nome, variable=self.days_vars[i], font=ctk.CTkFont(family="Montserrat")).pack(anchor="w", padx=30, pady=3)
+
+        ctk.CTkLabel(left_frame, text="Inizio (19:00):", font=ctk.CTkFont(family="Montserrat", weight="bold")).pack(pady=(15, 0))
+        self.ent_start_time = ctk.CTkEntry(left_frame, justify="center"); self.ent_start_time.pack(pady=5, padx=20, fill="x")
+        
+        ctk.CTkLabel(left_frame, text="Fine (20:00):", font=ctk.CTkFont(family="Montserrat", weight="bold")).pack(pady=(5, 0))
+        self.ent_end_time = ctk.CTkEntry(left_frame, justify="center"); self.ent_end_time.pack(pady=5, padx=20, fill="x")
+        
+        ctk.CTkLabel(left_frame, text="Posti:", font=ctk.CTkFont(family="Montserrat", weight="bold")).pack(pady=(5, 0))
+        self.ent_seats = ctk.CTkEntry(left_frame, justify="center"); self.ent_seats.insert(0, "60"); self.ent_seats.pack(pady=5, padx=20, fill="x")
+
+        ctk.CTkButton(left_frame, text="⚡ Genera Periodo", width=160, height=38, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#34C759", hover_color="#2eb350", command=self.generate_lessons).pack(pady=20)
+
+        right_frame = ctk.CTkFrame(self, fg_color="transparent")
+        right_frame.grid(row=0, column=1, sticky="nsew")
+        right_frame.grid_rowconfigure(1, weight=1)
+        right_frame.grid_columnconfigure(0, weight=1)
+
+        top_right = ctk.CTkFrame(right_frame, fg_color="transparent")
+        top_right.grid(row=0, column=0, sticky="ew", pady=(0, 15))
+        
+        ctk.CTkLabel(top_right, text="Attività:", font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=(0, 5))
+        
+        activities = self.activity_repository.get_all()
+        act_names = [a["name"] for a in activities] if activities else ["Nessuna attività registrata"]
+        
+        self.cmb_activity = ctk.CTkOptionMenu(top_right, values=act_names, font=ctk.CTkFont(family="Montserrat", size=14), width=180, fg_color="#007AFF", command=self.load_table)
+        self.cmb_activity.pack(side="left", padx=(0, 20))
+
+        ctk.CTkLabel(top_right, text="Mostra:", font=ctk.CTkFont(family="Montserrat", size=14, weight="bold"), text_color=("#1D1D1F", "#FFFFFF")).pack(side="left", padx=(0, 5))
+        
+        mesi_str = [f"{i:02d}" for i in range(1, 13)]
+        anno_oggi = datetime.now().year
+        anni_str = [str(anno_oggi - 1), str(anno_oggi), str(anno_oggi + 1), str(anno_oggi + 2)]
+
+        self.cmb_filter_month = ctk.CTkOptionMenu(top_right, values=mesi_str, width=70, font=ctk.CTkFont(family="Montserrat", size=14), command=self.load_table)
+        self.cmb_filter_month.set(f"{datetime.now().month:02d}")
+        self.cmb_filter_month.pack(side="left", padx=(0, 5))
+
+        self.cmb_filter_year = ctk.CTkOptionMenu(top_right, values=anni_str, width=80, font=ctk.CTkFont(family="Montserrat", size=14), command=self.load_table)
+        self.cmb_filter_year.set(str(anno_oggi))
+        self.cmb_filter_year.pack(side="left")
+
+        self.table_container = ctk.CTkFrame(right_frame, fg_color="transparent")
+        self.table_container.grid(row=1, column=0, sticky="nsew")
+        
+        self.cols = [
+            ("data", "Data", 2, "w"), 
+            ("giorno", "Giorno", 2, "w"), 
+            ("orario", "Orario", 3, "center"), 
+            ("posti", "Posti Totali", 1, "center")
+        ]
+        
+        header_tab = ctk.CTkFrame(self.table_container, fg_color=("#E5E5EA", "#3A3A3C"), height=35, corner_radius=6)
+        header_tab.pack(fill="x", pady=(0, 5))
+        for i, col in enumerate(self.cols):
+            header_tab.grid_columnconfigure(i, weight=col[2], uniform="colonna")
+            ctk.CTkLabel(header_tab, text=col[1], font=ctk.CTkFont(family="Montserrat", size=12, weight="bold"), anchor=col[3]).grid(row=0, column=i, padx=10, pady=5, sticky="ew")
+
+        self.scroll_table = ctk.CTkScrollableFrame(self.table_container, fg_color="transparent")
+        self.scroll_table.pack(fill="both", expand=True)
+
+        ctk.CTkLabel(right_frame, text="💡 Suggerimento: Tieni premuto 'Ctrl' (Windows) o 'Cmd' (Mac) per selezionare più lezioni.", font=ctk.CTkFont(family="Montserrat", size=12, slant="italic"), text_color=("#86868B", "#98989D")).grid(row=2, column=0, pady=(15, 0), sticky="w")
+        ctk.CTkButton(right_frame, text="🗑️ Elimina Selezionate", width=200, height=38, font=ctk.CTkFont(family="Montserrat", weight="bold"), fg_color="#FF3B30", hover_color="#c0392b", command=self.delete_lesson).grid(row=2, column=0, pady=(15, 0), sticky="e")
+
+        self.load_table()
+
+    def select_row(self, l_id, multi=False):
+        if multi:
+            if l_id in self.selected_lesson_ids: self.selected_lesson_ids.remove(l_id)
+            else: self.selected_lesson_ids.add(l_id)
+        else:
+            self.selected_lesson_ids = {l_id}
+            
+        for r_id, f in self.row_frames.items():
+            if f.winfo_exists():
+                if r_id in self.selected_lesson_ids:
+                    f.configure(fg_color=("#E5F1FF", "#0A2A4A"), border_color="#007AFF")
+                else:
+                    f.configure(fg_color=("#FFFFFF", "#2C2C2E"), border_color=("#E5E5EA", "#3A3A3C"))
+
+    def create_table_row(self, l_data):
+        f = ctk.CTkFrame(self.scroll_table, fg_color=("#FFFFFF", "#2C2C2E"), height=45, corner_radius=8, border_width=1, border_color=("#E5E5EA", "#3A3A3C"), cursor="hand2")
+        f.pack(fill="x", pady=2); f.pack_propagate(False)
+        
+        valori = [l_data["data"], l_data["giorno"], l_data["orario"], l_data["posti"]]
+        elems = [f]
+        for i, val in enumerate(valori):
+            f.grid_columnconfigure(i, weight=self.cols[i][2], uniform="colonna")
+            lbl = ctk.CTkLabel(f, text=val, font=self.font_row, anchor=self.cols[i][3])
+            lbl.grid(row=0, column=i, padx=10, pady=10, sticky="ew")
+            elems.append(lbl)
+            
+        l_id = l_data["id"]
+        for w in elems:
+            w.bind("<Button-1>", lambda e, lid=l_id: self.select_row(lid, multi=False))
+            w.bind("<Control-Button-1>", lambda e, lid=l_id: self.select_row(lid, multi=True)) 
+            w.bind("<Command-Button-1>", lambda e, lid=l_id: self.select_row(lid, multi=True)) 
+            w.bind("<Enter>", lambda e, fr=f, lid=l_id: fr.configure(fg_color=("#F8F8F9", "#3A3A3C")) if fr.winfo_exists() and lid not in self.selected_lesson_ids else None)
+            w.bind("<Leave>", lambda e, fr=f, lid=l_id: fr.configure(fg_color=("#FFFFFF", "#2C2C2E")) if fr.winfo_exists() and lid not in self.selected_lesson_ids else None)
+        
+        self.row_frames[l_id] = f
+
+    def load_table(self, *args):
+        for w in self.scroll_table.winfo_children(): w.destroy()
+        self.row_frames.clear()
+        self.selected_lesson_ids.clear() 
+
+        activities = self.activity_repository.get_all()
+        act_names = [a["name"] for a in activities] if activities else ["Nessuna attività registrata"]
+        
+        self.cmb_activity.configure(values=act_names)
+        if self.cmb_activity.get() not in act_names:
+            self.cmb_activity.set(act_names[0])
+        
+        nome_att = self.cmb_activity.get()
+        if nome_att == "Nessuna attività registrata": return
+
+        att_data = self.activity_repository.get_by_name(nome_att)
+        if att_data:
+            mese = int(self.cmb_filter_month.get())
+            anno = int(self.cmb_filter_year.get())
+            lez_data = self.lesson_repository.get_by_month_and_activity(att_data["id"], anno, mese)
+            for l_d in lez_data:
+                self.create_table_row(l_d)
+
+    def generate_lessons(self):
+        nome_att = self.cmb_activity.get()
+        if nome_att == "Nessuna attività registrata":
+            return messagebox.showwarning("Attenzione", "Devi prima creare almeno un'attività nella sezione 'Gestione Attività'!")
+
+        ini = self.ent_start_time.get().strip()
+        fin = self.ent_end_time.get().strip()
+        p = self.ent_seats.get().strip()
+        
+        if not ini or not fin or not p.isdigit(): 
+            return messagebox.showwarning("Errore", "Verifica che i posti siano un numero valido e che gli orari non siano vuoti.")
+        if int(p) <= 0:
+            return messagebox.showwarning("Errore Logico", "Il numero di posti deve essere maggiore di zero.")
+            
+        try:
+            ora_ini_dt = datetime.strptime(ini, "%H:%M")
+            ora_fin_dt = datetime.strptime(fin, "%H:%M")
+            if ora_ini_dt >= ora_fin_dt: return messagebox.showwarning("Errore Logico", "L'orario di fine lezione deve essere successivo all'orario di inizio.")
+        except ValueError: return messagebox.showwarning("Errore Orario", "Inserisci orari validi nel formato HH:MM (es. 19:00 o 08:30).")
+            
+        d_inizio = parse_date(self.ent_start_date.get())
+        d_fine = parse_date(self.ent_end_date.get())
+
+        if not d_inizio or not d_fine:
+            return messagebox.showwarning("Errore Data", "Le date inserite non sono valide (Usa formato GG/MM/AAAA).")
+        
+        d_inizio = d_inizio.date()
+        d_fine = d_fine.date()
+        
+        if d_inizio > d_fine: 
+            return messagebox.showwarning("Errore Logico", "La data 'Dal' non può essere successiva alla data 'Al'.")
+
+        g_scelti = [i for i in range(7) if self.days_vars[i].get() == 1]
+        if not g_scelti: return messagebox.showwarning("Errore", "Spunta almeno un giorno della settimana.")
+
+        att_data = self.activity_repository.get_by_name(nome_att)
+        if not att_data: return
+        
+        count = self.lesson_repository.generate_batch(att_data["id"], d_inizio, d_fine, ini, fin, int(p), g_scelti)
+        messagebox.showinfo("Completato", f"Pianificazione conclusa.\nSono state generate {count} nuove lezioni!")
+        
+        self.cmb_filter_month.set(f"{d_inizio.month:02d}")
+        self.cmb_filter_year.set(str(d_inizio.year))
+        self.load_table()
+
+    def delete_lesson(self):
+        if not self.selected_lesson_ids: 
+            return messagebox.showwarning("Attenzione", "Seleziona almeno una lezione prima di eliminare.")
+            
+        messaggio = f"Vuoi davvero eliminare le {len(self.selected_lesson_ids)} lezioni selezionate?" if len(self.selected_lesson_ids) > 1 else "Vuoi annullare la lezione selezionata?"
+        
+        if messagebox.askyesno("Conferma", messaggio):
+            self.lesson_repository.delete_multiple(self.selected_lesson_ids)
+            self.selected_lesson_ids.clear()
+            self.load_table()
