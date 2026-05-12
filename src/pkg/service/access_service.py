@@ -107,7 +107,7 @@ class AccessManager:
         search_code = None
         time_str = datetime.now().strftime("%H:%M:%S")
 
-        # Gestione flessibile del badge:
+        # Gestione flessibile del numero tessera:
         # 1. Se il badge completo include il prefisso (es. "573400000001234"), estrai le ultime cifre
         # 2. Se il badge è solo il numero breve (es. "1234"), usalo direttamente
         if badge_str.startswith(gym_prefix):
