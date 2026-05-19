@@ -1,8 +1,11 @@
 Metadata-Version: 2.4
 Name: palestra3000-python
 Version: 0.1.0
-Summary: Add your description here
-Requires-Python: >=3.14.4
+Summary: Gestionale Palestra 3000
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Requires-Python: >=3.14
 Description-Content-Type: text/markdown
 Requires-Dist: alembic>=1.18.4
 Requires-Dist: altgraph==0.17.5
@@ -24,3 +27,6 @@ Requires-Dist: pywin32-ctypes==0.2.3
 Requires-Dist: setuptools==82.0.1
 Requires-Dist: sqlalchemy==2.0.49
 Requires-Dist: typing-extensions==4.15.0
+
+# Palestra3000-Python
+# Palestra3000-Python
